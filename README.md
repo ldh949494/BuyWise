@@ -60,21 +60,32 @@ requirements.txt
 - Reserved multimodal service modules
 - Docker and Compose placeholders for later integration
 
-## Frontend
+## Android App
 
-The migrated Flutter Web frontend lives in:
+The client has been replaced with a native Android app:
 
 ```text
-frontend/gearmind_app
+android-app
 ```
 
-Run it locally with:
+The first Android milestone is implemented with Kotlin, Jetpack Compose, MVVM,
+and Repository-based mock data. It includes:
+
+- Home
+- AI guide
+- Product compare
+- Vision placeholder
+- Product detail
+
+The default backend base URL reserved for emulator integration is:
+
+```text
+http://10.0.2.2:8000
+```
+
+Run it from Android Studio, or from the command line:
 
 ```powershell
-cd frontend/gearmind_app
-flutter pub get
-flutter run -d chrome
+cd android-app
+.\gradlew.bat :app:assembleDebug
 ```
-
-The current frontend keeps its original mock-data fallback, so it can render even
-before the ShopAgent Backend product and agent APIs are implemented.

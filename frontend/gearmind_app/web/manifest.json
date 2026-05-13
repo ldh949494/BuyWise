@@ -1,9 +1,0 @@
-{
-  "name": "GearMind Agent",
-  "short_name": "GearMind",
-  "start_url": ".",
-  "display": "standalone",
-  "background_color": "#F7F8FC",
-  "theme_color": "#4658F6",
-  "description": "电竞外设智能导购 Agent"
-}

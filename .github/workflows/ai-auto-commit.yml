@@ -1,0 +1,91 @@
+name: AI Auto Validate README PR
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "README.md"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  ai-automation:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install base dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install openai pytest
+
+      - name: Run validation
+        run: ./scripts/auto_validate.ps1
+
+      - name: Update README by AI
+        id: readme_ai
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          $output = python scripts/ai_update_readme.py
+          $output | Tee-Object -FilePath readme-ai.log
+          if ($output -contains "README_CHANGED=true") {
+            "changed=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          } else {
+            "changed=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          }
+
+      - name: Create branch and commit README
+        id: commit_branch
+        if: steps.readme_ai.outputs.changed == 'true'
+        run: |
+          $branchName = "ai-auto/$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+          "branch_name=$branchName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git diff --quiet -- README.md
+          if ($LASTEXITCODE -eq 0) {
+            "has_changes=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            exit 0
+          }
+
+          git checkout -b $branchName
+          git add README.md
+          git commit -m "chore(ai): auto update README after validation"
+          git push origin $branchName
+
+          "has_changes=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Create Pull Request
+        if: steps.commit_branch.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr create `
+            --title "chore(ai): auto update README after validation" `
+            --body "自动校验已通过，AI 已根据本次变更同步更新 README.md。请人工 Review 后再合并。" `
+            --base main `
+            --head "${{ steps.commit_branch.outputs.branch_name }}"
