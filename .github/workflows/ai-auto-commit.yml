@@ -5,6 +5,7 @@ on:
   pull_request:
     branches:
       - main
+      - "auto/local-*"
   push:
     branches:
       - main
