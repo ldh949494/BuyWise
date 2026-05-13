@@ -1,0 +1,1 @@
+"""Tencent ASR integration placeholder."""

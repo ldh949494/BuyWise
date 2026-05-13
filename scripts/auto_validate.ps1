@@ -15,7 +15,7 @@ Write-Host "========== Backend Validation =========="
 & $python -m pip install -r requirements.txt pytest
 
 @'
-from app.api.v1.endpoints.health import health_check
+from app.api.v1.health import health_check
 from app.main import app
 
 registered_paths = {route.path for route in app.routes}
@@ -29,8 +29,13 @@ if payload.status != "ok" or payload.service != "shopagent-backend":
 print("Backend smoke check passed.")
 '@ | & $python -
 
+$testFiles = @()
 if (Test-Path -LiteralPath "tests") {
-    pytest -q
+    $testFiles = Get-ChildItem -Path "tests" -Recurse -File -Include "test_*.py", "*_test.py" -ErrorAction SilentlyContinue
+}
+
+if ($testFiles.Count -gt 0) {
+    & $python -m pytest -q
 } else {
     Write-Host "No project tests directory found, smoke check only."
 }

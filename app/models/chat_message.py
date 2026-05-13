@@ -1,0 +1,1 @@
+"""Chat message persistence model."""

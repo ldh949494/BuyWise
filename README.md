@@ -29,19 +29,35 @@ modules for image, speech, upload, vector retrieval, and LLM integration.
 
 ```text
 app/
-  ai/
   api/
+    router.py
     v1/
-      endpoints/
+      health.py
+      chat.py
+      products.py
+      rag.py
+      compare.py
+      upload.py
+      vision.py
+      speech.py
+  ai/
   core/
-  db/
+    config.py
+    database.py
+    logging.py
+    exceptions.py
   integrations/
   models/
   repositories/
   schemas/
+  scripts/
   services/
   utils/
   vectorstore/
+data/
+vector_store/
+  chroma/
+tests/
 scripts/
 Dockerfile
 docker-compose.yml
@@ -89,3 +105,65 @@ Run it from Android Studio, or from the command line:
 cd android-app
 .\gradlew.bat :app:assembleDebug
 ```
+
+## Automation
+
+### Local validation
+
+Run the repository validation script from the project root:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1
+```
+
+The script performs:
+
+- Python dependency installation from `requirements.txt`
+- FastAPI application smoke validation
+- Health route contract validation for `/api/v1/health`
+- `pytest -q` when a project-level `tests/` directory exists
+- Android debug build validation through `.\gradlew.bat :app:assembleDebug`
+
+### GitHub Actions workflow
+
+The automation workflow is defined in:
+
+```text
+.github/workflows/ai-auto-commit.yml
+```
+
+It runs when:
+
+- Code is pushed to `main`
+- The workflow is manually triggered from GitHub Actions
+
+The workflow:
+
+1. Sets up Python 3.11.
+2. Runs `scripts/auto_validate.ps1`.
+3. Collects the current commit diff and executes `scripts/ai_update_readme.py`.
+4. Creates a branch, commit, and pull request only when `README.md` is actually changed.
+
+### GitHub Secrets
+
+Configure these repository secrets when AI-driven README updates are required:
+
+```text
+OPENAI_API_KEY
+OPENAI_BASE_URL
+OPENAI_MODEL
+```
+
+`OPENAI_API_KEY` is required for README generation. The other two variables are optional.
+When `OPENAI_MODEL` is not set, the script uses:
+
+```text
+gpt-4.1-mini
+```
+
+### Failure behavior
+
+- Validation failure stops the workflow.
+- Missing `OPENAI_API_KEY` skips README generation without failing the workflow.
+- AI generation errors skip README generation without failing the workflow.
+- No README content change means no automation branch and no pull request.

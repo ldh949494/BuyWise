@@ -1,0 +1,1 @@
+"""Build product vector index."""

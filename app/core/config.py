@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     sqlalchemy_echo: bool = Field(default=False, alias="SQLALCHEMY_ECHO")
 
     chroma_persist_directory: str = Field(
-        default="./storage/chroma",
+        default="./vector_store/chroma",
         alias="CHROMA_PERSIST_DIRECTORY",
     )
     llm_provider: str = Field(default="mock", alias="LLM_PROVIDER")
