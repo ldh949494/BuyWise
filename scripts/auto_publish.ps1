@@ -1,3 +1,8 @@
+param(
+    [string]$BaseBranch = "main",
+    [string]$CommitMessage = "chore: validate and publish local changes"
+)
+
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
@@ -11,10 +16,21 @@ $excludedPaths = @(
 Write-Host "========== Validate Before Publish =========="
 & powershell.exe -ExecutionPolicy Bypass -File ".\scripts\auto_validate.ps1"
 
-Write-Host "========== Prepare Git Changes =========="
+Write-Host "========== Create Publish Branch =========="
+$timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$publishBranch = "auto/local-$timestamp"
 
+$currentBranch = git branch --show-current
+if (-not $currentBranch) {
+    throw "Unable to detect the current Git branch."
+}
+
+git switch -c $publishBranch
+Write-Host "Created branch '$publishBranch' from '$currentBranch'."
+
+Write-Host "========== Prepare Git Changes =========="
 git add -u
-git add .
+git add -- .
 
 foreach ($path in $excludedPaths) {
     git reset -- $path 2>$null
@@ -30,15 +46,39 @@ Write-Host "Changes staged for publish:"
 $staged | ForEach-Object { Write-Host " - $_" }
 
 Write-Host "========== Commit =========="
-$commitMessage = "chore: validate and publish local changes"
-git commit -m $commitMessage
+git commit -m $CommitMessage
 
 Write-Host "========== Push =========="
-$branch = git branch --show-current
-if (-not $branch) {
-    throw "Unable to detect the current Git branch."
+git push origin $publishBranch
+
+Write-Host "========== Create Pull Request =========="
+$ghAvailable = [bool](Get-Command gh -ErrorAction SilentlyContinue)
+$ghLoggedIn = $false
+
+if ($ghAvailable) {
+    gh auth status *> $null
+    $ghLoggedIn = ($LASTEXITCODE -eq 0)
 }
 
-git push origin $branch
+if ($ghLoggedIn) {
+    gh pr create `
+        --base $BaseBranch `
+        --head $publishBranch `
+        --title $CommitMessage `
+        --body "Local validation passed. This PR was created by scripts/auto_publish.ps1."
+} else {
+    $remoteUrl = git remote get-url origin
+    $repoUrl = $remoteUrl
 
-Write-Host "Publish completed on branch '$branch'."
+    if ($repoUrl -match "^git@github\.com:(.+)\.git$") {
+        $repoUrl = "https://github.com/$($Matches[1])"
+    } elseif ($repoUrl -match "^https://github\.com/(.+)\.git$") {
+        $repoUrl = "https://github.com/$($Matches[1])"
+    }
+
+    Write-Host "GitHub CLI is unavailable or not authenticated."
+    Write-Host "Create the PR manually:"
+    Write-Host "$repoUrl/compare/$BaseBranch...$publishBranch?expand=1"
+}
+
+Write-Host "Publish completed on branch '$publishBranch'."
