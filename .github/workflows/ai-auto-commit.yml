@@ -12,6 +12,10 @@ permissions:
   contents: write
   pull-requests: write
 
+concurrency:
+  group: ai-auto-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   ai-automation:
     if: github.actor != 'github-actions[bot]'
@@ -26,18 +30,64 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Detect changed paths
+        id: changes
+        run: |
+          $androidChanged = $false
+
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $androidChanged = $true
+          } else {
+            $before = "${{ github.event.before }}"
+            $sha = "${{ github.sha }}"
+            if (-not $before -or $before -eq ("0" * 40)) {
+              $changedFiles = git diff-tree --no-commit-id --name-only -r $sha
+            } else {
+              $changedFiles = git diff --name-only "$before..$sha"
+            }
+
+            foreach ($file in $changedFiles) {
+              if (
+                $file -like "android-app/*" -or
+                $file -eq ".github/workflows/ai-auto-commit.yml" -or
+                $file -eq "scripts/auto_validate.ps1"
+              ) {
+                $androidChanged = $true
+                break
+              }
+            }
+          }
+
+          "android_changed=$($androidChanged.ToString().ToLowerInvariant())" |
+            Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
 
-      - name: Install base dependencies
+      - name: Setup Java
+        if: steps.changes.outputs.android_changed == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install openai pytest
+          python -m pip install -r requirements.txt pytest openai
 
       - name: Run validation
-        run: ./scripts/auto_validate.ps1
+        run: |
+          if ("${{ steps.changes.outputs.android_changed }}" -eq "true") {
+            ./scripts/auto_validate.ps1 -SkipDependencyInstall
+          } else {
+            ./scripts/auto_validate.ps1 -SkipDependencyInstall -SkipAndroidBuild
+          }
 
       - name: Update README by AI
         id: readme_ai

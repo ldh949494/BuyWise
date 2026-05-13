@@ -1,3 +1,8 @@
+param(
+    [switch]$SkipDependencyInstall,
+    [switch]$SkipAndroidBuild
+)
+
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
@@ -11,8 +16,12 @@ $python = if (Test-Path -LiteralPath ".\.venv\Scripts\python.exe") {
 
 Write-Host "========== Backend Validation =========="
 
-& $python -m pip install --upgrade pip
-& $python -m pip install -r requirements.txt pytest
+if (-not $SkipDependencyInstall) {
+    & $python -m pip install --upgrade pip
+    & $python -m pip install -r requirements.txt pytest
+} else {
+    Write-Host "Dependency installation skipped."
+}
 
 @'
 from app.api.v1.health import health_check
@@ -42,13 +51,25 @@ if ($testFiles.Count -gt 0) {
 
 Write-Host "========== Android Build Validation =========="
 
+if ($SkipAndroidBuild) {
+    Write-Host "Android build skipped."
+    Write-Host "All checks passed."
+    exit 0
+}
+
 if (-not (Test-Path -LiteralPath "android-app")) {
     throw "android-app directory is missing."
 }
 
 Push-Location "android-app"
 try {
-    .\gradlew.bat :app:assembleDebug
+    $isWindowsPlatform = [System.Environment]::OSVersion.Platform -eq "Win32NT"
+    if ($isWindowsPlatform) {
+        .\gradlew.bat :app:assembleDebug
+    } else {
+        chmod +x ./gradlew
+        ./gradlew :app:assembleDebug
+    }
 } finally {
     Pop-Location
 }
