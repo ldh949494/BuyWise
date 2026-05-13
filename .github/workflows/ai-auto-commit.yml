@@ -5,7 +5,6 @@ on:
   pull_request:
     branches:
       - main
-      - "auto/local-*"
   push:
     branches:
       - main
@@ -104,6 +103,31 @@ jobs:
             ./scripts/auto_validate.ps1 -SkipDependencyInstall -SkipAndroidBuild
           }
 
+      - name: Create Pull Request for auto publish branch
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/auto/local-')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $branchName = "${{ github.ref_name }}"
+          $headName = "${{ github.repository_owner }}:$branchName"
+          $existingPr = gh pr list `
+            --base main `
+            --head $headName `
+            --state open `
+            --json number `
+            --jq ".[0].number"
+
+          if ($existingPr) {
+            Write-Host "Pull request #$existingPr already exists for '$branchName'."
+            exit 0
+          }
+
+          gh pr create `
+            --title "chore: validate and publish local changes" `
+            --body "Automated validation passed. This PR was created by the ai-auto-commit workflow." `
+            --base main `
+            --head $headName
+
       - name: Update README by AI
         id: readme_ai
         if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
@@ -145,7 +169,7 @@ jobs:
 
           "has_changes=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
-      - name: Create Pull Request
+      - name: Create README Pull Request
         if: steps.commit_branch.outputs.has_changes == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
