@@ -1,0 +1,1 @@
+"""ShopAgent Backend application package."""

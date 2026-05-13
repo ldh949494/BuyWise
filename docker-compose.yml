@@ -1,0 +1,30 @@
+services:
+  api:
+    build:
+      context: .
+    container_name: shopagent-backend
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mysql
+    volumes:
+      - .:/app
+
+  mysql:
+    image: mysql:8.4
+    container_name: shopagent-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: shopagent
+      MYSQL_USER: shopagent
+      MYSQL_PASSWORD: shopagent
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:
