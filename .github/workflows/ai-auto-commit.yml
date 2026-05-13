@@ -2,6 +2,9 @@ name: AI Auto Validate README PR
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - main
@@ -37,6 +40,10 @@ jobs:
 
           if ("${{ github.event_name }}" -eq "workflow_dispatch") {
             $androidChanged = $true
+          } elseif ("${{ github.event_name }}" -eq "pull_request") {
+            $baseSha = "${{ github.event.pull_request.base.sha }}"
+            $headSha = "${{ github.event.pull_request.head.sha }}"
+            $changedFiles = git diff --name-only "$baseSha..$headSha"
           } else {
             $before = "${{ github.event.before }}"
             $sha = "${{ github.sha }}"
@@ -45,16 +52,16 @@ jobs:
             } else {
               $changedFiles = git diff --name-only "$before..$sha"
             }
+          }
 
-            foreach ($file in $changedFiles) {
-              if (
-                $file -like "android-app/*" -or
-                $file -eq ".github/workflows/ai-auto-commit.yml" -or
-                $file -eq "scripts/auto_validate.ps1"
-              ) {
-                $androidChanged = $true
-                break
-              }
+          foreach ($file in $changedFiles) {
+            if (
+              $file -like "android-app/*" -or
+              $file -eq ".github/workflows/ai-auto-commit.yml" -or
+              $file -eq "scripts/auto_validate.ps1"
+            ) {
+              $androidChanged = $true
+              break
             }
           }
 
@@ -79,7 +86,10 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt pytest openai
+          python -m pip install -r requirements.txt pytest
+          if ("${{ github.event_name }}" -ne "pull_request") {
+            python -m pip install openai
+          }
 
       - name: Run validation
         run: |
@@ -91,6 +101,7 @@ jobs:
 
       - name: Update README by AI
         id: readme_ai
+        if: github.event_name != 'pull_request'
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
@@ -136,6 +147,6 @@ jobs:
         run: |
           gh pr create `
             --title "chore(ai): auto update README after validation" `
-            --body "自动校验已通过，AI 已根据本次变更同步更新 README.md。请人工 Review 后再合并。" `
+            --body "Automated validation passed. AI updated README.md for review." `
             --base main `
             --head "${{ steps.commit_branch.outputs.branch_name }}"
