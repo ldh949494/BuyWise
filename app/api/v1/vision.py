@@ -1,1 +1,25 @@
 """Vision API endpoints."""
+
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+
+from app.services.vision_service import VisionService
+
+
+class VisionRecognizeRequest(BaseModel):
+    image_url: str
+
+
+router = APIRouter(prefix="/vision")
+
+
+def get_vision_service() -> VisionService:
+    return VisionService()
+
+
+@router.post("/recognize")
+async def recognize_image(
+    request: VisionRecognizeRequest,
+    service: VisionService = Depends(get_vision_service),
+) -> dict:
+    return await service.recognize(request.image_url)
