@@ -82,7 +82,7 @@ python app/scripts/build_vector_index.py
 - **FastAPI 后端服务**：RESTful、分版本 API 接口布局
 - **Agent & LLM 集成**：聊天、产品咨询、比较、推荐等智能问答
 - **RAG 检索增强生成**：产品知识库及向量数据库语义检索（内存型 Chroma 仓储，embedding、search已实现）
-- **产品信息/评论/价格历史管理**：全功能 ORM 支持产品、评论、推荐、价格历史、会话/消息全模型
+- **产品信息/评论/价格历史/推荐管理**：全功能 ORM 支持产品、评论、推荐、价格历史、会话/消息全模型
 - **多模态接口**：图片理解、语音识别（集成腾讯 ASR）、文件上传
 - **健康检查与测试路由**
 - **安卓原生客户端**：Kotlin + Jetpack Compose，MVVM 架构
@@ -90,6 +90,7 @@ python app/scripts/build_vector_index.py
 - **文本构建工具**：`app/utils/text_builder.py` 提供结构化文本生成、用户需求检索表达等
 - **RAG Pipeline**：`app/ai/rag_pipeline.py` 实现产品需求语义检索与动态过滤
 - **意图识别服务**：`app/services/intent_service.py` 支持商品推荐/对比/找平替等场景的意图、分类、预算、场景和偏好抽取
+- **智能推荐服务**：`app/services/recommend_service.py` 根据预算、场景、偏好、销量、库存等多因素商品排序推荐理由
 
 ---
 
@@ -120,6 +121,7 @@ app/
   schemas/                # Pydantic 读写数据结构
   services/               # 业务服务层 (chat、product、recommend、intent等)
     intent_service.py     # 意图检测/需求解析（规则+LLM 提取，全面覆盖主流消费问询）
+    recommend_service.py  # 推荐服务（推荐理由生成、智能商品排名）
   scripts/                # 运维和数据脚本
     create_tables.py      # 数据库表自动创建
     build_vector_index.py # 构建产品向量索引，生成RAG语义检索索引
@@ -210,6 +212,8 @@ cd android-app
   `app/utils/text_builder.py` 协助生成结构化查询文本，用于嵌入、检索和需求分析
 - **意图识别与需求结构化**：  
   `app/services/intent_service.py` 新增规则与轻量 LLM 结合的用户意图/需求要素抽取，准确处理“推荐/对比/平替/价格/参数”等消费问询，提取 product category、场景、预算、偏好字段，支持灰度部署未来 LLM 结构化助手。
+- **推荐服务说明**：
+  - `app/services/recommend_service.py` 提供智能商品推荐排序，综合考虑用户预算、偏好、适用场景、评分、销量和库存，生成多因子排序及推荐理由说明。
 
 ---
 
