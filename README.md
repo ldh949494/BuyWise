@@ -117,6 +117,7 @@ requirements.txt          # Python依赖
 - **自动化工作流**：  
   `.github/workflows/ai-auto-commit.yml`  
   支持 main 分支 push 或手动触发时，自动执行本地校验和基于变更的 AI README 自动维护脚本。只有 README 有真实更新时才会自动提交并创建 PR。
+  - 所有 Pull Request 标题和说明、README 更新 PR 说明，均自动由 AI 按中文模板生成。
 
 ---
 
@@ -163,6 +164,7 @@ cd android-app
 - **AI-Driven README 更新需配置：**
   - 在仓库 Secrets 配置 `GH_TOKEN`（GitHub Actions 自动化令牌）。
   - 自动维护脚本现在基于 GitHub 模型扩展（`gh models`），不再使用 OpenAI 直连变量。
+  - Pull Request 标题与说明、README 更新 PR 说明模板已全面适配简体中文。
 - **RAG/Agent 能力在 `app/ai/agent.py`、`app/ai/rag_pipeline.py` 模块实现。**
 - **多模态相关：**
   - 视觉接口（`vision.py`）、语音 ASR（`speech.py`）和产品图片等接口已预留或初步实现。
