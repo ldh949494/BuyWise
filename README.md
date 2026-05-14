@@ -1,6 +1,6 @@
 # ShopAgent 后端与 Android 客户端
 
-ShopAgent 是一个基于 FastAPI 的多模态（文本、视觉、语音）电商导购 Agent 方案，具备原生 Android 客户端。后端采用分层架构，支持大模型（LLM）、检索增强生成（RAG）、产品数据库、图片和语音分析等模块。
+ShopAgent 是一个基于 FastAPI 的多模态（文本、视觉、语音）电商导购 Agent 解决方案，具备原生 Android 客户端。后端采用分层架构，支持大模型（LLM）、检索增强生成（RAG）、产品数据库、图片和语音分析等模块。
 
 ---
 
@@ -91,6 +91,7 @@ python app/scripts/build_vector_index.py
 - **RAG Pipeline**：`app/ai/rag_pipeline.py` 实现产品需求语义检索与动态过滤
 - **意图识别服务**：`app/services/intent_service.py` 支持商品推荐/对比/找平替等场景的意图、分类、预算、场景和偏好抽取
 - **智能推荐服务**：`app/services/recommend_service.py` 根据预算、场景、偏好、销量、库存等多因素商品排序推荐理由
+- **LLM 智能回复与总结生成**：`app/ai/llm_client.py` 支持 mock/后续替换大模型，实现推荐理由生成、需求澄清、商品对比总结 
 
 ---
 
@@ -99,6 +100,10 @@ python app/scripts/build_vector_index.py
 ```text
 app/
   ai/                     # 智能体基础设施（agent、RAG、LLM、embedding，embedding_client.py 实现embed）
+    llm_client.py         # LLM结构化推荐/对比/澄清理由与问句生成（Mock模式，后续可接大模型API）
+    prompts.py            # LLM Prompt模版
+    agent.py              # 任务式Agent主逻辑
+    rag_pipeline.py       # RAG语义检索与候选集过滤
   api/                    # FastAPI 路由与 API 逻辑
     router.py
     v1/
@@ -214,6 +219,9 @@ cd android-app
   `app/services/intent_service.py` 新增规则与轻量 LLM 结合的用户意图/需求要素抽取，准确处理“推荐/对比/平替/价格/参数”等消费问询，提取 product category、场景、预算、偏好字段，支持灰度部署未来 LLM 结构化助手。
 - **推荐服务说明**：
   - `app/services/recommend_service.py` 提供智能商品推荐排序，综合考虑用户预算、偏好、适用场景、评分、销量和库存，生成多因子排序及推荐理由说明。
+- **LLM 智能输出能力说明：**
+  - `app/ai/llm_client.py` 新增结构化方法，涵盖推荐理由、自然语言澄清追问、商品对比总结生成，辅助 UI 端输出和 Agent 智能交互。  
+  - Prompt 模板集中于 `app/ai/prompts.py`，支持结构化意图抽取、推荐、对比和澄清场景。
 
 ---
 
