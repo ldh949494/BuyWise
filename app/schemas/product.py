@@ -1,1 +1,46 @@
 """Product request and response schemas."""
+
+from datetime import datetime
+from typing import Any
+
+from pydantic import Field
+
+from app.schemas.common import BaseSchema
+
+
+class ProductBase(BaseSchema):
+    name: str | None = None
+    category: str | None = None
+    brand: str | None = None
+    price: float | None = None
+    original_price: float | None = None
+    platform: str | None = None
+    image_url: str | None = None
+    rating: float | None = None
+    sales: int | None = None
+    description: str | None = None
+    specs: dict[str, Any] | list[Any] | None = None
+    tags: list[str] = Field(default_factory=list)
+    suitable_scene: list[str] = Field(default_factory=list)
+    stock: int | None = None
+
+
+class ProductCreate(ProductBase):
+    name: str
+
+
+class ProductUpdate(ProductBase):
+    pass
+
+
+class ProductRead(ProductBase):
+    id: int
+    name: str
+    created_at: datetime | None = None
+
+
+class ProductListResponse(BaseSchema):
+    items: list[ProductRead] = Field(default_factory=list)
+    total: int
+    page: int = 1
+    page_size: int = 20
