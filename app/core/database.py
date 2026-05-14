@@ -15,6 +15,7 @@ engine = create_engine(
     echo=settings.sqlalchemy_echo,
     pool_pre_ping=True,
 )
+
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
