@@ -114,17 +114,18 @@ jobs:
           }
 
           $prompt = @"
-          Write polished GitHub pull request metadata from the provided git changes.
+          请根据下面提供的 git 变更生成专业、简洁、适合代码评审的 GitHub Pull Request 元数据。
           Return only JSON with this exact shape:
           {"title":"...","body":"..."}
 
-          Requirements:
-          - Title must use conventional commit style and be 80 characters or fewer.
-          - Body must be Markdown with these sections: Summary, Changes, Validation.
-          - Mention that automated validation passed in the Validation section.
-          - Do not invent changes that are not supported by the commits or diff.
-          - Keep the body concise and reviewer-friendly.
-          - Return raw JSON only. Do not wrap it in Markdown code fences.
+          要求：
+          - title 和 body 必须全部使用简体中文。
+          - title 必须使用 conventional commit 风格，例如 "feat: 添加商品模型"，且不超过 80 个字符。
+          - body 必须是 Markdown，并固定使用这些中文小节标题：概述、变更内容、验证结果。
+          - 在“验证结果”中说明自动化验证已通过。
+          - 不要编造 commits 或 diff 中没有体现的变更。
+          - 内容保持简洁，方便评审者快速理解。
+          - 只返回原始 JSON。不要使用 Markdown 代码块包裹。
 
           Changed files:
           $changedFiles
@@ -171,6 +172,9 @@ jobs:
             }
 
             $title = $title -replace "(`r`n|`n|`r)", " "
+            if ($title -notmatch "\p{IsCJKUnifiedIdeographs}" -or $body -notmatch "\p{IsCJKUnifiedIdeographs}") {
+              throw "Model response did not include Chinese PR metadata."
+            }
             $title | Out-File -FilePath pr-title.txt -Encoding utf8 -NoNewline
             $body | Out-File -FilePath pr-body.md -Encoding utf8
             Write-Host "Saved AI-generated PR title and body."
@@ -186,8 +190,17 @@ jobs:
         run: |
           $branchName = "${{ github.ref_name }}"
           $headName = "${{ github.repository_owner }}:$branchName"
-          $title = "chore: validate and publish local changes"
-          $body = "Automated validation passed. This PR was created by the ai-auto-commit workflow."
+          $title = "chore: 验证并发布本地变更"
+          $body = @"
+          ## 概述
+          本 PR 由 ai-auto-commit workflow 自动创建，用于提交已通过验证的本地变更。
+
+          ## 变更内容
+          - 发布当前自动化分支中的代码变更。
+
+          ## 验证结果
+          - 自动化验证已通过。
+          "@
 
           if (Test-Path pr-title.txt) {
             $generatedTitle = (Get-Content pr-title.txt -Raw).Trim()
@@ -303,17 +316,18 @@ jobs:
           }
 
           $prompt = @"
-          Write polished GitHub pull request metadata from the provided README update.
+          请根据下面提供的 README 更新生成专业、简洁、适合代码评审的 GitHub Pull Request 元数据。
           Return only JSON with this exact shape:
           {"title":"...","body":"..."}
 
-          Requirements:
-          - Title must use conventional commit style and be 80 characters or fewer.
-          - Body must be Markdown with these sections: Summary, Changes, Review Notes.
-          - Mention that README.md was updated by automation.
-          - Do not invent changes that are not supported by the commits or diff.
-          - Keep the body concise and reviewer-friendly.
-          - Return raw JSON only. Do not wrap it in Markdown code fences.
+          要求：
+          - title 和 body 必须全部使用简体中文。
+          - title 必须使用 conventional commit 风格，例如 "docs: 更新项目说明文档"，且不超过 80 个字符。
+          - body 必须是 Markdown，并固定使用这些中文小节标题：概述、变更内容、评审说明。
+          - 在“评审说明”中说明 README.md 已由自动化流程更新。
+          - 不要编造 commits 或 diff 中没有体现的变更。
+          - 内容保持简洁，方便评审者快速理解。
+          - 只返回原始 JSON。不要使用 Markdown 代码块包裹。
 
           Changed files:
           $changedFiles
@@ -360,6 +374,9 @@ jobs:
             }
 
             $title = $title -replace "(`r`n|`n|`r)", " "
+            if ($title -notmatch "\p{IsCJKUnifiedIdeographs}" -or $body -notmatch "\p{IsCJKUnifiedIdeographs}") {
+              throw "Model response did not include Chinese README PR metadata."
+            }
             $title | Out-File -FilePath readme-pr-title.txt -Encoding utf8 -NoNewline
             $body | Out-File -FilePath readme-pr-body.md -Encoding utf8
             Write-Host "Saved AI-generated README PR title and body."
@@ -372,8 +389,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $title = "chore(ai): auto update README after validation"
-          $body = "AI updated README.md for review."
+          $title = "docs: 自动更新 README"
+          $body = @"
+          ## 概述
+          本 PR 由自动化流程创建，用于提交 README.md 的更新。
+
+          ## 变更内容
+          - 更新 README.md，使文档与当前项目状态保持一致。
+
+          ## 评审说明
+          - README.md 已由自动化流程更新，请重点检查说明是否准确。
+          "@
 
           if (Test-Path readme-pr-title.txt) {
             $generatedTitle = (Get-Content readme-pr-title.txt -Raw).Trim()
