@@ -50,6 +50,18 @@ ShopAgent 是一个基于 FastAPI 的多模态（文本、视觉、语音）电�
    http://10.0.2.2:8000
    ```
 
+## Demo Product Data
+
+Create database tables, then import the demo product CSV:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.scripts.create_tables
+.\.venv\Scripts\python.exe -m app.scripts.import_products
+```
+
+The importer reads `data/products.csv` and skips products with duplicate names, so it can be run repeatedly.
+
+## Project Layout
 ---
 
 ## 功能模块
