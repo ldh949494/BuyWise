@@ -83,7 +83,10 @@ python app/scripts/build_vector_index.py
 - **Agent & LLM 集成**：聊天、产品咨询、比较、推荐等智能问答
 - **RAG 检索增强生成**：产品知识库及向量数据库语义检索（内存型 Chroma 仓储，embedding、search已实现）
 - **产品信息/评论/价格历史/推荐管理**：全功能 ORM 支持产品、评论、推荐、价格历史、会话/消息全模型
-- **多模态接口**：图片理解、语音识别（集成腾讯 ASR）、文件上传
+- **多模态接口**：
+  - **图片理解**：`/api/v1/vision/recognize`（输入 image_url，返回类别、特征、query）
+  - **语音识别**：`/api/v1/speech/asr`（输入 audio_url，返回文本）
+  - **文件上传**：`/api/v1/upload/upload`（支持图片/音频文件，本地存储返回访问 URL）
 - **健康检查与测试路由**
 - **安卓原生客户端**：Kotlin + Jetpack Compose，MVVM 架构
 - **自动化脚本**：数据导入、数据库表创建、向量索引构建
@@ -127,6 +130,9 @@ app/
   services/               # 业务服务层 (chat、product、recommend、intent等)
     intent_service.py     # 意图检测/需求解析（规则+LLM 提取，全面覆盖主流消费问询）
     recommend_service.py  # 推荐服务（推荐理由生成、智能商品排名）
+    upload_service.py     # 文件上传服务（本地/云存储）
+    vision_service.py     # 图像理解服务（类别和特征抽取）
+    speech_service.py     # 语音转文本服务（ASR）
   scripts/                # 运维和数据脚本
     create_tables.py      # 数据库表自动创建
     build_vector_index.py # 构建产品向量索引，生成RAG语义检索索引
@@ -155,6 +161,19 @@ requirements.txt          # Python依赖
 - **GitHub Actions**：  
   `.github/workflows/ai-auto-commit.yml`  
   支持 main 分支 push 或手动触发时，执行本地校验与 AI 自动维护 README。只在有真实内容变更时创建 PR。Pull Request 标题与说明自动生成。
+
+---
+
+## FastAPI 多模态接口说明
+
+- `/api/v1/health` 健康检查
+- `/api/v1/chat` 智能聊天&问答
+- `/api/v1/products` 商品信息/检索
+- `/api/v1/compare` 商品对比分析
+- `/api/v1/rag` 检索增强生成
+- `/api/v1/upload/upload` 文件上传（支持图片/音频等二进制，返回文件访问路径）
+- `/api/v1/vision/recognize` 图像识别/类目&属性解析
+- `/api/v1/speech/asr` 语音识别转文本（Mock/后续可对接腾讯ASR）
 
 ---
 
@@ -212,7 +231,9 @@ cd android-app
   - Pull Request 标题与说明、README 更新 PR 说明模板已全面适配简体中文。
 - **RAG/Agent 能力在 `app/ai/agent.py`、`app/ai/rag_pipeline.py`、`vectorstore/chroma_client.py`（检索与嵌入）、`ai/embedding_client.py`（embedding 算法实现）模块实现。**
 - **多模态相关：**
-  - 视觉接口（`vision.py`）、语音 ASR（`speech.py`）和产品图片等接口已预留或初步实现。
+  - 视觉接口（`vision.py`，`app/services/vision_service.py`）：支持图像类别/特征抽取（当前为 mock，可扩展多模态模型）
+  - 语音 ASR（`speech.py`，`app/services/speech_service.py`）：支持语音转文本（当前为 mock，可对接腾讯ASR）
+  - 文件上传（`upload.py`，`app/services/upload_service.py`）：支持文件本地存储及后续扩展云存储
 - **文本组装工具**：  
   `app/utils/text_builder.py` 协助生成结构化查询文本，用于嵌入、检索和需求分析
 - **意图识别与需求结构化**：  
