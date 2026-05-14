@@ -36,6 +36,35 @@ Create database tables, then import the demo product CSV:
 
 The importer reads `data/products.csv` and skips products with duplicate names, so it can be run repeatedly.
 
+## Docker
+
+Copy the example environment file, then start the backend and MySQL:
+
+```powershell
+Copy-Item .env.example .env
+docker compose up --build
+```
+
+The compose stack starts:
+
+- `backend` on `http://127.0.0.1:8000`
+- `mysql` on `127.0.0.1:3306`
+
+The backend reads `.env`, connects to the `mysql` service, and mounts:
+
+```text
+./data -> /app/data
+./vector_store -> /app/vector_store
+./uploads -> /app/uploads
+```
+
+After the containers are running, initialize tables and import demo products:
+
+```powershell
+docker compose exec backend python -m app.scripts.create_tables
+docker compose exec backend python -m app.scripts.import_products
+```
+
 ## Project Layout
 
 ```text

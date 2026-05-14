@@ -1,26 +1,27 @@
 services:
-  api:
+  backend:
     build:
       context: .
-    container_name: shopagent-backend
+    container_name: buywise-backend
     env_file:
-      - .env
+      - path: .env
+        required: false
     ports:
       - "8000:8000"
     depends_on:
       - mysql
     volumes:
-      - .:/app
+      - ./data:/app/data
+      - ./vector_store:/app/vector_store
+      - ./uploads:/app/uploads
 
   mysql:
-    image: mysql:8.4
-    container_name: shopagent-mysql
+    image: mysql:8.0
+    container_name: buywise-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: shopagent
-      MYSQL_USER: shopagent
-      MYSQL_PASSWORD: shopagent
+      MYSQL_ROOT_PASSWORD: "123456"
+      MYSQL_DATABASE: oxygen
     ports:
       - "3306:3306"
     volumes:
