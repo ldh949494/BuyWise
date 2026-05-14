@@ -10,17 +10,57 @@ from app.schemas.chat import StructuredNeed
 
 class IntentService:
     CATEGORY_KEYWORDS = {
-        "机械键盘": ["机械键盘", "键盘"],
-        "蓝牙耳机": ["蓝牙耳机", "耳机", "耳麦"],
-        "台灯": ["台灯", "护眼灯", "灯"],
-        "充电宝": ["充电宝", "移动电源"],
-        "双肩包": ["双肩包", "背包", "包"],
+        "\u673a\u68b0\u952e\u76d8": [
+            "\u673a\u68b0\u952e\u76d8",
+            "\u952e\u76d8",
+        ],
+        "\u84dd\u7259\u8033\u673a": [
+            "\u84dd\u7259\u8033\u673a",
+            "\u8033\u673a",
+            "\u8033\u9ea6",
+        ],
+        "\u53f0\u706f": [
+            "\u53f0\u706f",
+            "\u62a4\u773c\u706f",
+            "\u706f",
+        ],
+        "\u5145\u7535\u5b9d": [
+            "\u5145\u7535\u5b9d",
+            "\u79fb\u52a8\u7535\u6e90",
+        ],
+        "\u53cc\u80a9\u5305": [
+            "\u53cc\u80a9\u5305",
+            "\u80cc\u5305",
+            "\u5305",
+        ],
     }
-    SCENARIO_KEYWORDS = ["宿舍", "办公", "通勤", "运动", "学习", "写代码"]
-    PREFERENCE_KEYWORDS = ["低噪音", "无线", "降噪", "护眼", "轻便", "大容量", "性价比"]
+    SCENARIO_KEYWORDS = [
+        "\u5bbf\u820d",
+        "\u529e\u516c",
+        "\u901a\u52e4",
+        "\u8fd0\u52a8",
+        "\u5b66\u4e60",
+        "\u5199\u4ee3\u7801",
+    ]
+    PREFERENCE_KEYWORDS = [
+        "\u4f4e\u566a\u97f3",
+        "\u65e0\u7ebf",
+        "\u964d\u566a",
+        "\u62a4\u773c",
+        "\u8f7b\u4fbf",
+        "\u5927\u5bb9\u91cf",
+        "\u6027\u4ef7\u6bd4",
+    ]
     BUDGET_PATTERNS = [
-        re.compile(r"(?:预算|不超过|不超|控制在|低于|少于)\s*(\d+(?:\.\d+)?)\s*(?:元|块)?"),
-        re.compile(r"(\d+(?:\.\d+)?)\s*(?:元|块)?\s*(?:以内|以下|之内)"),
+        re.compile(
+            r"(?:\u9884\u7b97|\u4e0d\u8d85\u8fc7|\u4e0d\u8d85|"
+            r"\u63a7\u5236\u5728|\u4f4e\u4e8e|\u5c11\u4e8e)"
+            r"\s*(\d+(?:\.\d+)?)\s*(?:\u5143|\u5757)?"
+        ),
+        re.compile(
+            r"(\d+(?:\.\d+)?)\s*(?:\u5143|\u5757)?\s*"
+            r"(?:\u4ee5\u5185|\u4ee5\u4e0b|\u4e4b\u5185)"
+        ),
     ]
 
     async def extract(
@@ -72,15 +112,46 @@ class IntentService:
         )
 
     def _extract_intent(self, text: str) -> str:
-        if any(keyword in text for keyword in ["对比", "比较", "哪个好", "哪款好"]):
-            return "商品对比"
-        if any(keyword in text for keyword in ["平替", "替代", "类似款"]):
-            return "找平替"
-        if any(keyword in text for keyword in ["值不值", "划算", "价格", "贵不贵"]):
-            return "价格判断"
-        if any(keyword in text for keyword in ["参数", "规格", "怎么选", "配置"]):
-            return "参数咨询"
-        return "商品推荐"
+        if any(
+            keyword in text
+            for keyword in [
+                "\u5bf9\u6bd4",
+                "\u6bd4\u8f83",
+                "\u54ea\u4e2a\u597d",
+                "\u54ea\u6b3e\u597d",
+            ]
+        ):
+            return "\u5546\u54c1\u5bf9\u6bd4"
+        if any(
+            keyword in text
+            for keyword in [
+                "\u5e73\u66ff",
+                "\u66ff\u4ee3",
+                "\u7c7b\u4f3c\u6b3e",
+            ]
+        ):
+            return "\u627e\u5e73\u66ff"
+        if any(
+            keyword in text
+            for keyword in [
+                "\u503c\u4e0d\u503c",
+                "\u5212\u7b97",
+                "\u4ef7\u683c",
+                "\u8d35\u4e0d\u8d35",
+            ]
+        ):
+            return "\u4ef7\u683c\u5224\u65ad"
+        if any(
+            keyword in text
+            for keyword in [
+                "\u53c2\u6570",
+                "\u89c4\u683c",
+                "\u600e\u4e48\u9009",
+                "\u914d\u7f6e",
+            ]
+        ):
+            return "\u53c2\u6570\u54a8\u8be2"
+        return "\u5546\u54c1\u63a8\u8350"
 
     def _extract_category(self, text: str) -> str | None:
         for category, keywords in self.CATEGORY_KEYWORDS.items():
@@ -107,8 +178,16 @@ class IntentService:
         for preference in self.PREFERENCE_KEYWORDS:
             if preference in text:
                 preferences.append(preference)
-        if "静音" in text and "低噪音" not in preferences:
-            preferences.append("低噪音")
+
+        quiet_preference = "\u4f4e\u566a\u97f3"
+        quiet_keywords = [
+            "\u9759\u97f3",
+            "\u58f0\u97f3\u5c0f",
+            "\u5b89\u9759",
+        ]
+        if any(keyword in text for keyword in quiet_keywords):
+            if quiet_preference not in preferences:
+                preferences.append(quiet_preference)
         return preferences
 
     def _missing_fields(
@@ -119,7 +198,7 @@ class IntentService:
         scenario: str | None,
         preferences: list[str],
     ) -> list[str]:
-        if intent not in {"商品推荐", "找平替"}:
+        if intent not in {"\u5546\u54c1\u63a8\u8350", "\u627e\u5e73\u66ff"}:
             return []
 
         missing_fields = []

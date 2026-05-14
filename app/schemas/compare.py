@@ -9,11 +9,13 @@ from app.schemas.common import BaseSchema
 
 class CompareRequest(BaseSchema):
     product_ids: list[int]
+    user_need: str | None = None
     session_id: str | None = None
 
 
 class CompareItem(BaseSchema):
     id: int
+    product_id: int | None = None
     name: str
     price: float | None = None
     image_url: str | None = None

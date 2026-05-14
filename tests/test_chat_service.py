@@ -1,0 +1,215 @@
+from decimal import Decimal
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from app.core.database import Base, get_db
+from app.main import create_app
+from app.models import Product
+from app.schemas.chat import ChatRequest, ProductCard, StructuredNeed
+from app.services.chat_service import ChatService
+
+
+KEYBOARD_CATEGORY = "\u673a\u68b0\u952e\u76d8"
+QUIET_TAG = "\u4f4e\u566a\u97f3"
+DORM_SCENE = "\u5bbf\u820d"
+KEYBOARD_NAME = "K87 \u9759\u97f3\u7ea2\u8f74\u673a\u68b0\u952e\u76d8"
+API_MESSAGE = (
+    "\u63a8\u8350\u4e00\u4e2a\u5bbf\u820d\u7528\u7684"
+    "\u673a\u68b0\u952e\u76d8\uff0c\u9884\u7b97300\u4ee5\u5185\uff0c"
+    "\u58f0\u97f3\u5c0f\u4e00\u70b9"
+)
+
+
+class FakeSpeechService:
+    async def transcribe(self, audio_url: str) -> str:
+        return "语音说预算300以内"
+
+
+class FakeVisionService:
+    async def recognize(self, image_url: str) -> dict:
+        return {"category": "机械键盘", "features": ["低噪音"]}
+
+
+class FakeIntentService:
+    def __init__(self, need: StructuredNeed) -> None:
+        self.need = need
+        self.calls = []
+
+    async def extract(self, text, image_info=None, history_context=None):
+        self.calls.append(
+            {
+                "text": text,
+                "image_info": image_info,
+                "history_context": history_context,
+            }
+        )
+        return self.need
+
+
+class FakeRAGPipeline:
+    def __init__(self, products=None, should_fail=False) -> None:
+        self.products = products or []
+        self.should_fail = should_fail
+
+    async def search_products(self, need, db, top_k=20):
+        if self.should_fail:
+            raise RuntimeError("boom")
+        return self.products
+
+
+class FakeRecommendService:
+    def rank(self, products, need):
+        return [
+            ProductCard(
+                id=product.id,
+                name=product.name,
+                price=float(product.price),
+                score=90,
+                reason="价格符合预算",
+            )
+            for product in products
+        ]
+
+
+class FakeLLMClient:
+    async def generate_clarify_question(self, need):
+        return "请补充预算和使用场景。"
+
+    async def generate_recommendation(self, need, products):
+        return "推荐：" + "、".join(product.name for product in products)
+
+
+def make_product(name="K87 静音红轴机械键盘"):
+    return Product(
+        id=1,
+        name=name,
+        category="机械键盘",
+        price=Decimal("299.00"),
+        stock=10,
+    )
+
+
+@pytest.mark.anyio
+async def test_handle_chat_returns_clarify_response_when_need_incomplete() -> None:
+    need = StructuredNeed(
+        intent="商品推荐",
+        category="蓝牙耳机",
+        need_clarify=True,
+        missing_fields=["budget_max", "scenario"],
+    )
+    intent_service = FakeIntentService(need)
+    service = ChatService(
+        intent_service=intent_service,
+        llm_client=FakeLLMClient(),
+    )
+
+    response = await service.handle_chat(ChatRequest(message="推荐一个耳机"), db=object())
+
+    assert response.reply == "请补充预算和使用场景。"
+    assert response.need_clarify is True
+    assert response.structured_need == need
+    assert response.products == []
+
+
+@pytest.mark.anyio
+async def test_handle_chat_runs_multimodal_recommendation_flow() -> None:
+    need = StructuredNeed(
+        intent="商品推荐",
+        category="机械键盘",
+        budget_max=300,
+        scenario="宿舍",
+        preferences=["低噪音"],
+    )
+    intent_service = FakeIntentService(need)
+    product = make_product()
+    service = ChatService(
+        speech_service=FakeSpeechService(),
+        vision_service=FakeVisionService(),
+        intent_service=intent_service,
+        rag_pipeline=FakeRAGPipeline([product]),
+        recommend_service=FakeRecommendService(),
+        llm_client=FakeLLMClient(),
+    )
+
+    response = await service.handle_chat(
+        ChatRequest(message="推荐宿舍用的", audio_url="a.wav", image_url="p.jpg"),
+        db=object(),
+    )
+
+    assert "推荐：K87 静音红轴机械键盘" == response.reply
+    assert response.need_clarify is False
+    assert response.structured_need == need
+    assert response.products[0].name == "K87 静音红轴机械键盘"
+    assert "语音说预算300以内" in intent_service.calls[0]["text"]
+    assert intent_service.calls[0]["image_info"] == {"category": "机械键盘", "features": ["低噪音"]}
+
+
+@pytest.mark.anyio
+async def test_handle_chat_returns_friendly_error_response() -> None:
+    need = StructuredNeed(intent="商品推荐", category="机械键盘", budget_max=300)
+    service = ChatService(
+        intent_service=FakeIntentService(need),
+        rag_pipeline=FakeRAGPipeline(should_fail=True),
+        llm_client=FakeLLMClient(),
+    )
+
+    response = await service.handle_chat(ChatRequest(message="推荐键盘"), db=object())
+
+    assert response.reply == "抱歉，当前暂时无法完成推荐，请稍后再试或换个条件。"
+    assert response.need_clarify is False
+    assert response.products == []
+
+
+def test_chat_api_route_is_registered_and_returns_response() -> None:
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    session_factory = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    with session_factory() as db:
+        db.add(
+                Product(
+                name=KEYBOARD_NAME,
+                category=KEYBOARD_CATEGORY,
+                price=Decimal("299.00"),
+                rating=Decimal("4.8"),
+                sales=1800,
+                tags=[QUIET_TAG],
+                suitable_scene=[DORM_SCENE],
+                stock=10,
+            )
+        )
+        db.commit()
+
+    app = create_app()
+
+    def override_get_db():
+        db = session_factory()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = override_get_db
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/v1/ai/chat",
+            json={
+                "session_id": "s001",
+                "message": API_MESSAGE,
+            },
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["need_clarify"] is False
+    assert payload["structured_need"]["category"] == KEYBOARD_CATEGORY
+    assert payload["products"][0]["name"] == KEYBOARD_NAME
+    assert KEYBOARD_NAME in payload["reply"]
