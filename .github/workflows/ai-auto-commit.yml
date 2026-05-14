@@ -173,6 +173,7 @@ jobs:
             $title = $title -replace "(`r`n|`n|`r)", " "
             $title | Out-File -FilePath pr-title.txt -Encoding utf8 -NoNewline
             $body | Out-File -FilePath pr-body.md -Encoding utf8
+            Write-Host "Saved AI-generated PR title and body."
           } catch {
             Write-Warning "Could not parse AI-generated PR metadata: $_"
           }
@@ -218,7 +219,14 @@ jobs:
             --jq ".[0].number"
 
           if ($existingPr) {
-            Write-Host "Pull request #$existingPr already exists for '$branchName'."
+            Write-Host "Pull request #$existingPr already exists for '$branchName'. Updating title and body."
+            gh pr edit $existingPr `
+              --title $title `
+              --body-file pr-create-body.md
+
+            if ($LASTEXITCODE -ne 0) {
+              Write-Warning "GitHub Actions could not update pull request #$existingPr."
+            }
             exit 0
           }
 
@@ -354,6 +362,7 @@ jobs:
             $title = $title -replace "(`r`n|`n|`r)", " "
             $title | Out-File -FilePath readme-pr-title.txt -Encoding utf8 -NoNewline
             $body | Out-File -FilePath readme-pr-body.md -Encoding utf8
+            Write-Host "Saved AI-generated README PR title and body."
           } catch {
             Write-Warning "Could not parse AI-generated README PR metadata: $_"
           }
@@ -388,14 +397,34 @@ jobs:
 
           $body | Out-File -FilePath readme-pr-create-body.md -Encoding utf8
 
+          $branchName = "${{ steps.commit_branch.outputs.branch_name }}"
+          $existingPr = gh pr list `
+            --base main `
+            --head $branchName `
+            --state open `
+            --json number `
+            --jq ".[0].number"
+
+          if ($existingPr) {
+            Write-Host "Pull request #$existingPr already exists for '$branchName'. Updating title and body."
+            gh pr edit $existingPr `
+              --title $title `
+              --body-file readme-pr-create-body.md
+
+            if ($LASTEXITCODE -ne 0) {
+              Write-Warning "GitHub Actions could not update pull request #$existingPr."
+            }
+            exit 0
+          }
+
           gh pr create `
             --title $title `
             --body-file readme-pr-create-body.md `
             --base main `
-            --head "${{ steps.commit_branch.outputs.branch_name }}"
+            --head $branchName
 
           if ($LASTEXITCODE -ne 0) {
             Write-Warning "GitHub Actions could not create the pull request automatically."
-            Write-Host "Create it manually: https://github.com/${{ github.repository }}/compare/main...${{ steps.commit_branch.outputs.branch_name }}?expand=1"
+            Write-Host "Create it manually: https://github.com/${{ github.repository }}/compare/main...$branchName?expand=1"
             exit 0
           }
