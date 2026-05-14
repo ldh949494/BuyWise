@@ -89,6 +89,7 @@ python app/scripts/build_vector_index.py
 - **自动化脚本**：数据导入、数据库表创建、向量索引构建
 - **文本构建工具**：`app/utils/text_builder.py` 提供结构化文本生成、用户需求检索表达等
 - **RAG Pipeline**：`app/ai/rag_pipeline.py` 实现产品需求语义检索与动态过滤
+- **意图识别服务**：`app/services/intent_service.py` 支持商品推荐/对比/找平替等场景的意图、分类、预算、场景和偏好抽取
 
 ---
 
@@ -96,7 +97,7 @@ python app/scripts/build_vector_index.py
 
 ```text
 app/
-  ai/                     # 智能体基础设施（agent、RAG、LLM、embedding，新增 embedding_client.py 实现）
+  ai/                     # 智能体基础设施（agent、RAG、LLM、embedding，embedding_client.py 实现embed）
   api/                    # FastAPI 路由与 API 逻辑
     router.py
     v1/
@@ -117,10 +118,11 @@ app/
   models/                 # ORM 数据模型（Product、Review、Recommendation、PriceHistory、ChatSession、ChatMessage 等）
   repositories/           # 数据库仓储模式
   schemas/                # Pydantic 读写数据结构
-  services/               # 业务服务层 (chat、product、recommend等)
+  services/               # 业务服务层 (chat、product、recommend、intent等)
+    intent_service.py     # 意图检测/需求解析（规则+LLM 提取，全面覆盖主流消费问询）
   scripts/                # 运维和数据脚本
     create_tables.py      # 数据库表自动创建
-    build_vector_index.py # 构建产品向量索引，生成RAG语义检索索引（已实现）
+    build_vector_index.py # 构建产品向量索引，生成RAG语义检索索引
     import_products.py
     seed_products.py
   utils/
@@ -206,6 +208,8 @@ cd android-app
   - 视觉接口（`vision.py`）、语音 ASR（`speech.py`）和产品图片等接口已预留或初步实现。
 - **文本组装工具**：  
   `app/utils/text_builder.py` 协助生成结构化查询文本，用于嵌入、检索和需求分析
+- **意图识别与需求结构化**：  
+  `app/services/intent_service.py` 新增规则与轻量 LLM 结合的用户意图/需求要素抽取，准确处理“推荐/对比/平替/价格/参数”等消费问询，提取 product category、场景、预算、偏好字段，支持灰度部署未来 LLM 结构化助手。
 
 ---
 
