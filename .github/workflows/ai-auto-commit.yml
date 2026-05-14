@@ -141,30 +141,22 @@ jobs:
 
           $prompt | Out-File -FilePath pr-summary-prompt.md -Encoding utf8
 
+      - name: Install GitHub Models CLI extension for Pull Request summary
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/auto/local-')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh extension install https://github.com/github/gh-models
+
       - name: Generate Pull Request summary
-        id: pr_summary_ai
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/auto/local-')
         continue-on-error: true
-        uses: actions/ai-inference@v1
-        with:
-          prompt-file: pr-summary-prompt.md
-          max-completion-tokens: 1200
-          temperature: 0.2
-
-      - name: Save Pull Request summary
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/auto/local-') && steps.pr_summary_ai.outcome == 'success'
-        continue-on-error: true
         env:
-          AI_RESPONSE: ${{ steps.pr_summary_ai.outputs.response }}
+          GH_TOKEN: ${{ github.token }}
+          PR_SUMMARY_MODEL: openai/gpt-4.1
         run: |
           try {
-            $responsePath = "${{ steps.pr_summary_ai.outputs.response-file }}"
-            if (-not [string]::IsNullOrWhiteSpace($responsePath) -and (Test-Path $responsePath)) {
-              $modelOutput = Get-Content $responsePath -Raw
-            } else {
-              $modelOutput = $env:AI_RESPONSE
-            }
-
+            $prompt = Get-Content pr-summary-prompt.md -Raw
+            $modelOutput = "" | gh models run $env:PR_SUMMARY_MODEL $prompt
             $modelOutput | Out-File -FilePath pr-summary-raw.txt -Encoding utf8
             Write-Host "AI PR metadata response length: $($modelOutput.Length)"
 
@@ -330,30 +322,22 @@ jobs:
 
           $prompt | Out-File -FilePath readme-pr-summary-prompt.md -Encoding utf8
 
+      - name: Install GitHub Models CLI extension for README Pull Request summary
+        if: steps.commit_branch.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh extension install https://github.com/github/gh-models
+
       - name: Generate README Pull Request summary
-        id: readme_pr_summary_ai
         if: steps.commit_branch.outputs.has_changes == 'true'
         continue-on-error: true
-        uses: actions/ai-inference@v1
-        with:
-          prompt-file: readme-pr-summary-prompt.md
-          max-completion-tokens: 1200
-          temperature: 0.2
-
-      - name: Save README Pull Request summary
-        if: steps.commit_branch.outputs.has_changes == 'true' && steps.readme_pr_summary_ai.outcome == 'success'
-        continue-on-error: true
         env:
-          AI_RESPONSE: ${{ steps.readme_pr_summary_ai.outputs.response }}
+          GH_TOKEN: ${{ github.token }}
+          PR_SUMMARY_MODEL: openai/gpt-4.1
         run: |
           try {
-            $responsePath = "${{ steps.readme_pr_summary_ai.outputs.response-file }}"
-            if (-not [string]::IsNullOrWhiteSpace($responsePath) -and (Test-Path $responsePath)) {
-              $modelOutput = Get-Content $responsePath -Raw
-            } else {
-              $modelOutput = $env:AI_RESPONSE
-            }
-
+            $prompt = Get-Content readme-pr-summary-prompt.md -Raw
+            $modelOutput = "" | gh models run $env:PR_SUMMARY_MODEL $prompt
             $modelOutput | Out-File -FilePath readme-pr-summary-raw.txt -Encoding utf8
             Write-Host "AI README PR metadata response length: $($modelOutput.Length)"
 
