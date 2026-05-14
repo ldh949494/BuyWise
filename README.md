@@ -25,6 +25,17 @@ modules for image, speech, upload, vector retrieval, and LLM integration.
    - API docs: `http://127.0.0.1:8000/docs`
    - Health check: `http://127.0.0.1:8000/api/v1/health`
 
+## Demo Product Data
+
+Create database tables, then import the demo product CSV:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.scripts.create_tables
+.\.venv\Scripts\python.exe -m app.scripts.import_products
+```
+
+The importer reads `data/products.csv` and skips products with duplicate names, so it can be run repeatedly.
+
 ## Project Layout
 
 ```text
