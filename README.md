@@ -1,37 +1,71 @@
-# ShopAgent Backend
+# ShopAgent 后端与 Android 客户端
 
-ShopAgent Backend is a FastAPI skeleton for a multimodal e-commerce shopping guide agent.
-The first milestone focuses on a runnable text-guidance MVP foundation, with reserved
-modules for image, speech, upload, vector retrieval, and LLM integration.
+ShopAgent 是一个基于 FastAPI 的多模态（文本、视觉、语音）电商导购 Agent 解决方案，且支持原生 Android 客户端。后端采用分层架构，具备高扩展性，集成大模型（LLM）、文档向量检索（RAG）、产品数据库、图片和语音分析等功能模块。
 
-## Quick Start
+---
 
-1. Create and activate a Python virtual environment.
-2. Install dependencies:
+## 快速启动
+
+### Python FastAPI 后端
+
+1. 建立 Python 虚拟环境并激活。
+2. 安装依赖：
 
    ```powershell
    pip install -r requirements.txt
    ```
 
-3. Copy `.env.example` to `.env` and adjust values if needed.
-4. Start the API:
+3. （可选）复制 `.env.example` 为 `.env` 并根据需求调整配置。
+4. 启动 API 服务：
 
    ```powershell
    .\.venv\Scripts\activate
    uvicorn app.main:app --reload --port 8000
    ```
 
-5. Open:
-   - API docs: `http://127.0.0.1:8000/docs`
-   - Health check: `http://127.0.0.1:8000/api/v1/health`
+5. 打开接口文档和健康检查：
+   - API 文档地址: http://127.0.0.1:8000/docs
+   - 健康检查: http://127.0.0.1:8000/api/v1/health
 
-## Project Layout
+### 原生 Android 客户端
+
+1. 推荐使用 Android Studio 打开 `android-app/` 目录运行项目。
+2. 或命令行编译调试版本：
+
+   ```powershell
+   cd android-app
+   .\gradlew.bat :app:assembleDebug
+   ```
+
+3. 默认后端访问地址（适配安卓模拟器）为：
+
+   ```
+   http://10.0.2.2:8000
+   ```
+
+---
+
+## 功能模块
+
+- **FastAPI 后端服务**：RESTful、分版本 API 接口布局
+- **Agent & LLM 集成**：聊天、产品咨询、比较、推荐等智能问答
+- **RAG 检索增强生成**：产品知识库及向量数据库语义检索
+- **产品信息/评论/价格历史管理**：基础产品信息处理
+- **多模态接口**：图片理解、语音识别（集成腾讯 ASR）、文件上传
+- **健康检查与测试路由**
+- **安卓原生客户端**：Kotlin、Jetpack Compose、MVVM 架构，支持首页、AI 导购、产品对比、详情页、视觉入口等
+- **自动化脚本**：数据导入、向量索引构建
+
+---
+
+## 目录结构
 
 ```text
 app/
-  api/
+  ai/                     # 智能体基础设施（agent、RAG、LLM、embedding）
+  api/                    # FastAPI 路由与 API 逻辑
     router.py
-    v1/
+    v1/                   # 版本化接口分发
       health.py
       chat.py
       products.py
@@ -40,130 +74,89 @@ app/
       upload.py
       vision.py
       speech.py
-  ai/
-  core/
+  core/                   # 配置、数据库、日志、异常
     config.py
     database.py
     logging.py
     exceptions.py
-  integrations/
-  models/
-  repositories/
-  schemas/
-  scripts/
-  services/
-  utils/
-  vectorstore/
-data/
-vector_store/
-  chroma/
-tests/
-scripts/
-Dockerfile
-docker-compose.yml
-requirements.txt
-.env.example
+  integrations/           # 外部系统集成，如腾讯云、Chroma、ASR、多模态API
+  models/                 # ORM 数据模型
+  repositories/           # 数据库仓储模式
+  schemas/                # Pydantic 读写数据结构
+  services/               # 业务服务层 (chat、product、recommend等)
+  scripts/                # 运维和数据脚本
+    build_vector_index.py
+    import_products.py
+    seed_products.py
+  utils/                  # 工具函数库
+  vectorstore/            # 向量数据库及索引工具
+android-app/              # 安卓原生客户端，Kotlin/Jetpack Compose 实现
+.github/workflows/        # GitHub Actions 自动化工作流
+requirements.txt          # Python依赖
 ```
 
-## Current Scope
+---
 
-- FastAPI application bootstrap
-- Versioned API router
-- `/api/v1/health`
-- MySQL + SQLAlchemy configuration scaffolding
-- Mock LLM client wrapper
-- Chroma vector store wrapper placeholder
-- Reserved multimodal service modules
-- Docker and Compose placeholders for later integration
+## 自动化验证与 AI README 维护
 
-## Android App
+- **本地验证**：  
+  运行自动化脚本一键校验基础功能（依赖安装、API 连通性、接口正确性、单元测试、Android 构建）。
+  
+  ```powershell
+  powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1
+  ```
 
-The client has been replaced with a native Android app:
+- **自动化工作流**：  
+  `.github/workflows/ai-auto-commit.yml`  
+  支持 main 分支 push 或手动触发时，自动执行本地校验和基于变更的 AI README 自动维护脚本。只有 README 有真实更新时才会自动提交并创建 PR。
 
-```text
-android-app
+---
+
+## 开发与测试说明
+
+### 启动 FastAPI 服务
+
+```powershell
+uvicorn app.main:app --reload --port 8000
 ```
 
-The first Android milestone is implemented with Kotlin, Jetpack Compose, MVVM,
-and Repository-based mock data. It includes:
+> 生产环境请使用 WSGI/ASGI 服务器和配置安全数据库。
 
-- Home
-- AI guide
-- Product compare
-- Vision placeholder
-- Product detail
+### 运行单元测试
 
-The default backend base URL reserved for emulator integration is:
+- 推荐目录自建 `tests/` 并通过：
 
-```text
-http://10.0.2.2:8000
-```
+  ```powershell
+  pytest -q
+  ```
 
-Run it from Android Studio, or from the command line:
+- 自动化脚本会自动检测和运行 `pytest`
+
+### 构建 Android 客户端
 
 ```powershell
 cd android-app
 .\gradlew.bat :app:assembleDebug
 ```
+或用 Android Studio！
 
-## Automation
+---
 
-### Local validation
+## 重要说明
 
-Run the repository validation script from the project root:
+- **AI-Driven README 更新需配置：**
+  - 在仓库 Secrets 配置 `GH_TOKEN` （GitHub Actions 自动化令牌）。
+  - 自动维护脚本 now 基于 GitHub 模型扩展 (`gh models`)，不再使用 OpenAI 直连变量。
+- **RAG/Agent 能力在 `app/ai/agent.py`、`app/ai/rag_pipeline.py` 模块实现。**
+- **多模态相关：**
+  - 视觉接口（`vision.py`）、语音 ASR（`speech.py`）和产品图片等接口已预留或初步实现。
 
-```powershell
-powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1
-```
+---
 
-The script performs:
+## 贡献方式
 
-- Python dependency installation from `requirements.txt`
-- FastAPI application smoke validation
-- Health route contract validation for `/api/v1/health`
-- `pytest -q` when a project-level `tests/` directory exists
-- Android debug build validation through `.\gradlew.bat :app:assembleDebug`
+- 提交代码请确保本地测试通过。
+- 可自定义/扩展 agent、RAG、产品模型等。
+- 若需补充说明或有问题，可提 issue。
 
-### GitHub Actions workflow
-
-The automation workflow is defined in:
-
-```text
-.github/workflows/ai-auto-commit.yml
-```
-
-It runs when:
-
-- Code is pushed to `main`
-- The workflow is manually triggered from GitHub Actions
-
-The workflow:
-
-1. Sets up Python 3.11.
-2. Runs `scripts/auto_validate.ps1`.
-3. Collects the current commit diff and executes `scripts/ai_update_readme.py`.
-4. Creates a branch, commit, and pull request only when `README.md` is actually changed.
-
-### GitHub Secrets
-
-Configure these repository secrets when AI-driven README updates are required:
-
-```text
-OPENAI_API_KEY
-OPENAI_BASE_URL
-OPENAI_MODEL
-```
-
-`OPENAI_API_KEY` is required for README generation. The other two variables are optional.
-When `OPENAI_MODEL` is not set, the script uses:
-
-```text
-gpt-4.1-mini
-```
-
-### Failure behavior
-
-- Validation failure stops the workflow.
-- Missing `OPENAI_API_KEY` skips README generation without failing the workflow.
-- AI generation errors skip README generation without failing the workflow.
-- No README content change means no automation branch and no pull request.
+---
