@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Optional
@@ -20,6 +21,24 @@ def run(cmd: list[str], *, check: bool = False) -> str:
     )
     output = "\n".join(part.strip() for part in (result.stdout, result.stderr) if part.strip())
     return output.strip()
+
+
+def run_with_input(cmd: list[str], stdin: str) -> str:
+    result = subprocess.run(
+        cmd,
+        cwd=ROOT,
+        input=stdin,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if result.returncode != 0:
+        output = "\n".join(
+            part.strip() for part in (result.stdout, result.stderr) if part.strip()
+        )
+        raise RuntimeError(output or f"Command failed: {' '.join(cmd)}")
+
+    return result.stdout.strip()
 
 
 def resolve_diff_range() -> Optional[str]:
@@ -57,49 +76,48 @@ def get_file_tree() -> str:
     return "\n".join(lines[:200])
 
 
+def normalize_readme_output(content: str) -> str:
+    stripped = content.strip()
+    if stripped.startswith("```"):
+        lines = stripped.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        stripped = "\n".join(lines).strip()
+
+    return stripped
+
+
 def update_readme_with_ai(readme: str, diff: str, tree: str) -> str:
-    from openai import OpenAI
+    model = os.getenv("GITHUB_MODELS_README_MODEL", "openai/gpt-4.1")
+    prompt = """
+You are a professional software engineering documentation maintainer.
+Read the repository file tree, git diff, and current README.md from stdin.
+Return the complete updated README.md.
 
-    client = OpenAI(
-        api_key=os.environ["OPENAI_API_KEY"],
-        base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
-    )
+Requirements:
+1. Preserve existing README content that is still accurate and useful.
+2. Update feature descriptions, startup instructions, test instructions, and project structure based on code changes.
+3. Do not invent features that are not supported by the diff or file tree.
+4. Write in Chinese.
+5. Return only the README.md body. Do not include explanations or Markdown code fences.
+6. If FastAPI, Android, Docker, RAG, or Agent-related content is detected, include the relevant run instructions.
+""".strip()
 
-    model = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
-
-    prompt = f"""
-你是一个专业的软件工程文档维护助手。
-
-请根据当前仓库变更，更新 README.md。
-要求：
-1. 保留原有 README 的有用内容。
-2. 根据代码变更同步更新功能说明、启动方式、测试方式、项目结构。
-3. 不要编造不存在的功能。
-4. 输出完整 README.md 内容。
-5. 使用中文。
-6. 如果检测到是 FastAPI / Android / Docker / RAG / Agent 项目，请补充对应运行说明。
-7. 不要输出解释，只输出 README.md 正文。
-
-当前文件树：
+    context = f"""
+Current file tree:
 {tree}
 
-当前 git diff：
+Current git diff:
 {diff}
 
-原 README：
+Current README.md:
 {readme}
-"""
+""".strip()
 
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": "你负责维护项目 README 文档。"},
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.2,
-    )
-
-    return response.choices[0].message.content.strip() + "\n"
+    output = run_with_input(["gh", "models", "run", model, prompt], context)
+    return normalize_readme_output(output) + "\n"
 
 
 def main() -> int:
@@ -112,10 +130,9 @@ def main() -> int:
         print("No relevant code changes detected. Skip README update.")
         return 0
 
-    api_key = os.getenv("OPENAI_API_KEY", "").strip()
-    if not api_key:
+    if not shutil.which("gh"):
         print("README_CHANGED=false")
-        print("OPENAI_API_KEY is not set. Skip README update.")
+        print("GitHub CLI is not available. Skip README update.")
         return 0
 
     readme = README_PATH.read_text(encoding="utf-8")
