@@ -74,6 +74,7 @@ The importer reads `data/products.csv` and skips products with duplicate names, 
 - **健康检查与测试路由**
 - **安卓原生客户端**：Kotlin、Jetpack Compose、MVVM 架构，支持首页、AI 导购、产品对比、详情页、视觉入口等
 - **自动化脚本**：数据导入、创建数据库表、向量索引构建
+- **文本构建工具**：通过 `app/utils/text_builder.py` 提供结构化商品文本和用户需求检索语句的中文生成辅助
 
 ---
 
@@ -109,6 +110,7 @@ app/
     import_products.py
     seed_products.py
   utils/                  # 工具函数库
+    text_builder.py       # 商品和需求文本智能组装辅助
   vectorstore/            # 向量数据库及索引工具
 android-app/              # 安卓原生客户端，Kotlin/Jetpack Compose 实现
 .github/workflows/        # GitHub Actions 自动化工作流
@@ -180,6 +182,8 @@ cd android-app
 - **RAG/Agent 能力在 `app/ai/agent.py`、`app/ai/rag_pipeline.py` 模块实现。**
 - **多模态相关：**
   - 视觉接口（`vision.py`）、语音 ASR（`speech.py`）和产品图片等接口已预留或初步实现。
+- **文本组装工具**：  
+  `app/utils/text_builder.py` 提供商品结构化文本生成和检索查询组装，便于嵌入、RAG流程和需求识别场景。
 
 ---
 
