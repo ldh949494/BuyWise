@@ -1,6 +1,6 @@
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 
 class BaseSchema(BaseModel):
@@ -15,4 +15,4 @@ class HealthResponse(BaseSchema):
 class ErrorResponse(BaseSchema):
     detail: str
     code: str | None = None
-    extra: dict[str, Any] = Field(default_factory=dict)
+    extra: dict[str, Any] = {}
