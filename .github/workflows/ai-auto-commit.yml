@@ -99,19 +99,8 @@ jobs:
             ./scripts/auto_validate.ps1 -SkipDependencyInstall -SkipAndroidBuild
           }
 
-      - name: Install GitHub Models CLI extension
+      - name: Prepare Pull Request summary prompt
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/auto/local-')
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh extension install https://github.com/github/gh-models
-
-      - name: Generate Pull Request summary
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/auto/local-')
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_SUMMARY_MODEL: openai/gpt-4o-mini
         run: |
           git fetch origin main
 
@@ -124,7 +113,19 @@ jobs:
             $diff = $diff.Substring(0, 50000) + "`n[Diff truncated for model context]"
           }
 
-          $inputText = @"
+          $prompt = @"
+          Write polished GitHub pull request metadata from the provided git changes.
+          Return only JSON with this exact shape:
+          {"title":"...","body":"..."}
+
+          Requirements:
+          - Title must use conventional commit style and be 80 characters or fewer.
+          - Body must be Markdown with these sections: Summary, Changes, Validation.
+          - Mention that automated validation passed in the Validation section.
+          - Do not invent changes that are not supported by the commits or diff.
+          - Keep the body concise and reviewer-friendly.
+          - Return raw JSON only. Do not wrap it in Markdown code fences.
+
           Changed files:
           $changedFiles
 
@@ -138,30 +139,35 @@ jobs:
           $diff
           "@
 
-          $inputText | Out-File -FilePath pr-summary-input.txt -Encoding utf8
+          $prompt | Out-File -FilePath pr-summary-prompt.md -Encoding utf8
 
-          $prompt = @"
-          Write polished GitHub pull request metadata from the provided git changes.
-          Return only JSON with this exact shape:
-          {"title":"...","body":"..."}
+      - name: Generate Pull Request summary
+        id: pr_summary_ai
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/auto/local-')
+        continue-on-error: true
+        uses: actions/ai-inference@v1
+        with:
+          prompt-file: pr-summary-prompt.md
+          max-completion-tokens: 1200
+          temperature: 0.2
 
-          Requirements:
-          - Title must use conventional commit style and be 80 characters or fewer.
-          - Body must be Markdown with these sections: Summary, Changes, Validation.
-          - Mention that automated validation passed in the Validation section.
-          - Do not invent changes that are not supported by the commits or diff.
-          - Keep the body concise and reviewer-friendly.
-          "@
-
+      - name: Save Pull Request summary
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/auto/local-') && steps.pr_summary_ai.outcome == 'success'
+        continue-on-error: true
+        env:
+          AI_RESPONSE: ${{ steps.pr_summary_ai.outputs.response }}
+        run: |
           try {
-            $modelOutput = Get-Content pr-summary-input.txt -Raw |
-              gh models run $env:PR_SUMMARY_MODEL $prompt
-
-            if ($LASTEXITCODE -ne 0) {
-              throw "gh models run exited with code $LASTEXITCODE"
+            $responsePath = "${{ steps.pr_summary_ai.outputs.response-file }}"
+            if (-not [string]::IsNullOrWhiteSpace($responsePath) -and (Test-Path $responsePath)) {
+              $modelOutput = Get-Content $responsePath -Raw
+            } else {
+              $modelOutput = $env:AI_RESPONSE
             }
 
             $modelOutput | Out-File -FilePath pr-summary-raw.txt -Encoding utf8
+            Write-Host "AI PR metadata response length: $($modelOutput.Length)"
+
             $jsonText = [regex]::Match($modelOutput, "(?s)\{.*\}").Value
             $metadata = $jsonText | ConvertFrom-Json -ErrorAction Stop
 
@@ -176,7 +182,7 @@ jobs:
             $title | Out-File -FilePath pr-title.txt -Encoding utf8 -NoNewline
             $body | Out-File -FilePath pr-body.md -Encoding utf8
           } catch {
-            Write-Warning "Could not generate PR metadata with GitHub Models: $_"
+            Write-Warning "Could not parse AI-generated PR metadata: $_"
           }
 
       - name: Create Pull Request for auto publish branch
@@ -194,6 +200,7 @@ jobs:
             $generatedTitle = (Get-Content pr-title.txt -Raw).Trim()
             if (-not [string]::IsNullOrWhiteSpace($generatedTitle)) {
               $title = $generatedTitle
+              Write-Host "Using AI-generated PR title."
             }
           }
 
@@ -201,7 +208,12 @@ jobs:
             $generatedBody = (Get-Content pr-body.md -Raw).Trim()
             if (-not [string]::IsNullOrWhiteSpace($generatedBody)) {
               $body = $generatedBody
+              Write-Host "Using AI-generated PR body."
             }
+          }
+
+          if (-not (Test-Path pr-body.md)) {
+            Write-Warning "AI-generated PR body was not found; using fallback PR body."
           }
 
           $body | Out-File -FilePath pr-create-body.md -Encoding utf8
@@ -271,19 +283,8 @@ jobs:
 
           "has_changes=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
-      - name: Install GitHub Models CLI extension for README PR
+      - name: Prepare README Pull Request summary prompt
         if: steps.commit_branch.outputs.has_changes == 'true'
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh extension install https://github.com/github/gh-models
-
-      - name: Generate README Pull Request summary
-        if: steps.commit_branch.outputs.has_changes == 'true'
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_SUMMARY_MODEL: openai/gpt-4o-mini
         run: |
           git fetch origin main
 
@@ -296,7 +297,19 @@ jobs:
             $diff = $diff.Substring(0, 50000) + "`n[Diff truncated for model context]"
           }
 
-          $inputText = @"
+          $prompt = @"
+          Write polished GitHub pull request metadata from the provided README update.
+          Return only JSON with this exact shape:
+          {"title":"...","body":"..."}
+
+          Requirements:
+          - Title must use conventional commit style and be 80 characters or fewer.
+          - Body must be Markdown with these sections: Summary, Changes, Review Notes.
+          - Mention that README.md was updated by automation.
+          - Do not invent changes that are not supported by the commits or diff.
+          - Keep the body concise and reviewer-friendly.
+          - Return raw JSON only. Do not wrap it in Markdown code fences.
+
           Changed files:
           $changedFiles
 
@@ -310,30 +323,35 @@ jobs:
           $diff
           "@
 
-          $inputText | Out-File -FilePath readme-pr-summary-input.txt -Encoding utf8
+          $prompt | Out-File -FilePath readme-pr-summary-prompt.md -Encoding utf8
 
-          $prompt = @"
-          Write polished GitHub pull request metadata from the provided README update.
-          Return only JSON with this exact shape:
-          {"title":"...","body":"..."}
+      - name: Generate README Pull Request summary
+        id: readme_pr_summary_ai
+        if: steps.commit_branch.outputs.has_changes == 'true'
+        continue-on-error: true
+        uses: actions/ai-inference@v1
+        with:
+          prompt-file: readme-pr-summary-prompt.md
+          max-completion-tokens: 1200
+          temperature: 0.2
 
-          Requirements:
-          - Title must use conventional commit style and be 80 characters or fewer.
-          - Body must be Markdown with these sections: Summary, Changes, Review Notes.
-          - Mention that README.md was updated by automation.
-          - Do not invent changes that are not supported by the commits or diff.
-          - Keep the body concise and reviewer-friendly.
-          "@
-
+      - name: Save README Pull Request summary
+        if: steps.commit_branch.outputs.has_changes == 'true' && steps.readme_pr_summary_ai.outcome == 'success'
+        continue-on-error: true
+        env:
+          AI_RESPONSE: ${{ steps.readme_pr_summary_ai.outputs.response }}
+        run: |
           try {
-            $modelOutput = Get-Content readme-pr-summary-input.txt -Raw |
-              gh models run $env:PR_SUMMARY_MODEL $prompt
-
-            if ($LASTEXITCODE -ne 0) {
-              throw "gh models run exited with code $LASTEXITCODE"
+            $responsePath = "${{ steps.readme_pr_summary_ai.outputs.response-file }}"
+            if (-not [string]::IsNullOrWhiteSpace($responsePath) -and (Test-Path $responsePath)) {
+              $modelOutput = Get-Content $responsePath -Raw
+            } else {
+              $modelOutput = $env:AI_RESPONSE
             }
 
             $modelOutput | Out-File -FilePath readme-pr-summary-raw.txt -Encoding utf8
+            Write-Host "AI README PR metadata response length: $($modelOutput.Length)"
+
             $jsonText = [regex]::Match($modelOutput, "(?s)\{.*\}").Value
             $metadata = $jsonText | ConvertFrom-Json -ErrorAction Stop
 
@@ -348,7 +366,7 @@ jobs:
             $title | Out-File -FilePath readme-pr-title.txt -Encoding utf8 -NoNewline
             $body | Out-File -FilePath readme-pr-body.md -Encoding utf8
           } catch {
-            Write-Warning "Could not generate README PR metadata with GitHub Models: $_"
+            Write-Warning "Could not parse AI-generated README PR metadata: $_"
           }
 
       - name: Create README Pull Request
@@ -363,6 +381,7 @@ jobs:
             $generatedTitle = (Get-Content readme-pr-title.txt -Raw).Trim()
             if (-not [string]::IsNullOrWhiteSpace($generatedTitle)) {
               $title = $generatedTitle
+              Write-Host "Using AI-generated README PR title."
             }
           }
 
@@ -370,7 +389,12 @@ jobs:
             $generatedBody = (Get-Content readme-pr-body.md -Raw).Trim()
             if (-not [string]::IsNullOrWhiteSpace($generatedBody)) {
               $body = $generatedBody
+              Write-Host "Using AI-generated README PR body."
             }
+          }
+
+          if (-not (Test-Path readme-pr-body.md)) {
+            Write-Warning "AI-generated README PR body was not found; using fallback PR body."
           }
 
           $body | Out-File -FilePath readme-pr-create-body.md -Encoding utf8
