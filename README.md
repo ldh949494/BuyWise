@@ -270,6 +270,13 @@ Run the custom repository linter:
 python .\scripts\validate_repo_lint.py
 ```
 
+Validate entropy rules and generate a cleanup report:
+
+```powershell
+python .\scripts\validate_entropy.py
+python .\scripts\entropy_gc.py
+```
+
 Generate a manual doc-gardening report:
 
 ```powershell
