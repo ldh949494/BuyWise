@@ -267,7 +267,36 @@ uvicorn app.main:app --reload --port 8000
 
 > 生产建议 WSGI/ASGI 部署，并配置安全数据库。
 
-### 数据库表结构初始化
+### Repository memory
+
+Agent-facing project memory follows a map-based structure:
+
+- `AGENTS.md`: compact entrypoint for agents
+- `docs/architecture/`: stable module boundaries
+- `docs/design/`: feature designs with validation status
+- `docs/conventions/`: coding, testing, and documentation conventions
+- `docs/plans/`: active and archived implementation plans
+- `docs/reference/`: API, configuration, and script references
+
+Validate the repository memory docs:
+
+```powershell
+python .\scripts\validate_docs.py
+```
+
+Generate a manual doc-gardening report:
+
+```powershell
+python .\scripts\doc_gardening.py
+```
+
+Apply AI-proposed documentation updates only after review:
+
+```powershell
+python .\scripts\doc_gardening.py --apply
+```
+
+### Local validation
 
 ```
 python app/scripts/create_tables.py
