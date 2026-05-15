@@ -264,6 +264,12 @@ Validate Provider-mode boundaries for cross-cutting concerns:
 python .\scripts\validate_providers.py
 ```
 
+Run the custom repository linter:
+
+```powershell
+python .\scripts\validate_repo_lint.py
+```
+
 Generate a manual doc-gardening report:
 
 ```powershell
