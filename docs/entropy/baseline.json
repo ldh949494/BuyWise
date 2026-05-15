@@ -1,0 +1,198 @@
+{
+  "version": 1,
+  "description": "Existing entropy debt. CI fails only on new issues not listed here.",
+  "issues": [
+    {
+      "key": "bare-todo|app/services/chat_service.py|line-64",
+      "rule": "bare-todo",
+      "path": "app/services/chat_service.py",
+      "line": 64,
+      "symbol": "line-64",
+      "detail": "Comment contains TODO/FIXME/HACK without owner: or issue:."
+    },
+    {
+      "key": "broad-except|app/services/chat_service.py|except-71",
+      "rule": "broad-except",
+      "path": "app/services/chat_service.py",
+      "line": 71,
+      "symbol": "except-71",
+      "detail": "Broad exception handler does not report through ErrorProvider or re-raise."
+    },
+    {
+      "key": "duplicate-function|app/services/compare_service.py|4136368f3750",
+      "rule": "duplicate-function",
+      "path": "app/services/compare_service.py",
+      "line": 131,
+      "symbol": "4136368f3750",
+      "detail": "Duplicate function implementation detected across 2 functions: app/services/compare_service.py:131:_coerce_list, app/services/recommend_service.py:75:_coerce_list."
+    },
+    {
+      "key": "duplicate-function|app/services/compare_service.py|8ee64e658d3f",
+      "rule": "duplicate-function",
+      "path": "app/services/compare_service.py",
+      "line": 154,
+      "symbol": "8ee64e658d3f",
+      "detail": "Duplicate function implementation detected across 2 functions: app/services/compare_service.py:154:_try_parse_json, app/services/recommend_service.py:87:_try_parse_json."
+    },
+    {
+      "key": "duplicate-function|scripts/ai_update_readme.py|e4f7b79fb857",
+      "rule": "duplicate-function",
+      "path": "scripts/ai_update_readme.py",
+      "line": 13,
+      "symbol": "e4f7b79fb857",
+      "detail": "Duplicate function implementation detected across 2 functions: scripts/ai_update_readme.py:13:run, scripts/doc_gardening.py:27:run."
+    },
+    {
+      "key": "duplicate-function|scripts/ai_update_readme.py|25f69bc0ef64",
+      "rule": "duplicate-function",
+      "path": "scripts/ai_update_readme.py",
+      "line": 26,
+      "symbol": "25f69bc0ef64",
+      "detail": "Duplicate function implementation detected across 3 functions: scripts/ai_update_readme.py:26:run_with_input, scripts/doc_gardening.py:40:run_with_input, scripts/entropy_gc.py:22:run_with_input."
+    },
+    {
+      "key": "function-length|app/ai/llm_client.py|generate_recommendation",
+      "rule": "function-length",
+      "path": "app/ai/llm_client.py",
+      "line": 18,
+      "symbol": "generate_recommendation",
+      "detail": "Function exceeds 30 lines limit; found 38."
+    },
+    {
+      "key": "function-length|app/core/providers.py|configure",
+      "rule": "function-length",
+      "path": "app/core/providers.py",
+      "line": 52,
+      "symbol": "configure",
+      "detail": "Function exceeds 30 lines limit; found 40."
+    },
+    {
+      "key": "function-length|app/repositories/product_repo.py|list_products",
+      "rule": "function-length",
+      "path": "app/repositories/product_repo.py",
+      "line": 25,
+      "symbol": "list_products",
+      "detail": "Function exceeds 30 lines limit; found 39."
+    },
+    {
+      "key": "function-length|app/services/chat_service.py|handle_chat",
+      "rule": "function-length",
+      "path": "app/services/chat_service.py",
+      "line": 33,
+      "symbol": "handle_chat",
+      "detail": "Function exceeds 30 lines limit; found 45."
+    },
+    {
+      "key": "function-length|app/services/compare_service.py|_build_item",
+      "rule": "function-length",
+      "path": "app/services/compare_service.py",
+      "line": 40,
+      "symbol": "_build_item",
+      "detail": "Function exceeds 30 lines limit; found 71."
+    },
+    {
+      "key": "function-length|app/services/intent_service.py|extract",
+      "rule": "function-length",
+      "path": "app/services/intent_service.py",
+      "line": 66,
+      "symbol": "extract",
+      "detail": "Function exceeds 30 lines limit; found 47."
+    },
+    {
+      "key": "function-length|app/services/intent_service.py|_extract_intent",
+      "rule": "function-length",
+      "path": "app/services/intent_service.py",
+      "line": 114,
+      "symbol": "_extract_intent",
+      "detail": "Function exceeds 30 lines limit; found 41."
+    },
+    {
+      "key": "function-length|app/services/recommend_service.py|_rank_product",
+      "rule": "function-length",
+      "path": "app/services/recommend_service.py",
+      "line": 17,
+      "symbol": "_rank_product",
+      "detail": "Function exceeds 30 lines limit; found 52."
+    },
+    {
+      "key": "function-length|scripts/ai_update_readme.py|update_readme_with_ai",
+      "rule": "function-length",
+      "path": "scripts/ai_update_readme.py",
+      "line": 92,
+      "symbol": "update_readme_with_ai",
+      "detail": "Function exceeds 30 lines limit; found 41."
+    },
+    {
+      "key": "function-length|scripts/ai_update_readme.py|main",
+      "rule": "function-length",
+      "path": "scripts/ai_update_readme.py",
+      "line": 135,
+      "symbol": "main",
+      "detail": "Function exceeds 30 lines limit; found 34."
+    },
+    {
+      "key": "function-length|scripts/browser_check.py|main",
+      "rule": "function-length",
+      "path": "scripts/browser_check.py",
+      "line": 8,
+      "symbol": "main",
+      "detail": "Function exceeds 30 lines limit; found 53."
+    },
+    {
+      "key": "function-length|scripts/doc_gardening.py|main",
+      "rule": "function-length",
+      "path": "scripts/doc_gardening.py",
+      "line": 191,
+      "symbol": "main",
+      "detail": "Function exceeds 30 lines limit; found 31."
+    },
+    {
+      "key": "function-length|scripts/entropy_gc.py|render_deterministic_report",
+      "rule": "function-length",
+      "path": "scripts/entropy_gc.py",
+      "line": 37,
+      "symbol": "render_deterministic_report",
+      "detail": "Function exceeds 30 lines limit; found 41."
+    },
+    {
+      "key": "function-length|scripts/validate_repo_lint.py|check_python_names",
+      "rule": "function-length",
+      "path": "scripts/validate_repo_lint.py",
+      "line": 110,
+      "symbol": "check_python_names",
+      "detail": "Function exceeds 30 lines limit; found 45."
+    },
+    {
+      "key": "function-length|scripts/validate_repo_lint.py|check_import_layers",
+      "rule": "function-length",
+      "path": "scripts/validate_repo_lint.py",
+      "line": 190,
+      "symbol": "check_import_layers",
+      "detail": "Function exceeds 30 lines limit; found 36."
+    },
+    {
+      "key": "public-function-verb|app/services/speech_service.py|transcribe",
+      "rule": "public-function-verb",
+      "path": "app/services/speech_service.py",
+      "line": 7,
+      "symbol": "transcribe",
+      "detail": "Public services function 'transcribe' does not start with an approved verb."
+    },
+    {
+      "key": "public-function-verb|app/services/upload_service.py|save",
+      "rule": "public-function-verb",
+      "path": "app/services/upload_service.py",
+      "line": 18,
+      "symbol": "save",
+      "detail": "Public services function 'save' does not start with an approved verb."
+    },
+    {
+      "key": "public-function-verb|app/services/vision_service.py|recognize",
+      "rule": "public-function-verb",
+      "path": "app/services/vision_service.py",
+      "line": 7,
+      "symbol": "recognize",
+      "detail": "Public services function 'recognize' does not start with an approved verb."
+    }
+  ]
+}

@@ -11,6 +11,14 @@ on:
         options:
           - "false"
           - "true"
+      run_entropy_gc:
+        description: "Generate an entropy garbage-collection report"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
   pull_request:
     branches:
       - main
@@ -31,6 +39,43 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  entropy-gc:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_entropy_gc == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Validate entropy baseline
+        run: python scripts/validate_entropy.py
+
+      - name: Generate entropy GC report
+        run: python scripts/entropy_gc.py
+
+      - name: Upload entropy GC report
+        uses: actions/upload-artifact@v4
+        with:
+          name: entropy-gc-report
+          path: artifacts/entropy-gc/report.md
+
   doc-gardening:
     if: github.event_name == 'workflow_dispatch' && inputs.run_doc_gardening == 'true'
     runs-on: ubuntu-latest

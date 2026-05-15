@@ -326,7 +326,14 @@ python .\scripts\validate_providers.py
 python .\scripts\validate_repo_lint.py
 ```
 
-Doc-gardening 检查建议：
+Validate entropy rules and generate a cleanup report:
+
+```powershell
+python .\scripts\validate_entropy.py
+python .\scripts\entropy_gc.py
+```
+
+Generate a manual doc-gardening report:
 
 ```
 python .\scripts\doc_gardening.py
