@@ -2,16 +2,11 @@ from fastapi import FastAPI
 
 from app.api.router import api_router
 from app.core.config import settings
-from app.core.logging import configure_logging
-
-try:
-    from prometheus_fastapi_instrumentator import Instrumentator
-except ImportError:  # pragma: no cover - dependency is installed in normal runtime.
-    Instrumentator = None
+from app.core.providers import get_error_provider, get_logging_provider, get_telemetry_provider
 
 
 def create_app() -> FastAPI:
-    configure_logging()
+    get_logging_provider().configure()
     app = FastAPI(
         title=settings.app_name,
         debug=settings.app_debug,
@@ -21,8 +16,8 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json",
     )
     app.include_router(api_router, prefix=settings.api_v1_prefix)
-    if Instrumentator is not None:
-        Instrumentator().instrument(app).expose(app)
+    get_error_provider().register_exception_handlers(app)
+    get_telemetry_provider().instrument(app)
     return app
 
 

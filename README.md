@@ -311,7 +311,13 @@ uvicorn app.main:app --reload --port 8000
   python .\scripts\validate_docs.py
   ```
 
-- 生成 AI 维护建议报告（doc-gardening report）：
+Validate Provider-mode boundaries for cross-cutting concerns:
+
+```powershell
+python .\scripts\validate_providers.py
+```
+
+Generate a manual doc-gardening report:
 
   ```
   python .\scripts\doc_gardening.py

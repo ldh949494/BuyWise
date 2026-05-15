@@ -210,8 +210,8 @@ jobs:
           PR_SUMMARY_MODEL: openai/gpt-4.1
         run: |
           try {
-            $prompt = Get-Content pr-summary-prompt.md -Raw
-            $modelOutput = "" | gh models run $env:PR_SUMMARY_MODEL $prompt
+            $modelOutput = Get-Content pr-summary-prompt.md -Raw |
+              gh models run $env:PR_SUMMARY_MODEL "Read stdin and generate Pull Request metadata. Return only JSON with title and body."
             $modelOutput | Out-File -FilePath pr-summary-raw.txt -Encoding utf8
             Write-Host "AI PR metadata response length: $($modelOutput.Length)"
 
@@ -412,8 +412,8 @@ jobs:
           PR_SUMMARY_MODEL: openai/gpt-4.1
         run: |
           try {
-            $prompt = Get-Content readme-pr-summary-prompt.md -Raw
-            $modelOutput = "" | gh models run $env:PR_SUMMARY_MODEL $prompt
+            $modelOutput = Get-Content readme-pr-summary-prompt.md -Raw |
+              gh models run $env:PR_SUMMARY_MODEL "Read stdin and generate README Pull Request metadata. Return only JSON with title and body."
             $modelOutput | Out-File -FilePath readme-pr-summary-raw.txt -Encoding utf8
             Write-Host "AI README PR metadata response length: $($modelOutput.Length)"
 

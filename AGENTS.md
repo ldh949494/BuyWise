@@ -25,6 +25,7 @@ BuyWise is a FastAPI backend plus native Android client for a multimodal e-comme
 ## Conventions
 
 - Backend conventions: `docs/conventions/backend.md`
+- Provider pattern: `docs/conventions/providers.md`
 - Android conventions: `docs/conventions/android.md`
 - Testing conventions: `docs/conventions/testing.md`
 - Documentation conventions: `docs/conventions/docs.md`
@@ -60,11 +61,13 @@ python .\scripts\validate_docs.py
 - Put Pydantic schemas in `app/schemas/`.
 - Put tests in `tests/test_*.py`.
 - Keep Android app code under `android-app/app/src/main/java/com/buywise/android/`.
+- Access auth, telemetry, logging, and errors only through `app.core.providers`.
 
 ## Validation
 
 - Run the relevant tests for code changes.
 - Run `python scripts/validate_docs.py` when changing `AGENTS.md` or `docs/`.
+- Run `python scripts/validate_providers.py` when changing cross-cutting concerns.
 - Run doc-gardening manually when project structure or major behavior changes:
 
 ```powershell
