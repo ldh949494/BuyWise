@@ -7,6 +7,9 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 storage/
+artifacts/
+uploads/
+.chrome-agent/
 .idea/
 android-app/.idea/
 android-app/.gradle/
