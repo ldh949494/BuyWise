@@ -95,6 +95,7 @@ python app/scripts/build_vector_index.py
 - **意图识别服务**：`app/services/intent_service.py` 支持商品推荐/对比/找平替等场景的意图、分类、预算、场景和偏好抽取
 - **智能推荐服务**：`app/services/recommend_service.py` 根据预算、场景、偏好、销量、库存等多因素商品排序推荐理由
 - **LLM 智能回复与总结生成**：`app/ai/llm_client.py` 支持 mock/后续替换大模型，实现推荐理由生成、需求澄清、商品对比总结 
+- **统一 Provider 管理**：`app/core/providers.py` 提供跨领域能力分离，集中管理 logging/telemetry/auth/errors 等横切关注点（详见自动化校验说明）
 
 ---
 
@@ -153,22 +154,21 @@ python .\scripts\browser_check.py --base-url http://127.0.0.1:8123 --cdp-url htt
 
 ### Observability
 
-Start a PR instance with Prometheus, Loki, Promtail, and Grafana:
+启动 PR 实例时包含 Prometheus/Loki/Promtail/Grafana:
 
 ```powershell
 .\scripts\start_pr_env.ps1 -Name pr-123 -BackendPort 8123 -MysqlPort 3323 -Observability
 ```
 
-Default local ports:
+默认本地端口：
 
-- Backend: `http://127.0.0.1:8123`
+- 后端: `http://127.0.0.1:8123`
 - Prometheus: `http://127.0.0.1:9090`
 - Loki: `http://127.0.0.1:3100`
 - Grafana: `http://127.0.0.1:3000` (`admin` / `admin`)
 
-The FastAPI app exposes Prometheus metrics at `/metrics`. Application logs are
-emitted as JSON to stdout, and Promtail labels Docker logs with compose project
-and service names. Useful queries:
+FastAPI 应用自动暴露 `/metrics` Prometheus 指标。应用日志全部以 JSON 格式写入 stdout，Promtail 自动绑定 compose 项目/服务等 labels，便于云原生可观测性。
+常用日志/监控查询：
 
 ```logql
 {compose_project="buywise-pr-123", service="backend"} |= "ERROR"
@@ -178,15 +178,18 @@ and service names. Useful queries:
 rate(http_requests_total[5m])
 ```
 
+---
+
 ## Project Layout
 
 ```text
 app/
-  ai/                     # 智能体基础设施（agent、RAG、LLM、embedding，embedding_client.py 实现embed）
-    llm_client.py         # LLM结构化推荐/对比/澄清理由与问句生成（Mock模式，后续可接大模型API）
-    prompts.py            # LLM Prompt模版
-    agent.py              # 任务式Agent主逻辑
-    rag_pipeline.py       # RAG语义检索与候选集过滤
+  ai/                     # 智能体基础设施（agent、RAG、LLM、embedding）
+    llm_client.py         # LLM结构化推荐/对比/澄清理由与问句生成（Mock或对接API）
+    prompts.py
+    agent.py
+    rag_pipeline.py
+    embedding_client.py
   api/                    # FastAPI 路由与 API 逻辑
     router.py
     v1/
@@ -201,30 +204,32 @@ app/
   core/
     config.py
     database.py
-    logging.py
+    logging.py            # 日志封装器（已适配 provider 方案）
     exceptions.py
-  integrations/           # 外部系统集成，如腾讯云、Chroma、ASR、多模态API
-  models/                 # ORM 数据模型（Product、Review、Recommendation、PriceHistory、ChatSession、ChatMessage 等）
-  repositories/           # 数据库仓储模式
-  schemas/                # Pydantic 读写数据结构
-  services/               # 业务服务层 (chat、product、recommend、intent等)
-    intent_service.py     # 意图检测/需求解析（规则+LLM 提取，全面覆盖主流消费问询）
-    recommend_service.py  # 推荐服务（推荐理由生成、智能商品排名）
-    upload_service.py     # 文件上传服务（本地/云存储）
-    vision_service.py     # 图像理解服务（类别和特征抽取）
-    speech_service.py     # 语音转文本服务（ASR）
-  scripts/                # 运维和数据脚本
-    create_tables.py      # 数据库表自动创建
-    build_vector_index.py # 构建产品向量索引，生成RAG语义检索索引
+    providers.py          # 横切关注点统一声明: 日志/监控/异常/认证
+  integrations/           # 云服务、Chroma等集成
+  models/                 # ORM 数据模型
+  repositories/
+  schemas/
+  services/
+    intent_service.py     
+    recommend_service.py  
+    upload_service.py     
+    vision_service.py     
+    speech_service.py
+  scripts/
+    create_tables.py      
+    build_vector_index.py 
     import_products.py
     seed_products.py
   utils/
-    text_builder.py       # 商品文本和检索需求拼装
+    logging.py            # 日志适配器接口
+    text_builder.py
   vectorstore/
-    chroma_client.py      # Chroma向量存储接口
+    chroma_client.py
     product_index.py
-android-app/              # 安卓客户端（Kotlin/Jetpack Compose/MVVM）
-.github/workflows/        # GitHub Actions
+android-app/              # 安卓客户端 (Kotlin/Jetpack Compose/MVVM)
+.github/workflows/        # CI/CD 工作流
 requirements.txt          # Python依赖
 ```
 
@@ -234,13 +239,29 @@ requirements.txt          # Python依赖
 
 - **本地自动化校验**：
 
-  ```
+  ```powershell
   powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1
   ```
+
+  - 自动执行依赖、数据库、Provider 边界和文档校验
+
+- **文档校验、Provider 校验单独命令**：
+
+  ```powershell
+  python .\scripts\validate_docs.py
+  python .\scripts\validate_providers.py
+  ```
+
+  - validate_providers.py 可自动发现非法跨 Provider 导入，避免横切关注点滥用
 
 - **GitHub Actions**：  
   `.github/workflows/ai-auto-commit.yml`  
   支持 main 分支 push 或手动触发时，执行本地校验与 AI 自动维护 README。只在有真实内容变更时创建 PR。Pull Request 标题与说明自动生成。
+
+- **AI-Driven README 更新需配置：**
+  - 在仓库 Secrets 配置 `GH_TOKEN`（GitHub Actions 自动化令牌）。
+  - 自动维护脚本基于 GitHub 模型扩展（`gh models`），无需 OpenAI 直连变量。
+  - Pull Request 标题与说明、README 更新 PR 说明模板，适配简体中文。
 
 ---
 
@@ -248,12 +269,12 @@ requirements.txt          # Python依赖
 
 - `/api/v1/health` 健康检查
 - `/api/v1/chat` 智能聊天&问答
-- `/api/v1/products` 商品信息/检索
+- `/api/v1/products` 商品信息&检索
 - `/api/v1/compare` 商品对比分析
 - `/api/v1/rag` 检索增强生成
 - `/api/v1/upload/upload` 文件上传（支持图片/音频等二进制，返回文件访问路径）
 - `/api/v1/vision/recognize` 图像识别/类目&属性解析
-- `/api/v1/speech/asr` 语音识别转文本（Mock/后续可对接腾讯ASR）
+- `/api/v1/speech/asr` 语音识别转文本（Mock/可对接腾讯ASR）
 
 ---
 
@@ -267,36 +288,42 @@ uvicorn app.main:app --reload --port 8000
 
 > 生产建议 WSGI/ASGI 部署，并配置安全数据库。
 
+### Provider 边界/横切关注点约束说明
+
+- **日志接口**：统一通过 `app/core/providers.py` 或 `app/utils/logging.py` 获取，不允许直接 import logging
+- **监控埋点**：通过 provider 获取，只允许统一封装后使用
+- **自动化校验**：`scripts/validate_providers.py` 强制检测模块边界，如发现违规直接提示需整改
+
 ### Repository memory
 
 Agent-facing project memory follows a map-based structure:
 
-- `AGENTS.md`: compact entrypoint for agents
-- `docs/architecture/`: stable module boundaries
-- `docs/design/`: feature designs with validation status
-- `docs/conventions/`: coding, testing, and documentation conventions
-- `docs/plans/`: active and archived implementation plans
-- `docs/reference/`: API, configuration, and script references
+- `AGENTS.md`: 紧凑的 Agent 入口文档
+- `docs/architecture/`: 模块边界说明
+- `docs/design/`: 设计方案与验收状态
+- `docs/conventions/`: 编码/测试/文档规范
+- `docs/plans/`: 实现计划
+- `docs/reference/`: API、配置、脚本说明
 
-Validate the repository memory docs:
+验证文档：
 
 ```powershell
 python .\scripts\validate_docs.py
 ```
 
-Validate Provider-mode boundaries for cross-cutting concerns:
+Provider 横切关注点检测：
 
 ```powershell
 python .\scripts\validate_providers.py
 ```
 
-Generate a manual doc-gardening report:
+生成文档维护建议报告：
 
 ```powershell
 python .\scripts\doc_gardening.py
 ```
 
-Apply AI-proposed documentation updates only after review:
+应用 AI 补丁：
 
 ```powershell
 python .\scripts\doc_gardening.py --apply
@@ -310,23 +337,23 @@ python app/scripts/create_tables.py
 
 ### 构建产品向量索引（RAG）
 
-- 推荐每次商品表变动后重新同步索引：
+推荐每次商品表变动后重新同步索引：
 
-  ```
-  python app/scripts/build_vector_index.py
-  ```
+```
+python app/scripts/build_vector_index.py
+```
 
-  支持从数据库同步所有产品，并更新嵌入向量及语义检索索引。
+支持数据库同步所有产品，并更新嵌入向量及语义检索索引。
 
 ### 运行单元测试
 
-- 推荐创建 `tests/` 目录，使用：
+建议建立 `tests/` 目录，运行：
 
-  ```
-  pytest -q
-  ```
+```
+pytest -q
+```
 
-- 自动化脚本同样会检测、运行单元测试
+脚本亦会自动化检测所有测试。
 
 ### 构建 Android 客户端
 
@@ -334,37 +361,31 @@ python app/scripts/create_tables.py
 cd android-app
 .\gradlew.bat :app:assembleDebug
 ```
-也可用 Android Studio 图形界面
+或使用 Android Studio 可视化构建与调试。
 
 ---
 
 ## 重要说明
 
-- **AI-Driven README 更新需配置：**
-  - 在仓库 Secrets 配置 `GH_TOKEN`（GitHub Actions 自动化令牌）。
-  - 自动维护脚本现在基于 GitHub 模型扩展（`gh models`），不再使用 OpenAI 直连变量。
-  - Pull Request 标题与说明、README 更新 PR 说明模板已全面适配简体中文。
-- **RAG/Agent 能力在 `app/ai/agent.py`、`app/ai/rag_pipeline.py`、`vectorstore/chroma_client.py`（检索与嵌入）、`ai/embedding_client.py`（embedding 算法实现）模块实现。**
-- **多模态相关：**
-  - 视觉接口（`vision.py`，`app/services/vision_service.py`）：支持图像类别/特征抽取（当前为 mock，可扩展多模态模型）
-  - 语音 ASR（`speech.py`，`app/services/speech_service.py`）：支持语音转文本（当前为 mock，可对接腾讯ASR）
-  - 文件上传（`upload.py`，`app/services/upload_service.py`）：支持文件本地存储及后续扩展云存储
-- **文本组装工具**：  
-  `app/utils/text_builder.py` 协助生成结构化查询文本，用于嵌入、检索和需求分析
-- **意图识别与需求结构化**：  
-  `app/services/intent_service.py` 新增规则与轻量 LLM 结合的用户意图/需求要素抽取，准确处理“推荐/对比/平替/价格/参数”等消费问询，提取 product category、场景、预算、偏好字段，支持灰度部署未来 LLM 结构化助手。
-- **推荐服务说明**：
-  - `app/services/recommend_service.py` 提供智能商品推荐排序，综合考虑用户预算、偏好、适用场景、评分、销量和库存，生成多因子排序及推荐理由说明。
-- **LLM 智能输出能力说明：**
-  - `app/ai/llm_client.py` 新增结构化方法，涵盖推荐理由、自然语言澄清追问、商品对比总结生成，辅助 UI 端输出和 Agent 智能交互。  
-  - Prompt 模板集中于 `app/ai/prompts.py`，支持结构化意图抽取、推荐、对比和澄清场景。
+- **Provider/横切关注点能力在 `app/core/providers.py` 集中实现：**
+  - logging / telemetry / errors / auth 统一注册、可插拔，相关模块只允许通过 providers 获取
+  - 采用自动化校验强制约束边界，便于可观测性与安全
+- **RAG/Agent 能力在 `app/ai/agent.py`、`app/ai/rag_pipeline.py`、`vectorstore/chroma_client.py`、`app/ai/embedding_client.py` 植入**
+- **多模态相关**：
+  - 视觉：`vision.py`、`app/services/vision_service.py`
+  - 语音 ASR：`speech.py`、`app/services/speech_service.py`
+  - 文件上传：`upload.py`、`app/services/upload_service.py`
+- **文本组装**：`app/utils/text_builder.py` 用于嵌入与检索表达结构化拼装
+- **意图识别与需求结构化**：`app/services/intent_service.py`，LLM/规则混合抽取用户消费意图、商品范畴、预算、喜欢字段
+- **推荐服务说明**：`app/services/recommend_service.py` 综合预算/场景/评分等多因子排序并理由说明
+- **LLM 智能输出**：`app/ai/llm_client.py` 输出推荐理由、追问、对比总结，Prompt 模板见 `app/ai/prompts.py`
 
 ---
 
 ## 贡献方式
 
-- 提交请确保本地测试通过
-- 欢迎扩展 Agent、RAG、产品数据结构等
-- 如需支持或建议，请提交 issue
+- 提交前请确保本地测试 & 校验通过
+- 欢迎扩展 Agent、RAG、产品数据结构等边界
+- 如需技术支持或有建议，请提交 issue
 
 ---
