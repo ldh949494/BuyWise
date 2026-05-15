@@ -241,6 +241,8 @@ cd android-app
 
 ## Automation
 
+<!-- AUTO-DOCS:START -->
+
 ### Repository memory
 
 Agent-facing project memory follows a map-based structure:
@@ -347,3 +349,5 @@ GITHUB_MODELS_README_MODEL=openai/gpt-4.1
 - Missing GitHub CLI or GitHub Models access skips README generation without failing the workflow.
 - AI generation errors skip README generation without failing the workflow.
 - No README content change means no automation branch and no pull request.
+
+<!-- AUTO-DOCS:END -->
