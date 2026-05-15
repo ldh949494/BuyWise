@@ -26,6 +26,9 @@ BuyWise is a FastAPI backend plus native Android client for a multimodal e-comme
 
 - Backend conventions: `docs/conventions/backend.md`
 - Provider pattern: `docs/conventions/providers.md`
+- Custom lint rules: `docs/conventions/logging.md`, `docs/conventions/naming.md`, `docs/conventions/file-size.md`, `docs/conventions/imports.md`
+- Entropy control: `docs/conventions/golden-principles.md`, `docs/conventions/entropy-gc.md`
+- Background cleanup: `docs/conventions/background-cleanup-agent.md`
 - Android conventions: `docs/conventions/android.md`
 - Testing conventions: `docs/conventions/testing.md`
 - Documentation conventions: `docs/conventions/docs.md`
@@ -68,6 +71,8 @@ python .\scripts\validate_docs.py
 - Run the relevant tests for code changes.
 - Run `python scripts/validate_docs.py` when changing `AGENTS.md` or `docs/`.
 - Run `python scripts/validate_providers.py` when changing cross-cutting concerns.
+- Run `python scripts/validate_repo_lint.py` before committing structural changes.
+- Run `python scripts/validate_entropy.py` to prevent new entropy debt.
 - Run doc-gardening manually when project structure or major behavior changes:
 
 ```powershell

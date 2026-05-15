@@ -5,6 +5,10 @@
 - `scripts/auto_validate.ps1`: repository validation entrypoint.
 - `scripts/validate_docs.py`: validates `AGENTS.md` and `docs/`.
 - `scripts/validate_providers.py`: validates that backend modules use the unified Provider entrypoint for cross-cutting concerns.
+- `scripts/validate_repo_lint.py`: custom repository linter for structured logging, naming, file size, and import boundaries.
+- `scripts/validate_entropy.py`: validates golden-principle entropy rules against `docs/entropy/baseline.json`.
+- `scripts/entropy_gc.py`: generates a read-only entropy garbage-collection report under `artifacts/entropy-gc/`.
+- `scripts/entropy_cleanup_agent.py`: applies one low-risk entropy cleanup through GitHub Models for the background cleanup workflow.
 
 ## Runtime
 

@@ -29,6 +29,12 @@ Write-Host "========== Documentation Validation =========="
 Write-Host "========== Provider Validation =========="
 & $python scripts/validate_providers.py
 
+Write-Host "========== Custom Repository Lint =========="
+& $python scripts/validate_repo_lint.py
+
+Write-Host "========== Entropy Validation =========="
+& $python scripts/validate_entropy.py
+
 @'
 from app.api.v1.health import health_check
 from app.main import app

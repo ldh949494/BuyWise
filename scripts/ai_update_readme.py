@@ -8,6 +8,8 @@ from typing import Optional
 ROOT = Path(__file__).resolve().parents[1]
 README_PATH = ROOT / "README.md"
 DIFF_PATHS = ("app", "android-app", "scripts", ".github", "requirements.txt", "README.md")
+AUTO_DOCS_START = "<!-- AUTO-DOCS:START -->"
+AUTO_DOCS_END = "<!-- AUTO-DOCS:END -->"
 
 
 def run(cmd: list[str], *, check: bool = False) -> str:
@@ -89,19 +91,31 @@ def normalize_readme_output(content: str) -> str:
     return stripped
 
 
+def replace_auto_docs_block(readme: str, generated: str) -> str:
+    start_index = readme.find(AUTO_DOCS_START)
+    end_index = readme.find(AUTO_DOCS_END)
+
+    if start_index == -1 or end_index == -1 or end_index < start_index:
+        raise ValueError("README.md is missing a valid AUTO-DOCS block.")
+
+    block_start = start_index + len(AUTO_DOCS_START)
+    generated_block = "\n\n" + generated.strip() + "\n\n"
+    return readme[:block_start] + generated_block + readme[end_index:]
+
+
 def update_readme_with_ai(readme: str, diff: str, tree: str) -> str:
     model = os.getenv("GITHUB_MODELS_README_MODEL", "openai/gpt-4.1")
     prompt = """
 You are a professional software engineering documentation maintainer.
 Read the repository file tree, git diff, and current README.md from stdin.
-Return the complete updated README.md.
+Return only the Markdown content that should appear inside the AUTO-DOCS block.
 
 Requirements:
-1. Preserve existing README content that is still accurate and useful.
-2. Update feature descriptions, startup instructions, test instructions, and project structure based on code changes.
+1. Do not return the AUTO-DOCS markers.
+2. Do not rewrite any content outside the AUTO-DOCS block.
 3. Do not invent features that are not supported by the diff or file tree.
 4. Write in Chinese.
-5. Return only the README.md body. Do not include explanations or Markdown code fences.
+5. Return only Markdown. Do not include explanations or Markdown code fences.
 6. If FastAPI, Android, Docker, RAG, or Agent-related content is detected, include the relevant run instructions.
 """.strip()
 
@@ -125,11 +139,12 @@ Current README.md:
             "models",
             "run",
             model,
-            "Read stdin and return the complete updated README.md body only.",
+            "Read stdin and return only the Markdown content for the README AUTO-DOCS block.",
         ],
         context,
     )
-    return normalize_readme_output(output) + "\n"
+    generated = normalize_readme_output(output)
+    return replace_auto_docs_block(readme, generated)
 
 
 def main() -> int:
