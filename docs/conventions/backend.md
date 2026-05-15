@@ -17,6 +17,8 @@
 
 - Put Pydantic request and response contracts in `app/schemas/`.
 - Put SQLAlchemy models in `app/models/`.
+- Put database schema changes in Alembic revisions under `alembic/versions/`.
+- Generate migrations from `app.core.database.Base.metadata` and review generated operations before committing.
 - Keep API response shape changes covered by tests.
 
 ## Configuration

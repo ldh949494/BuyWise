@@ -14,6 +14,7 @@ def test_settings_reads_new_env_names() -> None:
         "MYSQL_PASSWORD": "secret",
         "MYSQL_DATABASE": "buywise",
         "CHROMA_PERSIST_DIR": "/var/lib/chroma",
+        "CHROMA_PRODUCT_COLLECTION": "products_prod",
         "LLM_BASE_URL": "https://llm.example.com/v1",
         "LLM_API_KEY": "key-123",
         "LLM_MODEL": "gpt-4.1-mini",
@@ -44,6 +45,7 @@ def test_settings_reads_new_env_names() -> None:
     assert settings.mysql_database == "buywise"
     assert settings.chroma_persist_dir == "/var/lib/chroma"
     assert settings.chroma_persist_directory == "/var/lib/chroma"
+    assert settings.chroma_product_collection == "products_prod"
     assert settings.llm_base_url == "https://llm.example.com/v1"
     assert settings.llm_api_key == "key-123"
     assert settings.llm_model == "gpt-4.1-mini"

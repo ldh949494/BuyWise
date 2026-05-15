@@ -1,6 +1,6 @@
-"""Create database tables for all SQLAlchemy models."""
+"""Compatibility wrapper for database initialization."""
 
-from app.core.database import Base, engine
+from app.core.database import Base
 from app.models import (
     ChatMessage,
     ChatSession,
@@ -21,7 +21,9 @@ _ = (
 
 
 def create_tables() -> None:
-    Base.metadata.create_all(bind=engine)
+    from app.scripts.migrate_database import upgrade_database
+
+    upgrade_database()
 
 
 if __name__ == "__main__":

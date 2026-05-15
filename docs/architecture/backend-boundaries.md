@@ -8,13 +8,14 @@ The backend is a FastAPI application organized by boundary rather than by endpoi
 - Router registry: `app/api/router.py`
 - Runtime configuration: `app/core/config.py`
 - Database session setup: `app/core/database.py`
+- Database migrations: `alembic/` with the command wrapper in `app/scripts/migrate_database.py`
 
 ## Layer Responsibilities
 
 - `app/api/v1/`: HTTP concerns, dependency wiring, request validation, response model selection.
 - `app/services/`: use-case logic, orchestration, fallback behavior, AI/retrieval composition.
 - `app/repositories/`: persistence access and query behavior.
-- `app/models/`: SQLAlchemy persistence models.
+- `app/models/`: SQLAlchemy persistence models and the source metadata for Alembic autogeneration.
 - `app/schemas/`: Pydantic API contracts and service DTOs.
 - `app/integrations/`: external vendor clients such as multimodal, object storage, and ASR integrations.
 

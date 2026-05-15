@@ -8,6 +8,8 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
 
+Write-Host "Agent map: AGENTS.md"
+
 $python = if (Test-Path -LiteralPath ".\.venv\Scripts\python.exe") {
     ".\.venv\Scripts\python.exe"
 } else {

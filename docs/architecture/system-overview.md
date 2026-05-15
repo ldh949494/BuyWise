@@ -9,7 +9,7 @@ BuyWise is a multimodal e-commerce shopping guide. The repository contains a Fas
 - Service layer: `app/services/` owns business workflows and composes repositories, AI clients, and integrations.
 - Repository layer: `app/repositories/` owns database access with SQLAlchemy sessions.
 - Data model layer: `app/models/` defines SQLAlchemy models; `app/schemas/` defines Pydantic request and response models.
-- AI and retrieval: `app/ai/` and `app/vectorstore/` provide LLM, embedding, RAG, and Chroma integration points.
+- AI and retrieval: `app/ai/` and `app/vectorstore/` provide LLM, embedding, RAG, and a persistent ChromaDB product index.
 - Android client: `android-app/` contains a Kotlin Jetpack Compose app with MVVM-style state and repository-backed mock data.
 
 ## Dependency Direction

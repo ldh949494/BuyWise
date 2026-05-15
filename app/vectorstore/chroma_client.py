@@ -1,74 +1,97 @@
 from __future__ import annotations
 
-import math
 from typing import Any, List
+
+import chromadb
 
 from app.ai.embedding_client import EmbeddingClient
 from app.core.config import settings
 
 
 class ChromaProductStore:
-    """In-memory Chroma-compatible product store for early RAG flows."""
+    """Persistent ChromaDB-backed product vector store."""
 
     def __init__(
         self,
         persist_directory: str | None = None,
         embedding_client: EmbeddingClient | None = None,
+        collection_name: str | None = None,
+        batch_size: int = 100,
     ) -> None:
         self.persist_directory = persist_directory or settings.chroma_persist_directory
         self.embedding_client = embedding_client or EmbeddingClient()
-        self._documents: list[dict[str, Any]] = []
+        self.collection_name = collection_name or settings.chroma_product_collection
+        self.batch_size = batch_size
+        self.client = chromadb.PersistentClient(path=self.persist_directory)
+        self.collection = self._get_or_create_collection()
 
     def add_documents(self, docs: List[dict]) -> None:
-        texts = [doc["text"] for doc in docs]
-        embeddings = self.embedding_client.embed_texts(texts)
-
-        for doc, embedding in zip(docs, embeddings):
-            self._documents.append(
-                {
-                    "id": str(doc["id"]),
-                    "text": doc["text"],
-                    "metadata": doc.get("metadata", {}),
-                    "embedding": embedding,
-                }
+        for batch in self._iter_batches(docs):
+            texts = [doc["text"] for doc in batch]
+            embeddings = self.embedding_client.embed_texts(texts)
+            self.collection.upsert(
+                ids=[str(doc["id"]) for doc in batch],
+                documents=texts,
+                metadatas=[self._clean_metadata(doc.get("metadata", {})) for doc in batch],
+                embeddings=embeddings,
             )
 
     def search(self, query: str, top_k: int = 10) -> List[dict]:
-        if not self._documents:
+        if top_k <= 0 or self.collection.count() == 0:
             return []
 
         query_embedding = self.embedding_client.embed_text(query)
-        ranked = sorted(
-            self._documents,
-            key=lambda doc: self._cosine_similarity(query_embedding, doc["embedding"]),
-            reverse=True,
+        result = self.collection.query(
+            query_embeddings=[query_embedding],
+            n_results=top_k,
+            include=["documents", "metadatas", "distances"],
         )
 
         results = []
-        for doc in ranked[:top_k]:
-            score = self._cosine_similarity(query_embedding, doc["embedding"])
+        ids = result.get("ids", [[]])[0]
+        documents = result.get("documents", [[]])[0]
+        metadatas = result.get("metadatas", [[]])[0]
+        distances = result.get("distances", [[]])[0]
+
+        for doc_id, text, metadata, distance in zip(ids, documents, metadatas, distances):
             results.append(
                 {
-                    "id": doc["id"],
-                    "text": doc["text"],
-                    "metadata": doc["metadata"],
-                    "score": score,
+                    "id": doc_id,
+                    "text": text,
+                    "metadata": metadata or {},
+                    "score": self._score_from_distance(distance),
                 }
             )
         return results
 
     def reset(self) -> None:
-        self._documents.clear()
+        try:
+            self.client.delete_collection(self.collection_name)
+        except ValueError:
+            pass
+        self.collection = self._get_or_create_collection()
 
-    def _cosine_similarity(self, left: list[float], right: list[float]) -> float:
-        if not left or not right:
+    def _get_or_create_collection(self):
+        return self.client.get_or_create_collection(
+            name=self.collection_name,
+            metadata={"hnsw:space": "cosine"},
+        )
+
+    def _iter_batches(self, docs: List[dict]) -> list[List[dict]]:
+        batch_size = max(1, self.batch_size)
+        return [docs[index : index + batch_size] for index in range(0, len(docs), batch_size)]
+
+    def _clean_metadata(self, metadata: dict[str, Any]) -> dict[str, str | int | float | bool]:
+        return {
+            key: value
+            for key, value in metadata.items()
+            if isinstance(value, (str, int, float, bool))
+        }
+
+    def _score_from_distance(self, distance: float | None) -> float:
+        if distance is None:
             return 0.0
-        dot = sum(a * b for a, b in zip(left, right))
-        left_norm = math.sqrt(sum(value * value for value in left))
-        right_norm = math.sqrt(sum(value * value for value in right))
-        if left_norm == 0 or right_norm == 0:
-            return 0.0
-        return dot / (left_norm * right_norm)
+        return max(0.0, 1.0 - float(distance))
 
 
 class ChromaVectorStore:
@@ -78,5 +101,5 @@ class ChromaVectorStore:
         self.persist_directory = persist_directory or settings.chroma_persist_directory
 
     def similarity_search(self, query: str, top_k: int = 5) -> list[dict[str, object]]:
-        store = ChromaProductStore(self.persist_directory)
+        store = ChromaProductStore(persist_directory=self.persist_directory)
         return store.search(query, top_k)

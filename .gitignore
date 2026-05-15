@@ -9,6 +9,8 @@ __pycache__/
 storage/
 artifacts/
 uploads/
+vector_store/chroma/*
+!vector_store/chroma/.gitkeep
 .chrome-agent/
 .idea/
 android-app/.idea/
