@@ -258,6 +258,12 @@ Validate the repository memory docs:
 python .\scripts\validate_docs.py
 ```
 
+Validate Provider-mode boundaries for cross-cutting concerns:
+
+```powershell
+python .\scripts\validate_providers.py
+```
+
 Generate a manual doc-gardening report:
 
 ```powershell

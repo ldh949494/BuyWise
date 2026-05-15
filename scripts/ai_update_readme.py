@@ -106,6 +106,9 @@ Requirements:
 """.strip()
 
     context = f"""
+Instructions:
+{prompt}
+
 Current file tree:
 {tree}
 
@@ -116,7 +119,16 @@ Current README.md:
 {readme}
 """.strip()
 
-    output = run_with_input(["gh", "models", "run", model, prompt], context)
+    output = run_with_input(
+        [
+            "gh",
+            "models",
+            "run",
+            model,
+            "Read stdin and return the complete updated README.md body only.",
+        ],
+        context,
+    )
     return normalize_readme_output(output) + "\n"
 
 

@@ -23,3 +23,9 @@
 
 - Use `app/core/config.py` for environment-backed settings.
 - Add new public environment variables to `.env.*.example` and `docs/reference/configuration.md`.
+
+## Cross-Cutting Concerns
+
+- Use `app.core.providers` for authentication, telemetry, logging, and error handling.
+- Do not import logging, telemetry, auth session helpers, or exception handler implementations directly from feature modules.
+- Run `python scripts/validate_providers.py` after changing provider-owned concerns.

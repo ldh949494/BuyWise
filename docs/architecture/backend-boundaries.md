@@ -25,3 +25,7 @@ All public HTTP routes should be registered below `settings.api_v1_prefix`, whic
 ## Metrics And Logs
 
 The app exposes Prometheus metrics at `/metrics` when `prometheus-fastapi-instrumentator` is installed. Application logs are JSON formatted through `app/core/logging.py`.
+
+## Cross-Cutting Providers
+
+Authentication, telemetry, logging, and error handling are accessed through `app/core/providers.py`. Feature modules should not import cross-cutting implementations directly.
