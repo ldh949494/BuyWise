@@ -5,6 +5,7 @@
 - `scripts/auto_validate.ps1`: repository validation entrypoint.
 - `scripts/validate_docs.py`: validates `AGENTS.md` and `docs/`.
 - `scripts/validate_providers.py`: validates that backend modules use the unified Provider entrypoint for cross-cutting concerns.
+- `scripts/validate_repo_lint.py`: custom repository linter for structured logging, naming, file size, and import boundaries.
 
 ## Runtime
 
