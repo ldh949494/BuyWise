@@ -241,6 +241,35 @@ cd android-app
 
 ## Automation
 
+### Repository memory
+
+Agent-facing project memory follows a map-based structure:
+
+- `AGENTS.md`: compact entrypoint for agents
+- `docs/architecture/`: stable module boundaries
+- `docs/design/`: feature designs with validation status
+- `docs/conventions/`: coding, testing, and documentation conventions
+- `docs/plans/`: active and archived implementation plans
+- `docs/reference/`: API, configuration, and script references
+
+Validate the repository memory docs:
+
+```powershell
+python .\scripts\validate_docs.py
+```
+
+Generate a manual doc-gardening report:
+
+```powershell
+python .\scripts\doc_gardening.py
+```
+
+Apply AI-proposed documentation updates only after review:
+
+```powershell
+python .\scripts\doc_gardening.py --apply
+```
+
 ### Local validation
 
 Run the repository validation script from the project root:

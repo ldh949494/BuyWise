@@ -23,6 +23,9 @@ if (-not $SkipDependencyInstall) {
     Write-Host "Dependency installation skipped."
 }
 
+Write-Host "========== Documentation Validation =========="
+& $python scripts/validate_docs.py
+
 @'
 from app.api.v1.health import health_check
 from app.main import app
