@@ -34,9 +34,16 @@ Run database migrations, then import the demo product CSV:
 ```powershell
 .\.venv\Scripts\python.exe -m app.scripts.migrate_database
 .\.venv\Scripts\python.exe -m app.scripts.import_products
+.\.venv\Scripts\python.exe -m app.scripts.build_vector_index
 ```
 
-The importer reads `data/products.csv` and skips products with duplicate names, so it can be run repeatedly.
+The importer reads `data/products.csv` and skips products with duplicate names, so it can be run repeatedly. The vector index command rebuilds the persistent ChromaDB product collection under `CHROMA_PERSIST_DIR`.
+
+For a product-only incremental update, run:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.scripts.build_vector_index --mode upsert --product-id 123
+```
 
 ## Docker
 
@@ -65,6 +72,7 @@ After the containers are running, run migrations and import demo products:
 ```powershell
 docker compose exec backend python -m app.scripts.migrate_database
 docker compose exec backend python -m app.scripts.import_products
+docker compose exec backend python -m app.scripts.build_vector_index
 ```
 
 ### Isolated PR environments
@@ -209,7 +217,7 @@ Only commit `*.example` files. Real `.env`, `.env.dev`, `.env.test`, and `.env.p
 - `/api/v1/health`
 - MySQL + SQLAlchemy configuration scaffolding
 - Mock LLM client wrapper
-- Chroma vector store wrapper placeholder
+- Persistent ChromaDB product vector index
 - Reserved multimodal service modules
 - Docker and Compose placeholders for later integration
 

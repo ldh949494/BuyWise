@@ -21,12 +21,44 @@ def make_session_factory():
     return sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
+def make_store(tmp_path, collection_name: str = "test_products") -> ChromaProductStore:
+    return ChromaProductStore(
+        persist_directory=str(tmp_path),
+        collection_name=collection_name,
+        embedding_client=EmbeddingClient(dimension=16),
+        batch_size=2,
+    )
+
+
+def seed_products(session_factory):
+    with session_factory() as db:
+        db.add_all(
+            [
+                Product(
+                    name="K87 quiet keyboard",
+                    category="keyboard",
+                    brand="KeyNova",
+                    price=Decimal("329.00"),
+                    tags=["quiet", "wired"],
+                    suitable_scene=["dorm", "coding"],
+                ),
+                Product(
+                    name="AirBuds Lite",
+                    category="headphones",
+                    brand="SoundAir",
+                    price=Decimal("199.00"),
+                ),
+            ]
+        )
+        db.commit()
+
+
 def test_mock_embedding_client_returns_stable_fixed_dimension_vectors() -> None:
     client = EmbeddingClient(dimension=16)
 
-    first = client.embed_text("静音机械键盘")
-    second = client.embed_text("静音机械键盘")
-    batch = client.embed_texts(["静音机械键盘", "蓝牙耳机"])
+    first = client.embed_text("quiet keyboard")
+    second = client.embed_text("quiet keyboard")
+    batch = client.embed_texts(["quiet keyboard", "wireless headphones"])
 
     assert len(first) == 16
     assert first == second
@@ -35,60 +67,85 @@ def test_mock_embedding_client_returns_stable_fixed_dimension_vectors() -> None:
     assert batch[0] != batch[1]
 
 
-def test_chroma_product_store_adds_searches_and_resets_documents() -> None:
-    store = ChromaProductStore(embedding_client=EmbeddingClient(dimension=16))
-    docs = [
-        {
-            "id": "product_1",
-            "text": "商品名称：K87 静音红轴机械键盘\n类别：机械键盘",
-            "metadata": {"product_id": 1, "category": "机械键盘", "price": 329},
-        },
-        {
-            "id": "product_2",
-            "text": "商品名称：AirBuds Lite 蓝牙耳机\n类别：蓝牙耳机",
-            "metadata": {"product_id": 2, "category": "蓝牙耳机", "price": 199},
-        },
-    ]
+def test_chroma_product_store_persists_documents_across_instances(tmp_path) -> None:
+    first_store = make_store(tmp_path)
+    first_store.add_documents(
+        [
+            {
+                "id": "product_1",
+                "text": "quiet keyboard for dorm coding",
+                "metadata": {"product_id": 1, "name": "K87", "category": "keyboard", "price": 329},
+            }
+        ]
+    )
 
-    store.add_documents(docs)
-    results = store.search("静音键盘", top_k=1)
+    second_store = make_store(tmp_path)
+    results = second_store.search("quiet keyboard", top_k=1)
+
+    assert len(results) == 1
+    assert results[0]["id"] == "product_1"
+    assert results[0]["metadata"]["product_id"] == 1
+    assert results[0]["metadata"]["name"] == "K87"
+    assert "score" in results[0]
+    assert "text" in results[0]
+
+
+def test_chroma_product_store_upserts_and_resets_documents(tmp_path) -> None:
+    store = make_store(tmp_path)
+    store.add_documents(
+        [
+            {
+                "id": "product_1",
+                "text": "quiet keyboard",
+                "metadata": {"product_id": 1, "name": "Old name"},
+            }
+        ]
+    )
+    store.add_documents(
+        [
+            {
+                "id": "product_1",
+                "text": "wireless headphones",
+                "metadata": {"product_id": 1, "name": "New name"},
+            }
+        ]
+    )
+
+    results = store.search("wireless headphones", top_k=5)
     store.reset()
 
     assert len(results) == 1
-    assert results[0]["id"] in {"product_1", "product_2"}
-    assert "score" in results[0]
-    assert "text" in results[0]
-    assert "metadata" in results[0]
-    assert store.search("静音键盘") == []
+    assert results[0]["metadata"]["name"] == "New name"
+    assert store.search("wireless headphones") == []
 
 
-def test_build_vector_index_reads_products_and_writes_documents() -> None:
+def test_build_vector_index_rebuilds_all_products(tmp_path) -> None:
     session_factory = make_session_factory()
-    with session_factory() as db:
-        db.add_all(
-            [
-                Product(
-                    name="K87 静音红轴机械键盘",
-                    category="机械键盘",
-                    brand="KeyNova",
-                    price=Decimal("329.00"),
-                    tags=["静音", "编程"],
-                    suitable_scene=["宿舍", "写代码"],
-                ),
-                Product(
-                    name="AirBuds Lite 蓝牙耳机",
-                    category="蓝牙耳机",
-                    brand="SoundAir",
-                    price=Decimal("199.00"),
-                ),
-            ]
-        )
-        db.commit()
+    seed_products(session_factory)
 
-    store = ChromaProductStore(embedding_client=EmbeddingClient(dimension=16))
+    store = make_store(tmp_path)
     result = build_vector_index(session_factory=session_factory, store=store)
-    results = store.search("机械键盘", top_k=5)
+    results = store.search("keyboard", top_k=5)
 
-    assert result == {"indexed": 2}
+    assert result == {"indexed": 2, "mode": "rebuild", "deleted_collection": True}
     assert len(results) == 2
     assert {item["metadata"]["product_id"] for item in results} == {1, 2}
+    assert {item["metadata"]["name"] for item in results} == {"K87 quiet keyboard", "AirBuds Lite"}
+
+
+def test_build_vector_index_upserts_selected_product(tmp_path) -> None:
+    session_factory = make_session_factory()
+    seed_products(session_factory)
+
+    store = make_store(tmp_path)
+    result = build_vector_index(
+        session_factory=session_factory,
+        store=store,
+        mode="upsert",
+        product_ids=[2],
+    )
+    results = store.search("headphones", top_k=5)
+
+    assert result == {"indexed": 1, "mode": "upsert", "deleted_collection": False}
+    assert len(results) == 1
+    assert results[0]["metadata"]["product_id"] == 2

@@ -33,6 +33,10 @@ class Settings(BaseSettings):
         default="./vector_store/chroma",
         validation_alias=AliasChoices("CHROMA_PERSIST_DIR", "CHROMA_PERSIST_DIRECTORY"),
     )
+    chroma_product_collection: str = Field(
+        default="buywise_products",
+        validation_alias="CHROMA_PRODUCT_COLLECTION",
+    )
 
     llm_base_url: str = Field(
         default="https://api.openai.com/v1",

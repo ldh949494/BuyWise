@@ -24,6 +24,7 @@ Alembic uses these same settings through `app.core.config.Settings.database_url`
 ## AI And Storage
 
 - `CHROMA_PERSIST_DIR`
+- `CHROMA_PRODUCT_COLLECTION`
 - `LLM_BASE_URL`
 - `LLM_API_KEY`
 - `LLM_MODEL`
