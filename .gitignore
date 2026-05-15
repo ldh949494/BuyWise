@@ -4,6 +4,9 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 storage/
+.idea/
+android-app/.idea/
 android-app/.gradle/
+android-app/.kotlin/
 android-app/**/build/
 android-app/local.properties
