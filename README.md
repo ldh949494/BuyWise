@@ -1,154 +1,191 @@
-# BuyWise Backend
+# ShopAgent 后端与 Android 客户端
 
-BuyWise Backend is a FastAPI skeleton for a multimodal e-commerce shopping guide agent.
-The first milestone focuses on a runnable text-guidance MVP foundation, with reserved
-modules for image, speech, upload, vector retrieval, and LLM integration.
+ShopAgent 是一个基于 FastAPI 的多模态（文本、视觉、语音）电商导购 Agent 解决方案，拥有原生 Android 客户端。后端采用分层架构，支持大模型（LLM）、检索增强生成（RAG）、产品数据库、图片和语音分析等模块。
 
-## Quick Start
+---
 
-1. Create and activate a Python virtual environment.
-2. Install dependencies:
+## 快速启动
 
-   ```powershell
+### Python FastAPI 后端
+
+1. 建立并激活 Python 虚拟环境。
+2. 安装后端依赖：
+
+   ```
    pip install -r requirements.txt
    ```
 
-3. Copy `.env.dev.example` to `.env` and adjust values if needed.
-4. Start the API:
+3. （可选）复制 `.env.example` 为 `.env`，调整配置项。
+4. 启动 API 服务：
 
-   ```powershell
+   ```
    .\.venv\Scripts\activate
    uvicorn app.main:app --reload --port 8000
    ```
 
-5. Open:
-   - API docs: `http://127.0.0.1:8000/docs`
-   - Health check: `http://127.0.0.1:8000/api/v1/health`
+5. 打开 API 文档与健康检查：
+   - API 文档：http://127.0.0.1:8000/docs
+   - 健康检查：http://127.0.0.1:8000/api/v1/health
+
+6. 数据库初始化（首次请手动执行一次）：
+
+   ```
+   python app/scripts/create_tables.py
+   ```
+
+### 原生 Android 客户端
+
+1. 用 Android Studio 打开 `android-app/` 目录直接运行项目。
+2. 或命令行编译调试版本：
+
+   ```
+   cd android-app
+   .\gradlew.bat :app:assembleDebug
+   ```
+
+3. 默认后端访问地址（安卓模拟器默认内网映射）：
+
+   ```
+   http://10.0.2.2:8000
+   ```
+
+---
 
 ## Demo Product Data
 
-Create database tables, then import the demo product CSV:
+初始化数据库表后导入示例产品数据：
 
 ```powershell
 .\.venv\Scripts\python.exe -m app.scripts.create_tables
 .\.venv\Scripts\python.exe -m app.scripts.import_products
 ```
 
-The importer reads `data/products.csv` and skips products with duplicate names, so it can be run repeatedly.
+导入器自动读取 `data/products.csv`，跳过重复产品名，可多次执行。
 
-## Docker
+---
 
-Copy the example environment file, then start the backend and MySQL:
+## 向量索引构建（RAG 支持）
 
-```powershell
-Copy-Item .env.dev.example .env
-docker compose up --build
-```
-
-The compose stack starts:
-
-- `backend` on `http://127.0.0.1:8000`
-- `mysql` on `127.0.0.1:3306`
-
-The backend reads `.env`, connects to the `mysql` service, and mounts:
-
-```text
-./data -> /app/data
-./vector_store -> /app/vector_store
-./uploads -> /app/uploads
-```
-
-After the containers are running, initialize tables and import demo products:
+如需构建/更新产品向量检索索引（RAG），请执行：
 
 ```powershell
-docker compose exec backend python -m app.scripts.create_tables
-docker compose exec backend python -m app.scripts.import_products
+python app/scripts/build_vector_index.py
 ```
 
-### Isolated PR environments
+脚本会自动从数据库读取所有产品，调用内置 embedding 客户端，构建向量并存入内存型向量库（仿 Chroma）。
+支持二次多次构建，便于开发调试。
 
-The compose stack is safe to run under a project name, so separate PRs can run
-with independent containers, networks, and volumes:
+---
+
+## 功能模块
+
+- **FastAPI 后端服务**：RESTful、多版本 API 路由
+- **Agent & LLM 集成**：智能聊天、产品咨询、对比、推荐等问答
+- **RAG 检索增强生成**：产品知识库向量数据库语义检索（内存型 Chroma 仓储、embedding、search 已实现）
+- **产品信息/评论/价格历史/推荐管理**：全功能 ORM 支持产品、评论、推荐、价格历史、会话/消息等全模型
+- **多模态接口**：
+  - **图片理解**：`/api/v1/vision/recognize`（输入 image_url，返回类别、特征、query）
+  - **语音识别**：`/api/v1/speech/asr`（输入 audio_url，返回文本）
+  - **文件上传**：`/api/v1/upload/upload`（支持图片/音频文件，本地存储返回访问 URL）
+- **健康检查与测试路由**
+- **安卓原生客户端**：Kotlin + Jetpack Compose，MVVM 架构
+- **自动化脚本**：数据导入、数据库表创建、向量索引构建
+- **文本构建工具**：`app/utils/text_builder.py` 提供结构化文本生成、用户需求检索表达等
+- **RAG Pipeline**：`app/ai/rag_pipeline.py` 实现产品需求语义检索与动态过滤
+- **意图识别服务**：`app/services/intent_service.py` 支持推荐/对比/平替等消费场景的意图、分类、预算、场景和偏好字段自动抽取
+- **智能推荐服务**：`app/services/recommend_service.py` 根据预算、场景、偏好、销量、库存等多因素商品推荐及理由生成
+- **LLM 智能回复与摘要生成**：`app/ai/llm_client.py` 支持 mock/可替换大模型，结构化推荐理由/追问/商品对比结果输出
+
+---
+
+### PR 独立环境启动
+
+Compose 支持多环境，PR 可独立运行容器、网络、存储：
 
 ```powershell
 .\scripts\start_pr_env.ps1 -Name pr-123 -Branch feature/pr-123 -BackendPort 8123 -MysqlPort 3323
 ```
 
-The script creates a sibling Git worktree named `BuyWise-pr-123`, copies
-`.env.dev.example` to `.env` if needed, then starts:
+脚本会创建对应 Git 工作区 BuyWise-pr-123，自动复制 `.env.dev.example`，并启动：
 
 ```powershell
 docker compose -p buywise-pr-123 up -d --build
 ```
 
-Stop the instance without removing data:
+停止环境但保留数据：
 
 ```powershell
 .\scripts\stop_pr_env.ps1 -Name pr-123
 ```
 
-Remove the containers, named volumes, and worktree:
+移除容器、数据卷和工作区：
 
 ```powershell
 .\scripts\stop_pr_env.ps1 -Name pr-123 -RemoveVolumes -RemoveWorktree
 ```
 
-### Browser validation
+### 浏览器端校验
 
-Install dependencies and the Chromium browser once:
+一次性安装依赖与 chromium 浏览器：
 
 ```powershell
 pip install -r requirements.txt
 python -m playwright install chromium
 ```
 
-Run a browser check against a local instance:
+本地开启 API 服务后：
 
 ```powershell
 python .\scripts\browser_check.py --base-url http://127.0.0.1:8123 --record-video
 ```
 
-The script validates `/api/v1/health`, opens `/docs`, saves a screenshot, and
-writes a small DOM snapshot under `artifacts/browser`.
+自动访问 `/api/v1/health`、`/docs` 并截图生成快照到 `artifacts/browser`。
 
-To attach to an existing Chrome started with CDP:
+附加已启动 CDP 的 Chrome：
 
 ```powershell
 chrome.exe --remote-debugging-port=9222 --user-data-dir=.chrome-agent
 python .\scripts\browser_check.py --base-url http://127.0.0.1:8123 --cdp-url http://127.0.0.1:9222
 ```
 
-### Observability
+### 观测性支持
 
-Start a PR instance with Prometheus, Loki, Promtail, and Grafana:
+PR 环境支持一键启动 Prometheus、Loki、Promtail、Grafana：
 
 ```powershell
 .\scripts\start_pr_env.ps1 -Name pr-123 -BackendPort 8123 -MysqlPort 3323 -Observability
 ```
 
-Default local ports:
+默认端口分布：
 
-- Backend: `http://127.0.0.1:8123`
+- 后端: `http://127.0.0.1:8123`
 - Prometheus: `http://127.0.0.1:9090`
 - Loki: `http://127.0.0.1:3100`
-- Grafana: `http://127.0.0.1:3000` (`admin` / `admin`)
+- Grafana: `http://127.0.0.1:3000`（`admin` / `admin`）
 
-The FastAPI app exposes Prometheus metrics at `/metrics`. Application logs are
-emitted as JSON to stdout, and Promtail labels Docker logs with compose project
-and service names. Useful queries:
+FastAPI 提供 `/metrics` Prometheus 监控接口。所有应用日志以 JSON 输出，Promtail 采集 compose 标签。
+
+Loki 查询：
 
 ```logql
 {compose_project="buywise-pr-123", service="backend"} |= "ERROR"
 ```
 
+Prometheus 查询：
+
 ```promql
 rate(http_requests_total[5m])
 ```
 
-## Project Layout
+## 项目结构
 
 ```text
 app/
+  ai/                     # 智能体基础设施（agent、RAG、LLM、embedding）
+    llm_client.py         # LLM 推荐/对比/澄清理由，Mock 可扩展为接入大模型
+    prompts.py
+    agent.py
+    rag_pipeline.py
   api/
     router.py
     v1/
@@ -160,111 +197,130 @@ app/
       upload.py
       vision.py
       speech.py
-  ai/
   core/
     config.py
     database.py
     logging.py
     exceptions.py
-  integrations/
-  models/
-  repositories/
-  schemas/
+  integrations/           # 腾讯云/Chroma/ASR/多模态等集成
+  models/                 # ORM 实体（Product、Review、Recommendation、PriceHistory、ChatSession、ChatMessage等）
+  repositories/           # 仓储数据层
+  schemas/                # Pydantic 数据结构
+  services/               # 业务服务 (chat、product、recommend、intent等)
+    rag_service.py        # RAG 业务服务逻辑（语义检索及向量索引fallback分流）
+    intent_service.py
+    recommend_service.py
+    upload_service.py
+    vision_service.py
+    speech_service.py
   scripts/
-  services/
+    create_tables.py      # 数据库表创建
+    build_vector_index.py # 产品embedding/向量索引构建
+    import_products.py
+    seed_products.py
   utils/
+    text_builder.py
   vectorstore/
-data/
-vector_store/
-  chroma/
-tests/
-scripts/
-Dockerfile
-docker-compose.yml
+    chroma_client.py      # 向量存储接口
+    product_index.py
+android-app/              # 安卓客户端
+.github/workflows/
 requirements.txt
-.env.example
-.env.dev.example
-.env.test.example
-.env.prod.example
 ```
 
-## Environments
+---
 
-Use `APP_ENV` to select the runtime environment. Supported values are `dev`, `test`, and `prod`.
+## 自动化校验与 AI 文档维护
 
-- `.env.dev.example`: local Docker development, database `buywise_dev`
-- `.env.test.example`: automated tests or isolated local checks, database `buywise_test`
-- `.env.prod.example`: production template with placeholder secrets, database `buywise`
-
-Only commit `*.example` files. Real `.env`, `.env.dev`, `.env.test`, and `.env.prod` files are ignored.
-
-## Current Scope
-
-- FastAPI application bootstrap
-- Versioned API router
-- `/api/v1/health`
-- MySQL + SQLAlchemy configuration scaffolding
-- Mock LLM client wrapper
-- Chroma vector store wrapper placeholder
-- Reserved multimodal service modules
-- Docker and Compose placeholders for later integration
-
-## Android App
-
-The client has been replaced with a native Android app:
-
-```text
-android-app
-```
-
-The first Android milestone is implemented with Kotlin, Jetpack Compose, MVVM,
-and Repository-based mock data. It includes:
-
-- Home
-- AI guide
-- Product compare
-- Vision placeholder
-- Product detail
-
-The default backend base URL reserved for emulator integration is:
-
-```text
-http://10.0.2.2:8000
-```
-
-Run it from Android Studio, or from the command line:
+### 本地自动化校验
 
 ```powershell
-cd android-app
-.\gradlew.bat :app:assembleDebug
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1
 ```
 
-## Automation
+- 自动检查依赖、环境变量、仓库文档结构及链接有效性
+- 文档校验用 `scripts/validate_docs.py`，包括：
+  - AGENTS.md 导航映射检查
+  - docs/ 结构与链接目标校验
+  - Feature 设计文档状态校验
 
-### Repository memory
-
-Agent-facing project memory follows a map-based structure:
-
-- `AGENTS.md`: compact entrypoint for agents
-- `docs/architecture/`: stable module boundaries
-- `docs/design/`: feature designs with validation status
-- `docs/conventions/`: coding, testing, and documentation conventions
-- `docs/plans/`: active and archived implementation plans
-- `docs/reference/`: API, configuration, and script references
-
-Validate the repository memory docs:
-
-```powershell
-python .\scripts\validate_docs.py
-```
-
-Validate Provider-mode boundaries for cross-cutting concerns:
+Validate Provider 模式边界：
 
 ```powershell
 python .\scripts\validate_providers.py
 ```
 
-Run the custom repository linter:
+自定义仓库 Lint 校验：
+
+```powershell
+python .\scripts\validate_repo_lint.py
+```
+
+人工触发 AI Doc-gardening 检查建议：
+
+```powershell
+python .\scripts\doc_gardening.py
+```
+
+- 实审后应用 AI 提议的文档改动：
+
+  ```
+  python .\scripts\doc_gardening.py --apply
+  ```
+
+### 仓库记忆导航
+
+- `AGENTS.md`: 智能体与开发入口
+- `docs/architecture/`: 结构边界说明
+- `docs/design/`: 功能设计与状态
+- `docs/conventions/`: 代码/测试/文档规范
+- `docs/plans/`: 方案和演进
+- `docs/reference/`: API、配置等文档
+
+校验指令：
+
+```powershell
+python .\scripts\validate_docs.py
+```
+
+---
+
+## FastAPI 多模态接口大纲
+
+- `/api/v1/health` 健康检查
+- `/api/v1/chat` 智能对话
+- `/api/v1/products` 查询商品
+- `/api/v1/compare` 商品对比
+- `/api/v1/rag` 检索增强生成
+- `/api/v1/upload/upload` 文件上传（图片/音频）
+- `/api/v1/vision/recognize` 图像解析
+- `/api/v1/speech/asr` 语音转文本（Mock/可扩展对接腾讯ASR）
+
+---
+
+## 开发与测试说明
+
+### 启动 FastAPI 服务
+
+```
+uvicorn app.main:app --reload --port 8000
+```
+
+> 生产环境请使用 WSGI/ASGI 部署，配置安全数据库。
+
+### 文档校验与 AI Doc-gardening
+
+```
+python .\scripts\validate_docs.py
+```
+
+Validate Provider 校验：
+
+```powershell
+python .\scripts\validate_providers.py
+```
+
+自定义仓库 Lint 检查：
 
 ```powershell
 python .\scripts\validate_repo_lint.py
@@ -279,71 +335,73 @@ python .\scripts\entropy_gc.py
 
 Generate a manual doc-gardening report:
 
-```powershell
+```
 python .\scripts\doc_gardening.py
 ```
 
-Apply AI-proposed documentation updates only after review:
+应用 AI 修订建议：
 
-```powershell
+```
 python .\scripts\doc_gardening.py --apply
 ```
 
-### Local validation
+### 数据库表初始化
 
-Run the repository validation script from the project root:
-
-```powershell
-powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1
+```
+python app/scripts/create_tables.py
 ```
 
-The script performs:
+### 构建产品向量索引（RAG）
 
-- Python dependency installation from `requirements.txt`
-- FastAPI application smoke validation
-- Health route contract validation for `/api/v1/health`
-- `pytest -q` when a project-level `tests/` directory exists
-- Android debug build validation through `.\gradlew.bat :app:assembleDebug`
-
-### GitHub Actions workflow
-
-The automation workflow is defined in:
-
-```text
-.github/workflows/ai-auto-commit.yml
+```
+python app/scripts/build_vector_index.py
 ```
 
-It runs when:
+数据库产品变更后请同步索引。
 
-- Code is pushed to `main`
-- The workflow is manually triggered from GitHub Actions
+### 运行测试
 
-The workflow:
+建议新建 `tests/` 目录，运行：
 
-1. Sets up Python 3.11.
-2. Runs `scripts/auto_validate.ps1`.
-3. Collects the current commit diff and executes `scripts/ai_update_readme.py`.
-4. Creates a branch, commit, and pull request only when `README.md` is actually changed.
-
-### GitHub Models
-
-The workflow uses GitHub Models through `gh models`. GitHub Actions provides `GH_TOKEN`
-from `${{ github.token }}` and the workflow grants `models: read`.
-
-```text
-GITHUB_MODELS_README_MODEL=openai/gpt-4.1
+```
+pytest -q
 ```
 
-For local README generation, authenticate the GitHub CLI and optionally set:
+### 构建 Android 客户端
 
-```text
-README_DIFF_RANGE=main..HEAD
-GITHUB_MODELS_README_MODEL=openai/gpt-4.1
 ```
+cd android-app
+.\gradlew.bat :app:assembleDebug
+```
+或使用 Android Studio
 
-### Failure behavior
+---
 
-- Validation failure stops the workflow.
-- Missing GitHub CLI or GitHub Models access skips README generation without failing the workflow.
-- AI generation errors skip README generation without failing the workflow.
-- No README content change means no automation branch and no pull request.
+## 重要说明
+
+- **AI-Driven README/文档维护**
+  - 仓库 Secrets 需配置 GH_TOKEN（GitHub Actions 自动化令牌）
+  - 维护脚本用 GitHub 模型，无需独立 OpenAI Key
+  - PR 模板、描述支持中文
+- **RAG/Agent 能力核心实现：**
+  - `app/ai/agent.py`、`app/ai/rag_pipeline.py`
+  - `vectorstore/chroma_client.py`（向量检索/embedding）
+  - `app/ai/embedding_client.py`（embedding 算法）
+- **多模态相关功能：**
+  - 视觉接口（`vision.py`, `services/vision_service.py`）：图片类目/特征提取（Mock 可扩展多模态）
+  - 语音 ASR（`speech.py`, `services/speech_service.py`）：语音文本（Mock，支持腾讯ASR扩展）
+  - 文件上传（`upload.py`, `services/upload_service.py`）：支持本地/云存储
+- **文本组装工具**：`app/utils/text_builder.py`
+- **意图识别与需求结构化**：`app/services/intent_service.py`
+- **推荐服务**：`app/services/recommend_service.py`
+- **LLM 智能输出**：`app/ai/llm_client.py`, `app/ai/prompts.py`
+
+---
+
+## 贡献指南
+
+- 提交前请确保本地测试、自动化校验全部通过
+- 欢迎扩展 Agent、RAG、商品结构等核心功能
+- 建议/疑问请提交 issue
+
+---
