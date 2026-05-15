@@ -213,18 +213,19 @@ jobs:
           }
 
           $prompt = @"
-          请根据下面提供的 git 变更生成专业、简洁、适合代码评审的 GitHub Pull Request 元数据。
-          Return only JSON with this exact shape:
+          Generate GitHub Pull Request metadata from the git changes below.
+          Return only valid JSON with this exact shape:
           {"title":"...","body":"..."}
 
-          要求：
-          - title 和 body 必须全部使用简体中文。
-          - title 必须使用 conventional commit 风格，例如 "feat: 添加商品模型"，且不超过 80 个字符。
-          - body 必须是 Markdown，并固定使用这些中文小节标题：概述、变更内容、验证结果。
-          - 在“验证结果”中说明自动化验证已通过。
-          - 不要编造 commits 或 diff 中没有体现的变更。
-          - 内容保持简洁，方便评审者快速理解。
-          - 只返回原始 JSON。不要使用 Markdown 代码块包裹。
+          Requirements:
+          - Write title and body in Simplified Chinese.
+          - The title must use conventional commit style, for example: "feat: 添加商品模型".
+          - Keep the title under 80 characters.
+          - The body must be Markdown and include these headings exactly: "## 概述", "## 变更内容", "## 验证结果".
+          - In "## 验证结果", state that automated validation passed.
+          - Do not invent changes that are not present in the commits or diff.
+          - Keep the content concise and useful for code review.
+          - Return raw JSON only. Do not wrap it in Markdown code fences.
 
           Changed files:
           $changedFiles
@@ -255,13 +256,33 @@ jobs:
           PR_SUMMARY_MODEL: openai/gpt-4.1
         run: |
           try {
+            function Convert-ModelJson {
+              param([string]$Raw)
+
+              $text = $Raw.Trim()
+              if ($text.StartsWith('```')) {
+                $text = $text -replace '(?s)^```(?:json)?\s*', ''
+                $text = $text -replace '(?s)\s*```$', ''
+                $text = $text.Trim()
+              }
+
+              try {
+                return $text | ConvertFrom-Json -ErrorAction Stop
+              } catch {
+                $match = [regex]::Match($text, '(?s)\{.*\}')
+                if (-not $match.Success) {
+                  throw
+                }
+                return $match.Value | ConvertFrom-Json -ErrorAction Stop
+              }
+            }
+
             $modelOutput = Get-Content pr-summary-prompt.md -Raw |
               gh models run $env:PR_SUMMARY_MODEL "Read stdin and generate Pull Request metadata. Return only JSON with title and body."
             $modelOutput | Out-File -FilePath pr-summary-raw.txt -Encoding utf8
             Write-Host "AI PR metadata response length: $($modelOutput.Length)"
 
-            $jsonText = [regex]::Match($modelOutput, "(?s)\{.*\}").Value
-            $metadata = $jsonText | ConvertFrom-Json -ErrorAction Stop
+            $metadata = Convert-ModelJson $modelOutput
 
             $title = [string]$metadata.title
             $body = [string]$metadata.body
@@ -415,18 +436,19 @@ jobs:
           }
 
           $prompt = @"
-          请根据下面提供的 README 更新生成专业、简洁、适合代码评审的 GitHub Pull Request 元数据。
-          Return only JSON with this exact shape:
+          Generate GitHub Pull Request metadata for an automated README update.
+          Return only valid JSON with this exact shape:
           {"title":"...","body":"..."}
 
-          要求：
-          - title 和 body 必须全部使用简体中文。
-          - title 必须使用 conventional commit 风格，例如 "docs: 更新项目说明文档"，且不超过 80 个字符。
-          - body 必须是 Markdown，并固定使用这些中文小节标题：概述、变更内容、评审说明。
-          - 在“评审说明”中说明 README.md 已由自动化流程更新。
-          - 不要编造 commits 或 diff 中没有体现的变更。
-          - 内容保持简洁，方便评审者快速理解。
-          - 只返回原始 JSON。不要使用 Markdown 代码块包裹。
+          Requirements:
+          - Write title and body in Simplified Chinese.
+          - The title must use conventional commit style, for example: "docs: 更新项目说明文档".
+          - Keep the title under 80 characters.
+          - The body must be Markdown and include these headings exactly: "## 概述", "## 变更内容", "## 评审说明".
+          - In "## 评审说明", state that README.md was updated by the automation workflow.
+          - Do not invent changes that are not present in the commits or diff.
+          - Keep the content concise and useful for code review.
+          - Return raw JSON only. Do not wrap it in Markdown code fences.
 
           Changed files:
           $changedFiles
@@ -457,13 +479,33 @@ jobs:
           PR_SUMMARY_MODEL: openai/gpt-4.1
         run: |
           try {
+            function Convert-ModelJson {
+              param([string]$Raw)
+
+              $text = $Raw.Trim()
+              if ($text.StartsWith('```')) {
+                $text = $text -replace '(?s)^```(?:json)?\s*', ''
+                $text = $text -replace '(?s)\s*```$', ''
+                $text = $text.Trim()
+              }
+
+              try {
+                return $text | ConvertFrom-Json -ErrorAction Stop
+              } catch {
+                $match = [regex]::Match($text, '(?s)\{.*\}')
+                if (-not $match.Success) {
+                  throw
+                }
+                return $match.Value | ConvertFrom-Json -ErrorAction Stop
+              }
+            }
+
             $modelOutput = Get-Content readme-pr-summary-prompt.md -Raw |
               gh models run $env:PR_SUMMARY_MODEL "Read stdin and generate README Pull Request metadata. Return only JSON with title and body."
             $modelOutput | Out-File -FilePath readme-pr-summary-raw.txt -Encoding utf8
             Write-Host "AI README PR metadata response length: $($modelOutput.Length)"
 
-            $jsonText = [regex]::Match($modelOutput, "(?s)\{.*\}").Value
-            $metadata = $jsonText | ConvertFrom-Json -ErrorAction Stop
+            $metadata = Convert-ModelJson $modelOutput
 
             $title = [string]$metadata.title
             $body = [string]$metadata.body

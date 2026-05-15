@@ -285,7 +285,9 @@ python .\scripts\validate_docs.py
 
 ---
 
-## FastAPI 多模态接口大纲
+<!-- AUTO-DOCS:START -->
+
+### Repository memory
 
 - `/api/v1/health` 健康检查
 - `/api/v1/chat` 智能对话
