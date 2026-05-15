@@ -335,6 +335,8 @@ python .\scripts\validate_entropy.py
 python .\scripts\entropy_gc.py
 ```
 
+The scheduled background cleanup workflow can create small entropy cleanup PRs after running validation. It uses `scripts/entropy_cleanup_agent.py` and never auto-merges.
+
 Generate a manual doc-gardening report:
 
 ```
