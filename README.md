@@ -98,87 +98,86 @@ python app/scripts/build_vector_index.py
 
 ---
 
-### Isolated PR environments
+### PR 独立环境启动
 
-The compose stack is safe to run under a project name, so separate PRs can run
-with independent containers, networks, and volumes:
+Compose 支持不同项目名多环境，PR 可独立运行容器、网络、存储：
 
 ```powershell
 .\scripts\start_pr_env.ps1 -Name pr-123 -Branch feature/pr-123 -BackendPort 8123 -MysqlPort 3323
 ```
 
-The script creates a sibling Git worktree named `BuyWise-pr-123`, copies
-`.env.dev.example` to `.env` if needed, then starts:
+脚本会创建对等 Git 工作区 BuyWise-pr-123，必要时复制 `.env.dev.example`，然后启动：
 
 ```powershell
 docker compose -p buywise-pr-123 up -d --build
 ```
 
-Stop the instance without removing data:
+停止实例但保留数据：
 
 ```powershell
 .\scripts\stop_pr_env.ps1 -Name pr-123
 ```
 
-Remove the containers, named volumes, and worktree:
+移除容器、数据卷和工作区：
 
 ```powershell
 .\scripts\stop_pr_env.ps1 -Name pr-123 -RemoveVolumes -RemoveWorktree
 ```
 
-### Browser validation
+### 浏览器端校验
 
-Install dependencies and the Chromium browser once:
+一次性安装依赖与 chromium 浏览器：
 
 ```powershell
 pip install -r requirements.txt
 python -m playwright install chromium
 ```
 
-Run a browser check against a local instance:
+开启本地 API 服务后执行：
 
 ```powershell
 python .\scripts\browser_check.py --base-url http://127.0.0.1:8123 --record-video
 ```
 
-The script validates `/api/v1/health`, opens `/docs`, saves a screenshot, and
-writes a small DOM snapshot under `artifacts/browser`.
+自动访问 `/api/v1/health`， `/docs`，截图并生成快照到 `artifacts/browser`。
 
-To attach to an existing Chrome started with CDP:
+附加已启动 CDP 的 Chrome：
 
 ```powershell
 chrome.exe --remote-debugging-port=9222 --user-data-dir=.chrome-agent
 python .\scripts\browser_check.py --base-url http://127.0.0.1:8123 --cdp-url http://127.0.0.1:9222
 ```
 
-### Observability
+### 观测性支持
 
-Start a PR instance with Prometheus, Loki, Promtail, and Grafana:
+PR 环境可一键启动 Prometheus、Loki、Promtail、Grafana：
 
 ```powershell
 .\scripts\start_pr_env.ps1 -Name pr-123 -BackendPort 8123 -MysqlPort 3323 -Observability
 ```
 
-Default local ports:
+默认端口：
 
-- Backend: `http://127.0.0.1:8123`
+- 后端: `http://127.0.0.1:8123`
 - Prometheus: `http://127.0.0.1:9090`
 - Loki: `http://127.0.0.1:3100`
 - Grafana: `http://127.0.0.1:3000` (`admin` / `admin`)
 
-The FastAPI app exposes Prometheus metrics at `/metrics`. Application logs are
-emitted as JSON to stdout, and Promtail labels Docker logs with compose project
-and service names. Useful queries:
+FastAPI 提供 `/metrics` Prometheus 监控接口。应用日志以 JSON 输出，Promtail 按 compose 标签采集。
+
+Loki 查询示例:
 
 ```logql
 {compose_project="buywise-pr-123", service="backend"} |= "ERROR"
 ```
 
+Prometheus 查询示例:
+
 ```promql
 rate(http_requests_total[5m])
 ```
 
-## Project Layout
+## 项目结构
 
 ```text
 app/
@@ -230,17 +229,54 @@ requirements.txt          # Python依赖
 
 ---
 
-## 自动化验证与 AI README 维护
+## 自动化校验与 AI 维护
 
-- **本地自动化校验**：
+### 本地自动化校验
 
+```
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1
+```
+
+- 脚本会自动检查依赖、环境变量、仓库文档结构及链接有效性。
+- 文档校验采用 `scripts/validate_docs.py`，包含：
+  - AGENTS.md 映射导航检查
+  - docs/ 子目录结构与链接目标检测
+  - Feature design 文档状态（Status 行）校验
+
+### GitHub Actions 自动维护（AI README/文档修剪）
+
+- `.github/workflows/ai-auto-commit.yml`，push 或手动触发时检出主分支，自动校验并根据 diff/代码变更维护 README。
+- 支持可选 doc-gardening report（手动/自动 AI 分析建议）。
+- 经 AI 推荐的文档内容须经人工复核后用命令应用：
+
+  ```powershell
+  python .\scripts\doc_gardening.py --apply
   ```
-  powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1
-  ```
 
-- **GitHub Actions**：  
-  `.github/workflows/ai-auto-commit.yml`  
-  支持 main 分支 push 或手动触发时，执行本地校验与 AI 自动维护 README。只在有真实内容变更时创建 PR。Pull Request 标题与说明自动生成。
+- 所有改动分新分支提交，只对有真实内容变更时发起 PR。PR 标题、说明、README Diff 说明自动生成。
+
+### 仓库记忆 (Repository memory)
+
+Agent-facing 项目记忆为模块化导航结构：
+
+- `AGENTS.md`: 智能体和开发者定位的入口速查
+- `docs/architecture/`: 核心模块边界说明
+- `docs/design/`: 功能设计与状态标注
+- `docs/conventions/`: 代码、测试、文档规范
+- `docs/plans/`: 实现/演进方案
+- `docs/reference/`: 脚本、API、配置参数参考
+
+可使用如下指令校验记忆结构与有效性：
+
+```powershell
+python .\scripts\validate_docs.py
+```
+
+生成一次 doc-gardening AI 检查建议：
+
+```powershell
+python .\scripts\doc_gardening.py
+```
 
 ---
 
@@ -267,36 +303,27 @@ uvicorn app.main:app --reload --port 8000
 
 > 生产建议 WSGI/ASGI 部署，并配置安全数据库。
 
-### Repository memory
+### 仓库文档校验与 AI Doc-gardening
 
-Agent-facing project memory follows a map-based structure:
+- 校验项目文档结构与内容：
 
-- `AGENTS.md`: compact entrypoint for agents
-- `docs/architecture/`: stable module boundaries
-- `docs/design/`: feature designs with validation status
-- `docs/conventions/`: coding, testing, and documentation conventions
-- `docs/plans/`: active and archived implementation plans
-- `docs/reference/`: API, configuration, and script references
+  ```
+  python .\scripts\validate_docs.py
+  ```
 
-Validate the repository memory docs:
+- 生成 AI 维护建议报告（doc-gardening report）：
 
-```powershell
-python .\scripts\validate_docs.py
-```
+  ```
+  python .\scripts\doc_gardening.py
+  ```
 
-Generate a manual doc-gardening report:
+- 审核后应用 AI 提交建议的文档改动：
 
-```powershell
-python .\scripts\doc_gardening.py
-```
+  ```
+  python .\scripts\doc_gardening.py --apply
+  ```
 
-Apply AI-proposed documentation updates only after review:
-
-```powershell
-python .\scripts\doc_gardening.py --apply
-```
-
-### Local validation
+### 数据库表结构初始化
 
 ```
 python app/scripts/create_tables.py
@@ -304,13 +331,13 @@ python app/scripts/create_tables.py
 
 ### 构建产品向量索引（RAG）
 
-- 推荐每次商品表变动后重新同步索引：
+- 商品表变动后请重新同步索引：
 
   ```
   python app/scripts/build_vector_index.py
   ```
 
-  支持从数据库同步所有产品，并更新嵌入向量及语义检索索引。
+  从数据库同步所有产品并更新嵌入向量及语义检索索引。
 
 ### 运行单元测试
 
@@ -334,31 +361,31 @@ cd android-app
 
 ## 重要说明
 
-- **AI-Driven README 更新需配置：**
-  - 在仓库 Secrets 配置 `GH_TOKEN`（GitHub Actions 自动化令牌）。
-  - 自动维护脚本现在基于 GitHub 模型扩展（`gh models`），不再使用 OpenAI 直连变量。
-  - Pull Request 标题与说明、README 更新 PR 说明模板已全面适配简体中文。
+- **AI-Driven README/文档维护需配置：**
+  - 仓库 Secrets 配置 `GH_TOKEN`（GitHub Actions 自动化令牌）。
+  - 自动维护脚本基于 GitHub 模型扩展（`gh models`），无需单独配置 OpenAI Key。
+  - PR 标题与说明、README 更新说明 PR 模板全面适配简体中文。
 - **RAG/Agent 能力在 `app/ai/agent.py`、`app/ai/rag_pipeline.py`、`vectorstore/chroma_client.py`（检索与嵌入）、`ai/embedding_client.py`（embedding 算法实现）模块实现。**
-- **多模态相关：**
-  - 视觉接口（`vision.py`，`app/services/vision_service.py`）：支持图像类别/特征抽取（当前为 mock，可扩展多模态模型）
-  - 语音 ASR（`speech.py`，`app/services/speech_service.py`）：支持语音转文本（当前为 mock，可对接腾讯ASR）
-  - 文件上传（`upload.py`，`app/services/upload_service.py`）：支持文件本地存储及后续扩展云存储
-- **文本组装工具**：  
-  `app/utils/text_builder.py` 协助生成结构化查询文本，用于嵌入、检索和需求分析
-- **意图识别与需求结构化**：  
-  `app/services/intent_service.py` 新增规则与轻量 LLM 结合的用户意图/需求要素抽取，准确处理“推荐/对比/平替/价格/参数”等消费问询，提取 product category、场景、预算、偏好字段，支持灰度部署未来 LLM 结构化助手。
-- **推荐服务说明**：
-  - `app/services/recommend_service.py` 提供智能商品推荐排序，综合考虑用户预算、偏好、适用场景、评分、销量和库存，生成多因子排序及推荐理由说明。
-- **LLM 智能输出能力说明：**
-  - `app/ai/llm_client.py` 新增结构化方法，涵盖推荐理由、自然语言澄清追问、商品对比总结生成，辅助 UI 端输出和 Agent 智能交互。  
-  - Prompt 模板集中于 `app/ai/prompts.py`，支持结构化意图抽取、推荐、对比和澄清场景。
+- **多模态相关能力：**
+  - 视觉接口（`vision.py`, `app/services/vision_service.py`）：支持图像类别/特征抽取（Mock，可扩展成多模态模型）
+  - 语音 ASR（`speech.py`, `app/services/speech_service.py`）：支持语音转文本（Mock，支持腾讯ASR扩展）
+  - 文件上传（`upload.py`, `app/services/upload_service.py`）：支持本地存储及后续云存储扩展
+- **文本组装工具**  
+  `app/utils/text_builder.py` 用于生成结构化检索/嵌入文本，支撑 RAG 语义检索和需求分析
+- **意图识别与需求结构化**  
+  `app/services/intent_service.py`：规则+LLM 结合的意图/需求抽取，全面覆盖推荐/对比/平替等消费问询场景，提取品类、场景、预算、偏好字段，为后续 LLM 助手灰度升级打基础
+- **推荐服务说明**
+  - `app/services/recommend_service.py` 智能多因子商品推荐，结合用户预算、场景、偏好、销量、库存等，生成推荐理由与排序
+- **LLM 智能输出说明**
+  - `app/ai/llm_client.py`：结构化推荐理由、追问澄清、商品对比摘要生成（Mock，可插拔 LLM），面向 UI/Agent 智能交互
+  - Prompt 模板集中于 `app/ai/prompts.py`，统一意图抽取、推荐、对比、澄清等场景书写与复用
 
 ---
 
 ## 贡献方式
 
-- 提交请确保本地测试通过
-- 欢迎扩展 Agent、RAG、产品数据结构等
-- 如需支持或建议，请提交 issue
+- 提交前请确保本地测试和文档校验通过
+- 鼓励扩展 Agent、RAG、产品数据结构等核心模块
+- 建议/疑问请提交 issue
 
 ---
