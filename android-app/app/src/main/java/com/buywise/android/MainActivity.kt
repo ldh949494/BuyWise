@@ -1,4 +1,4 @@
-package com.shopagent.android
+package com.buywise.android
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -27,20 +27,20 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.shopagent.android.ui.ShopAgentTheme
-import com.shopagent.android.ui.screens.CompareScreen
-import com.shopagent.android.ui.screens.GuideScreen
-import com.shopagent.android.ui.screens.HomeScreen
-import com.shopagent.android.ui.screens.ProductDetailScreen
-import com.shopagent.android.ui.screens.VisionScreen
-import com.shopagent.android.viewmodel.ShopAgentViewModel
+import com.buywise.android.ui.BuyWiseTheme
+import com.buywise.android.ui.screens.CompareScreen
+import com.buywise.android.ui.screens.GuideScreen
+import com.buywise.android.ui.screens.HomeScreen
+import com.buywise.android.ui.screens.ProductDetailScreen
+import com.buywise.android.ui.screens.VisionScreen
+import com.buywise.android.viewmodel.BuyWiseViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            ShopAgentTheme {
-                ShopAgentRoot()
+            BuyWiseTheme {
+                BuyWiseRoot()
             }
         }
     }
@@ -53,9 +53,9 @@ private data class BottomDestination(
 )
 
 @Composable
-private fun ShopAgentRoot(
+private fun BuyWiseRoot(
     navController: NavHostController = rememberNavController(),
-    viewModel: ShopAgentViewModel = viewModel(),
+    viewModel: BuyWiseViewModel = viewModel(),
 ) {
     val destinations = listOf(
         BottomDestination("home", "首页") { Icon(Icons.Outlined.Home, contentDescription = null) },
@@ -92,7 +92,7 @@ private fun ShopAgentRoot(
     ) { padding ->
         Box(
             modifier = Modifier
-                .background(ShopAgentTheme.colors.surface)
+                .background(BuyWiseTheme.colors.surface)
                 .padding(PaddingValues(bottom = padding.calculateBottomPadding())),
         ) {
             NavHost(navController = navController, startDestination = "home") {

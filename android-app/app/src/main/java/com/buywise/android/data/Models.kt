@@ -1,4 +1,4 @@
-package com.shopagent.android.data
+package com.buywise.android.data
 
 data class Product(
     val id: String,

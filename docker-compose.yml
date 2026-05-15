@@ -21,7 +21,9 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: "123456"
-      MYSQL_DATABASE: oxygen
+      MYSQL_USER: buywise
+      MYSQL_PASSWORD: buywise
+      MYSQL_DATABASE: buywise_dev
     ports:
       - "3306:3306"
     volumes:

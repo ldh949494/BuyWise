@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.shopagent.android"
+    namespace = "com.buywise.android"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.shopagent.android"
+        applicationId = "com.buywise.android"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

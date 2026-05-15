@@ -8,4 +8,4 @@ router = APIRouter()
 
 @router.get("/health", response_model=HealthResponse)
 def health_check() -> HealthResponse:
-    return HealthResponse(status="ok", service="shopagent-backend")
+    return HealthResponse(status="ok", service="buywise-backend")

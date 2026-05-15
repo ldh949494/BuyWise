@@ -1,4 +1,4 @@
-package com.shopagent.android.ui.screens
+package com.buywise.android.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -31,15 +31,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.shopagent.android.data.CompareState
-import com.shopagent.android.data.GuideState
-import com.shopagent.android.data.HomeState
-import com.shopagent.android.data.Product
-import com.shopagent.android.data.VisionState
-import com.shopagent.android.ui.ShopAgentTheme
-import com.shopagent.android.ui.components.MetricPill
-import com.shopagent.android.ui.components.ProductCard
-import com.shopagent.android.ui.components.SectionTitle
+import com.buywise.android.data.CompareState
+import com.buywise.android.data.GuideState
+import com.buywise.android.data.HomeState
+import com.buywise.android.data.Product
+import com.buywise.android.data.VisionState
+import com.buywise.android.ui.BuyWiseTheme
+import com.buywise.android.ui.components.MetricPill
+import com.buywise.android.ui.components.ProductCard
+import com.buywise.android.ui.components.SectionTitle
 
 @Composable
 fun HomeScreen(state: HomeState, onProductClick: (String) -> Unit, onOpenGuide: () -> Unit) {
@@ -49,13 +49,13 @@ fun HomeScreen(state: HomeState, onProductClick: (String) -> Unit, onOpenGuide: 
     ) {
         item {
             Card(
-                colors = CardDefaults.cardColors(containerColor = ShopAgentTheme.colors.panel),
+                colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
                 shape = RoundedCornerShape(22.dp),
             ) {
                 Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Text("ShopAgent", color = ShopAgentTheme.colors.primary, fontWeight = FontWeight.Bold)
+                    Text("BuyWise", color = BuyWiseTheme.colors.primary, fontWeight = FontWeight.Bold)
                     Text(state.heroTitle, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-                    Text(state.heroSubtitle, color = ShopAgentTheme.colors.muted)
+                    Text(state.heroSubtitle, color = BuyWiseTheme.colors.muted)
                     Button(onClick = onOpenGuide) {
                         Icon(Icons.Outlined.AutoAwesome, contentDescription = null)
                         Spacer(modifier = Modifier.padding(horizontal = 4.dp))
@@ -107,17 +107,17 @@ fun GuideScreen(
             }
         }
         item {
-            Card(colors = CardDefaults.cardColors(containerColor = ShopAgentTheme.colors.panel)) {
+            Card(colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel)) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("需求画像", fontWeight = FontWeight.Bold)
-                    Text(state.intentSummary, color = ShopAgentTheme.colors.muted)
+                    Text(state.intentSummary, color = BuyWiseTheme.colors.muted)
                 }
             }
         }
         items(state.recommendations) { recommendation ->
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 ProductCard(product = recommendation.product, onClick = { onProductClick(recommendation.product.id) })
-                Text(recommendation.reason, color = ShopAgentTheme.colors.muted, modifier = Modifier.padding(horizontal = 8.dp))
+                Text(recommendation.reason, color = BuyWiseTheme.colors.muted, modifier = Modifier.padding(horizontal = 8.dp))
             }
         }
     }
@@ -134,7 +134,7 @@ fun CompareScreen(state: CompareState, onProductClick: (String) -> Unit) {
             ProductCard(product = product, onClick = { onProductClick(product.id) })
         }
         item {
-            Card(colors = CardDefaults.cardColors(containerColor = ShopAgentTheme.colors.panel)) {
+            Card(colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel)) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(Icons.AutoMirrored.Outlined.CompareArrows, contentDescription = null)
@@ -142,7 +142,7 @@ fun CompareScreen(state: CompareState, onProductClick: (String) -> Unit) {
                     }
                     state.rows.forEach { row ->
                         Text(row.title, fontWeight = FontWeight.SemiBold)
-                        Text(row.values.joinToString(" | "), color = ShopAgentTheme.colors.muted)
+                        Text(row.values.joinToString(" | "), color = BuyWiseTheme.colors.muted)
                     }
                 }
             }
@@ -158,11 +158,11 @@ fun VisionScreen(state: VisionState, onProductClick: (String) -> Unit) {
     ) {
         item { SectionTitle("图像识别", "当前保留原生入口和 mock 识别结果") }
         item {
-            Card(colors = CardDefaults.cardColors(containerColor = ShopAgentTheme.colors.panel)) {
+            Card(colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel)) {
                 Column(modifier = Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Icon(Icons.Outlined.CameraAlt, contentDescription = null)
                     Text("上传或拍摄商品图片", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                    Text("首版不接入真实识别，先承接结果结构和推荐区块。", color = ShopAgentTheme.colors.muted)
+                    Text("首版不接入真实识别，先承接结果结构和推荐区块。", color = BuyWiseTheme.colors.muted)
                     FilledTonalButton(onClick = {}) {
                         Icon(Icons.Outlined.ImageSearch, contentDescription = null)
                         Spacer(modifier = Modifier.padding(horizontal = 4.dp))
@@ -172,11 +172,11 @@ fun VisionScreen(state: VisionState, onProductClick: (String) -> Unit) {
             }
         }
         item {
-            Card(colors = CardDefaults.cardColors(containerColor = ShopAgentTheme.colors.panel)) {
+            Card(colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel)) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(state.result.title, fontWeight = FontWeight.Bold)
-                    Text("置信度 ${state.result.confidence}%", color = ShopAgentTheme.colors.primary)
-                    Text(state.result.labels.joinToString(" / "), color = ShopAgentTheme.colors.muted)
+                    Text("置信度 ${state.result.confidence}%", color = BuyWiseTheme.colors.primary)
+                    Text(state.result.labels.joinToString(" / "), color = BuyWiseTheme.colors.muted)
                 }
             }
         }
@@ -202,10 +202,10 @@ fun ProductDetailScreen(product: Product?, onBack: () -> Unit) {
                 Text("商品不存在", fontSize = 22.sp, fontWeight = FontWeight.Bold)
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(product.brand, color = ShopAgentTheme.colors.secondary, fontWeight = FontWeight.Bold)
+                    Text(product.brand, color = BuyWiseTheme.colors.secondary, fontWeight = FontWeight.Bold)
                     Text(product.name, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-                    Text("¥${product.price} · 推荐分 ${product.score}", color = ShopAgentTheme.colors.primary, fontWeight = FontWeight.Bold)
-                    Text(product.headline, color = ShopAgentTheme.colors.muted)
+                    Text("¥${product.price} · 推荐分 ${product.score}", color = BuyWiseTheme.colors.primary, fontWeight = FontWeight.Bold)
+                    Text(product.headline, color = BuyWiseTheme.colors.muted)
                 }
             }
         }
@@ -225,11 +225,11 @@ fun ProductDetailScreen(product: Product?, onBack: () -> Unit) {
 
 @Composable
 private fun DetailBlock(title: String, items: List<String>) {
-    Card(colors = CardDefaults.cardColors(containerColor = ShopAgentTheme.colors.panel)) {
+    Card(colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel)) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(title, fontWeight = FontWeight.Bold)
             items.forEach { item ->
-                Text("• $item", color = ShopAgentTheme.colors.muted)
+                Text("• $item", color = BuyWiseTheme.colors.muted)
             }
         }
     }

@@ -22,7 +22,7 @@ def test_health_check_payload() -> None:
     payload = health_check()
 
     assert payload.status == "ok"
-    assert payload.service == "shopagent-backend"
+    assert payload.service == "buywise-backend"
 
 
 def test_api_v1_prefix_default() -> None:

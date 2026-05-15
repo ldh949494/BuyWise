@@ -1,8 +1,11 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import URL
+
+AppEnv = Literal["dev", "test", "prod"]
 
 
 class Settings(BaseSettings):
@@ -13,17 +16,17 @@ class Settings(BaseSettings):
         populate_by_name=True,
     )
 
-    app_name: str = Field(default="ShopAgent Backend", validation_alias="APP_NAME")
-    app_env: str = Field(default="development", validation_alias="APP_ENV")
+    app_name: str = Field(default="BuyWise Backend", validation_alias="APP_NAME")
+    app_env: AppEnv = Field(default="dev", validation_alias="APP_ENV")
     app_port: int = Field(default=8000, validation_alias="APP_PORT")
     app_debug: bool = Field(default=True, validation_alias="APP_DEBUG")
     api_v1_prefix: str = Field(default="/api/v1", validation_alias="API_V1_PREFIX")
 
     mysql_host: str = Field(default="127.0.0.1", validation_alias="MYSQL_HOST")
     mysql_port: int = Field(default=3306, validation_alias="MYSQL_PORT")
-    mysql_user: str = Field(default="shopagent", validation_alias="MYSQL_USER")
-    mysql_password: str = Field(default="shopagent", validation_alias="MYSQL_PASSWORD")
-    mysql_database: str = Field(default="shopagent", validation_alias="MYSQL_DATABASE")
+    mysql_user: str = Field(default="buywise", validation_alias="MYSQL_USER")
+    mysql_password: str = Field(default="buywise", validation_alias="MYSQL_PASSWORD")
+    mysql_database: str = Field(default="buywise", validation_alias="MYSQL_DATABASE")
     sqlalchemy_echo: bool = Field(default=False, validation_alias="SQLALCHEMY_ECHO")
 
     chroma_persist_dir: str = Field(

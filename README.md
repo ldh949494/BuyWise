@@ -1,6 +1,6 @@
-# ShopAgent Backend
+# BuyWise Backend
 
-ShopAgent Backend is a FastAPI skeleton for a multimodal e-commerce shopping guide agent.
+BuyWise Backend is a FastAPI skeleton for a multimodal e-commerce shopping guide agent.
 The first milestone focuses on a runnable text-guidance MVP foundation, with reserved
 modules for image, speech, upload, vector retrieval, and LLM integration.
 
@@ -13,7 +13,7 @@ modules for image, speech, upload, vector retrieval, and LLM integration.
    pip install -r requirements.txt
    ```
 
-3. Copy `.env.example` to `.env` and adjust values if needed.
+3. Copy `.env.dev.example` to `.env` and adjust values if needed.
 4. Start the API:
 
    ```powershell
@@ -41,7 +41,7 @@ The importer reads `data/products.csv` and skips products with duplicate names, 
 Copy the example environment file, then start the backend and MySQL:
 
 ```powershell
-Copy-Item .env.example .env
+Copy-Item .env.dev.example .env
 docker compose up --build
 ```
 
@@ -103,7 +103,20 @@ Dockerfile
 docker-compose.yml
 requirements.txt
 .env.example
+.env.dev.example
+.env.test.example
+.env.prod.example
 ```
+
+## Environments
+
+Use `APP_ENV` to select the runtime environment. Supported values are `dev`, `test`, and `prod`.
+
+- `.env.dev.example`: local Docker development, database `buywise_dev`
+- `.env.test.example`: automated tests or isolated local checks, database `buywise_test`
+- `.env.prod.example`: production template with placeholder secrets, database `buywise`
+
+Only commit `*.example` files. Real `.env`, `.env.dev`, `.env.test`, and `.env.prod` files are ignored.
 
 ## Current Scope
 
@@ -184,26 +197,25 @@ The workflow:
 3. Collects the current commit diff and executes `scripts/ai_update_readme.py`.
 4. Creates a branch, commit, and pull request only when `README.md` is actually changed.
 
-### GitHub Secrets
+### GitHub Models
 
-Configure these repository secrets when AI-driven README updates are required:
+The workflow uses GitHub Models through `gh models`. GitHub Actions provides `GH_TOKEN`
+from `${{ github.token }}` and the workflow grants `models: read`.
 
 ```text
-OPENAI_API_KEY
-OPENAI_BASE_URL
-OPENAI_MODEL
+GITHUB_MODELS_README_MODEL=openai/gpt-4.1
 ```
 
-`OPENAI_API_KEY` is required for README generation. The other two variables are optional.
-When `OPENAI_MODEL` is not set, the script uses:
+For local README generation, authenticate the GitHub CLI and optionally set:
 
 ```text
-gpt-4.1-mini
+README_DIFF_RANGE=main..HEAD
+GITHUB_MODELS_README_MODEL=openai/gpt-4.1
 ```
 
 ### Failure behavior
 
 - Validation failure stops the workflow.
-- Missing `OPENAI_API_KEY` skips README generation without failing the workflow.
+- Missing GitHub CLI or GitHub Models access skips README generation without failing the workflow.
 - AI generation errors skip README generation without failing the workflow.
 - No README content change means no automation branch and no pull request.

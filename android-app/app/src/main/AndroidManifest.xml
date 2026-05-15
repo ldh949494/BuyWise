@@ -4,9 +4,9 @@
 
     <application
         android:allowBackup="true"
-        android:label="ShopAgent"
+        android:label="BuyWise"
         android:supportsRtl="true"
-        android:theme="@style/Theme.ShopAgent">
+        android:theme="@style/Theme.BuyWise">
         <activity
             android:name=".MainActivity"
             android:exported="true">

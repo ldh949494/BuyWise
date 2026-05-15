@@ -32,7 +32,7 @@ if "/api/v1/health" not in registered_paths:
     raise SystemExit("Health route is not registered on the FastAPI app.")
 
 payload = health_check()
-if payload.status != "ok" or payload.service != "shopagent-backend":
+if payload.status != "ok" or payload.service != "buywise-backend":
     raise SystemExit(f"Unexpected health payload: {payload.model_dump()}")
 
 print("Backend smoke check passed.")

@@ -1,1 +1,1 @@
-"""ShopAgent Backend application package."""
+"""BuyWise Backend application package."""

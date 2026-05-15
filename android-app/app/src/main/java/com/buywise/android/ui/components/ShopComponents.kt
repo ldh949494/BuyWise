@@ -1,4 +1,4 @@
-package com.shopagent.android.ui.components
+package com.buywise.android.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,15 +22,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.shopagent.android.data.Product
-import com.shopagent.android.ui.ShopAgentTheme
+import com.buywise.android.data.Product
+import com.buywise.android.ui.BuyWiseTheme
 
 @Composable
 fun SectionTitle(title: String, subtitle: String? = null) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = ShopAgentTheme.colors.ink)
+        Text(title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = BuyWiseTheme.colors.ink)
         subtitle?.let {
-            Text(it, color = ShopAgentTheme.colors.muted)
+            Text(it, color = BuyWiseTheme.colors.muted)
         }
     }
 }
@@ -41,7 +41,7 @@ fun ProductCard(product: Product, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = ShopAgentTheme.colors.panel),
+        colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
         shape = RoundedCornerShape(18.dp),
     ) {
         Column(
@@ -50,20 +50,20 @@ fun ProductCard(product: Product, onClick: () -> Unit) {
         ) {
             Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(product.brand, color = ShopAgentTheme.colors.secondary, fontWeight = FontWeight.SemiBold)
+                    Text(product.brand, color = BuyWiseTheme.colors.secondary, fontWeight = FontWeight.SemiBold)
                     Text(product.name, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 }
                 Spacer(modifier = Modifier.width(12.dp))
-                Text("¥${product.price}", color = ShopAgentTheme.colors.primary, fontWeight = FontWeight.Bold)
+                Text("¥${product.price}", color = BuyWiseTheme.colors.primary, fontWeight = FontWeight.Bold)
             }
-            Text(product.headline, color = ShopAgentTheme.colors.muted)
+            Text(product.headline, color = BuyWiseTheme.colors.muted)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 product.tags.take(3).forEach { tag ->
                     AssistChip(onClick = {}, label = { Text(tag) })
                 }
             }
             Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                Text("推荐分 ${product.score}", fontWeight = FontWeight.Bold, color = ShopAgentTheme.colors.accent)
+                Text("推荐分 ${product.score}", fontWeight = FontWeight.Bold, color = BuyWiseTheme.colors.accent)
                 Text(product.category, color = Color(0xFF64748B))
             }
         }
@@ -77,7 +77,7 @@ fun MetricPill(label: String, value: String) {
             .background(Color.White, RoundedCornerShape(16.dp))
             .padding(horizontal = 14.dp, vertical = 12.dp),
     ) {
-        Text(label, color = ShopAgentTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
+        Text(label, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
         Spacer(modifier = Modifier.height(2.dp))
         Text(value, fontWeight = FontWeight.Bold)
     }
