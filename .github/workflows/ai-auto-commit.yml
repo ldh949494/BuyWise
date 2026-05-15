@@ -206,10 +206,11 @@ jobs:
           $changedFiles = git diff --name-status origin/main...HEAD | Out-String
           $commitSummary = git log --oneline --no-merges origin/main..HEAD | Out-String
           $diffStat = git diff --stat origin/main...HEAD | Out-String
-          $diff = git diff --unified=2 --no-ext-diff origin/main...HEAD | Out-String
+          $diff = git diff --unified=1 --no-ext-diff origin/main...HEAD | Out-String
 
-          if ($diff.Length -gt 50000) {
-            $diff = $diff.Substring(0, 50000) + "`n[Diff truncated for model context]"
+          $maxDiffChars = 12000
+          if ($diff.Length -gt $maxDiffChars) {
+            $diff = $diff.Substring(0, $maxDiffChars) + "`n[Diff truncated for model context]"
           }
 
           $prompt = @"
@@ -278,7 +279,7 @@ jobs:
             }
 
             $modelOutput = Get-Content pr-summary-prompt.md -Raw |
-              gh models run $env:PR_SUMMARY_MODEL "Read stdin and generate Pull Request metadata. Return only JSON with title and body."
+              gh models run $env:PR_SUMMARY_MODEL "Read stdin and generate Pull Request metadata. Return only JSON with title and body." --max-tokens 1200 --temperature 0
             $modelOutput | Out-File -FilePath pr-summary-raw.txt -Encoding utf8
             Write-Host "AI PR metadata response length: $($modelOutput.Length)"
 
@@ -340,6 +341,25 @@ jobs:
 
           if (-not (Test-Path pr-body.md)) {
             Write-Warning "AI-generated PR body was not found; using fallback PR body."
+            git fetch origin main
+            $changedFileBullets = git diff --name-status origin/main...HEAD |
+              ForEach-Object { "- $_" } |
+              Out-String
+            $diffStat = git diff --stat origin/main...HEAD | Out-String
+            $body = @"
+          ## 概述
+          本 PR 由 ai-auto-commit workflow 自动创建。GitHub Models 未生成可用摘要，已回退为基于 git diff 的确定性摘要。
+
+          ## 变更内容
+          $changedFileBullets
+          ## Diff 统计
+          ````text
+          $diffStat
+          ````
+
+          ## 验证结果
+          - 自动化验证已通过。
+          "@
           }
 
           $body | Out-File -FilePath pr-create-body.md -Encoding utf8
@@ -429,10 +449,11 @@ jobs:
           $changedFiles = git diff --name-status origin/main...HEAD | Out-String
           $commitSummary = git log --oneline --no-merges origin/main..HEAD | Out-String
           $diffStat = git diff --stat origin/main...HEAD | Out-String
-          $diff = git diff --unified=2 --no-ext-diff origin/main...HEAD | Out-String
+          $diff = git diff --unified=1 --no-ext-diff origin/main...HEAD | Out-String
 
-          if ($diff.Length -gt 50000) {
-            $diff = $diff.Substring(0, 50000) + "`n[Diff truncated for model context]"
+          $maxDiffChars = 12000
+          if ($diff.Length -gt $maxDiffChars) {
+            $diff = $diff.Substring(0, $maxDiffChars) + "`n[Diff truncated for model context]"
           }
 
           $prompt = @"
@@ -501,7 +522,7 @@ jobs:
             }
 
             $modelOutput = Get-Content readme-pr-summary-prompt.md -Raw |
-              gh models run $env:PR_SUMMARY_MODEL "Read stdin and generate README Pull Request metadata. Return only JSON with title and body."
+              gh models run $env:PR_SUMMARY_MODEL "Read stdin and generate README Pull Request metadata. Return only JSON with title and body." --max-tokens 1200 --temperature 0
             $modelOutput | Out-File -FilePath readme-pr-summary-raw.txt -Encoding utf8
             Write-Host "AI README PR metadata response length: $($modelOutput.Length)"
 
@@ -560,6 +581,25 @@ jobs:
 
           if (-not (Test-Path readme-pr-body.md)) {
             Write-Warning "AI-generated README PR body was not found; using fallback PR body."
+            git fetch origin main
+            $changedFileBullets = git diff --name-status origin/main...HEAD |
+              ForEach-Object { "- $_" } |
+              Out-String
+            $diffStat = git diff --stat origin/main...HEAD | Out-String
+            $body = @"
+          ## 概述
+          本 PR 由 ai-auto-commit workflow 自动创建，用于提交 README 自动更新。GitHub Models 未生成可用摘要，已回退为基于 git diff 的确定性摘要。
+
+          ## 变更内容
+          $changedFileBullets
+          ## Diff 统计
+          ````text
+          $diffStat
+          ````
+
+          ## 评审说明
+          - README.md 已由自动化 workflow 更新。
+          "@
           }
 
           $body | Out-File -FilePath readme-pr-create-body.md -Encoding utf8
