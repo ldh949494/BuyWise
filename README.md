@@ -1,5 +1,7 @@
 # BuyWise Backend
 
+Agent instructions start at `AGENTS.md`.
+
 BuyWise Backend is a FastAPI skeleton for a multimodal e-commerce shopping guide agent.
 The first milestone focuses on a runnable text-guidance MVP foundation, with reserved
 modules for image, speech, upload, vector retrieval, and LLM integration.
@@ -27,10 +29,10 @@ modules for image, speech, upload, vector retrieval, and LLM integration.
 
 ## Demo Product Data
 
-Create database tables, then import the demo product CSV:
+Run database migrations, then import the demo product CSV:
 
 ```powershell
-.\.venv\Scripts\python.exe -m app.scripts.create_tables
+.\.venv\Scripts\python.exe -m app.scripts.migrate_database
 .\.venv\Scripts\python.exe -m app.scripts.import_products
 ```
 
@@ -58,10 +60,10 @@ The backend reads `.env`, connects to the `mysql` service, and mounts:
 ./uploads -> /app/uploads
 ```
 
-After the containers are running, initialize tables and import demo products:
+After the containers are running, run migrations and import demo products:
 
 ```powershell
-docker compose exec backend python -m app.scripts.create_tables
+docker compose exec backend python -m app.scripts.migrate_database
 docker compose exec backend python -m app.scripts.import_products
 ```
 
@@ -174,6 +176,8 @@ app/
   services/
   utils/
   vectorstore/
+alembic/
+  versions/
 data/
 vector_store/
   chroma/

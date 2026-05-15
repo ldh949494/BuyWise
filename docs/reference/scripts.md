@@ -18,6 +18,8 @@
 
 ## Data And Maintenance
 
-- `scripts/init_db.py`: database initialization helper.
+- `app.scripts.migrate_database`: applies Alembic migrations to the configured database.
+- `app.scripts.create_tables`: compatibility wrapper that applies Alembic migrations.
+- `scripts/init_db.py`: database initialization helper that applies Alembic migrations.
 - `scripts/ai_update_readme.py`: AI-assisted README update helper used by GitHub Actions.
 - `scripts/doc_gardening.py`: AI-assisted repository memory maintenance report. It writes a report by default and only edits `AGENTS.md`, README, or `docs/` when called with `--apply`.
