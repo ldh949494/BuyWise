@@ -10,7 +10,7 @@ Set-Location $repoRoot
 
 $excludedPaths = @(
     ".idea",
-    "emulator_shopagent.png"
+    "emulator_buywise.png"
 )
 
 Write-Host "========== Validate Before Publish =========="

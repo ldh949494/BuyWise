@@ -1,4 +1,4 @@
-package com.shopagent.android.data
+package com.buywise.android.data
 
 class ShopRepository {
     private val products = listOf(
@@ -53,7 +53,7 @@ class ShopRepository {
     )
 
     fun homeState(): HomeState = HomeState(
-        heroTitle = "ShopAgent 帮你快速缩小购物范围",
+        heroTitle = "BuyWise 帮你快速缩小购物范围",
         heroSubtitle = "输入需求后，先结构化偏好，再给出理由明确的导购建议。",
         products = products,
     )

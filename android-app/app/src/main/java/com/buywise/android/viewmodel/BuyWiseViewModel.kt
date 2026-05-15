@@ -1,17 +1,17 @@
-package com.shopagent.android.viewmodel
+package com.buywise.android.viewmodel
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
-import com.shopagent.android.data.CompareState
-import com.shopagent.android.data.GuideState
-import com.shopagent.android.data.HomeState
-import com.shopagent.android.data.Product
-import com.shopagent.android.data.ShopRepository
-import com.shopagent.android.data.VisionState
+import com.buywise.android.data.CompareState
+import com.buywise.android.data.GuideState
+import com.buywise.android.data.HomeState
+import com.buywise.android.data.Product
+import com.buywise.android.data.ShopRepository
+import com.buywise.android.data.VisionState
 
-class ShopAgentViewModel(
+class BuyWiseViewModel(
     private val repository: ShopRepository = ShopRepository(),
 ) : ViewModel() {
     val homeState: HomeState = repository.homeState()

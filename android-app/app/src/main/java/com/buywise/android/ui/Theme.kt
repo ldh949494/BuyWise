@@ -1,11 +1,11 @@
-package com.shopagent.android.ui
+package com.buywise.android.ui
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-object ShopAgentTheme {
+object BuyWiseTheme {
     val colors = AccentColors()
 }
 
@@ -20,14 +20,14 @@ data class AccentColors(
 )
 
 @Composable
-fun ShopAgentTheme(content: @Composable () -> Unit) {
+fun BuyWiseTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = lightColorScheme(
-            primary = ShopAgentTheme.colors.primary,
-            secondary = ShopAgentTheme.colors.secondary,
-            tertiary = ShopAgentTheme.colors.accent,
-            surface = ShopAgentTheme.colors.surface,
-            background = ShopAgentTheme.colors.surface,
+            primary = BuyWiseTheme.colors.primary,
+            secondary = BuyWiseTheme.colors.secondary,
+            tertiary = BuyWiseTheme.colors.accent,
+            surface = BuyWiseTheme.colors.surface,
+            background = BuyWiseTheme.colors.surface,
         ),
         content = content,
     )
