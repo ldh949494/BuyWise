@@ -98,7 +98,87 @@ python app/scripts/build_vector_index.py
 
 ---
 
-## 目录结构
+### Isolated PR environments
+
+The compose stack is safe to run under a project name, so separate PRs can run
+with independent containers, networks, and volumes:
+
+```powershell
+.\scripts\start_pr_env.ps1 -Name pr-123 -Branch feature/pr-123 -BackendPort 8123 -MysqlPort 3323
+```
+
+The script creates a sibling Git worktree named `BuyWise-pr-123`, copies
+`.env.dev.example` to `.env` if needed, then starts:
+
+```powershell
+docker compose -p buywise-pr-123 up -d --build
+```
+
+Stop the instance without removing data:
+
+```powershell
+.\scripts\stop_pr_env.ps1 -Name pr-123
+```
+
+Remove the containers, named volumes, and worktree:
+
+```powershell
+.\scripts\stop_pr_env.ps1 -Name pr-123 -RemoveVolumes -RemoveWorktree
+```
+
+### Browser validation
+
+Install dependencies and the Chromium browser once:
+
+```powershell
+pip install -r requirements.txt
+python -m playwright install chromium
+```
+
+Run a browser check against a local instance:
+
+```powershell
+python .\scripts\browser_check.py --base-url http://127.0.0.1:8123 --record-video
+```
+
+The script validates `/api/v1/health`, opens `/docs`, saves a screenshot, and
+writes a small DOM snapshot under `artifacts/browser`.
+
+To attach to an existing Chrome started with CDP:
+
+```powershell
+chrome.exe --remote-debugging-port=9222 --user-data-dir=.chrome-agent
+python .\scripts\browser_check.py --base-url http://127.0.0.1:8123 --cdp-url http://127.0.0.1:9222
+```
+
+### Observability
+
+Start a PR instance with Prometheus, Loki, Promtail, and Grafana:
+
+```powershell
+.\scripts\start_pr_env.ps1 -Name pr-123 -BackendPort 8123 -MysqlPort 3323 -Observability
+```
+
+Default local ports:
+
+- Backend: `http://127.0.0.1:8123`
+- Prometheus: `http://127.0.0.1:9090`
+- Loki: `http://127.0.0.1:3100`
+- Grafana: `http://127.0.0.1:3000` (`admin` / `admin`)
+
+The FastAPI app exposes Prometheus metrics at `/metrics`. Application logs are
+emitted as JSON to stdout, and Promtail labels Docker logs with compose project
+and service names. Useful queries:
+
+```logql
+{compose_project="buywise-pr-123", service="backend"} |= "ERROR"
+```
+
+```promql
+rate(http_requests_total[5m])
+```
+
+## Project Layout
 
 ```text
 app/

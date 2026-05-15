@@ -2,12 +2,15 @@ services:
   backend:
     build:
       context: .
-    container_name: buywise-backend
     env_file:
       - path: .env
         required: false
+    environment:
+      APP_PORT: 8000
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     depends_on:
       - mysql
     volumes:
@@ -17,15 +20,14 @@ services:
 
   mysql:
     image: mysql:8.0
-    container_name: buywise-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: "123456"
-      MYSQL_USER: buywise
-      MYSQL_PASSWORD: buywise
-      MYSQL_DATABASE: buywise_dev
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:-123456}"
+      MYSQL_USER: "${MYSQL_USER:-buywise}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD:-buywise}"
+      MYSQL_DATABASE: "${MYSQL_DATABASE:-buywise_dev}"
     ports:
-      - "3306:3306"
+      - "${MYSQL_PORT:-3306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
 

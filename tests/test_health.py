@@ -18,6 +18,18 @@ def test_health_route_is_registered() -> None:
     assert f"{settings.api_v1_prefix}/health" in paths
 
 
+def test_metrics_route_is_registered_when_instrumentation_is_available() -> None:
+    app = create_app()
+    paths = {route.path for route in app.routes}
+
+    try:
+        import prometheus_fastapi_instrumentator  # noqa: F401
+    except ImportError:
+        assert "/metrics" not in paths
+    else:
+        assert "/metrics" in paths
+
+
 def test_health_check_payload() -> None:
     payload = health_check()
 
