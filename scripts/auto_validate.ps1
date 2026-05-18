@@ -5,6 +5,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+. "$PSScriptRoot\set_utf8.ps1"
+
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
 

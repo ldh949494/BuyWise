@@ -2,11 +2,16 @@ from __future__ import annotations
 
 import ast
 import re
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from scripts.text_encoding_checks import collect_text_encoding_diagnostics  # noqa: E402
+
 MAX_SOURCE_LINES = 300
 PYTHON_ROOTS = [ROOT / "app", ROOT / "tests", ROOT / "scripts"]
 KOTLIN_ROOT = ROOT / "android-app" / "app" / "src" / "main" / "java"
@@ -251,6 +256,10 @@ def check_kotlin_file(path: Path, diagnostics: list[Diagnostic]) -> None:
 
 def main() -> int:
     diagnostics: list[Diagnostic] = []
+    diagnostics.extend(
+        Diagnostic(item.path, item.line, item.error, item.fix)
+        for item in collect_text_encoding_diagnostics(ROOT)
+    )
     for path in iter_python_files():
         check_python_file(path, diagnostics)
     for path in iter_kotlin_files():

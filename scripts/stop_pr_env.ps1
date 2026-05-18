@@ -10,6 +10,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+. "$PSScriptRoot\set_utf8.ps1"
+
 $safeName = ($Name.ToLowerInvariant() -replace "[^a-z0-9_.-]", "-").Trim("-")
 if (-not $safeName) {
     throw "Name must contain at least one letter or number."
