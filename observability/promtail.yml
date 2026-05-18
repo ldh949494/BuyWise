@@ -28,6 +28,7 @@ scrape_configs:
             level: level
             logger: logger
             message: message
+            request_id: request_id
       - labels:
           level:
           logger:

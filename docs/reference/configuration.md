@@ -9,6 +9,7 @@ Environment examples live in `.env.dev.example`, `.env.test.example`, and `.env.
 - `APP_PORT`
 - `APP_DEBUG`
 - `API_V1_PREFIX`
+- `LOG_LEVEL`
 
 ## Database
 

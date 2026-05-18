@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 APP_ROOT = ROOT / "app"
 PROVIDER_MODULE = "app.core.providers"
 ALLOWED_FILES = {
+    Path("app/core/logging_utils.py"),
     Path("app/core/providers.py"),
     Path("app/core/logging.py"),
     Path("app/utils/logging.py"),

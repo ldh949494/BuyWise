@@ -9,8 +9,12 @@ from sqlalchemy.orm import Session
 
 from app.models.product import Product
 from app.repositories.product_repo import ProductRepository
+from app.utils.logging import get_logger
 from app.utils.text_builder import build_query_from_need
 from app.vectorstore.chroma_client import ChromaProductStore
+
+
+logger = get_logger(__name__)
 
 
 class RAGPipeline:
@@ -44,7 +48,17 @@ class RAGPipeline:
                 page_size=top_k,
             )
 
-        return self._filter_products(candidates, need)[:top_k]
+        filtered = self._filter_products(candidates, need)[:top_k]
+        logger.info(
+            "RAG pipeline search completed",
+            extra={
+                "source": "vector" if search_results else "database",
+                "top_k": top_k,
+                "candidate_count": len(candidates),
+                "result_count": len(filtered),
+            },
+        )
+        return filtered
 
     def _extract_product_ids(self, search_results: list[dict]) -> list[int]:
         product_ids = []
