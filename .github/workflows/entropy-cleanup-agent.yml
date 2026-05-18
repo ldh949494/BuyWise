@@ -49,7 +49,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           ENTROPY_CLEANUP_MODEL: openai/gpt-4.1
-        run: python scripts/entropy_cleanup_agent.py
+        run: python -m scripts.entropy_cleanup_agent
 
       - name: Stop when no cleanup was applied
         id: changes
