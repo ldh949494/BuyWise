@@ -61,7 +61,6 @@ class ChatService:
             top_products = ranked_products[:5]
             reply = await self.llm_client.generate_recommendation(need, top_products)
 
-            # TODO: persist chat session and message history.
             return ChatResponse(
                 reply=reply,
                 need_clarify=False,
