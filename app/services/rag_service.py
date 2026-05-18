@@ -53,6 +53,10 @@ class RagService:
                 {
                     "product_id": product_id,
                     "name": metadata.get("name") or result.get("id"),
+                    "category": metadata.get("category"),
+                    "platform": metadata.get("platform"),
+                    "product_url": metadata.get("product_url"),
+                    "stock_status": metadata.get("stock_status"),
                     "price": metadata.get("price"),
                     "score": result.get("score"),
                     "reason": "\u5411\u91cf\u53ec\u56de\u7ed3\u679c",

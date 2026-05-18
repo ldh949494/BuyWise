@@ -1,1 +1,1 @@
-"""Product vector index helpers."""
+"""Product vector index package marker."""

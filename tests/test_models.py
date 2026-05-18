@@ -32,9 +32,15 @@ def test_product_table_schema() -> None:
     assert isinstance(column(Product, "name").type, String)
     assert column(Product, "name").type.length == 255
     assert column(Product, "name").nullable is False
+    assert isinstance(column(Product, "sku").type, String)
+    assert column(Product, "sku").type.length == 128
     assert isinstance(column(Product, "price").type, Numeric)
     assert column(Product, "price").type.precision == 10
     assert column(Product, "price").type.scale == 2
+    assert isinstance(column(Product, "product_url").type, String)
+    assert isinstance(column(Product, "image_urls").type, JSON)
+    assert isinstance(column(Product, "stock_status").type, String)
+    assert isinstance(column(Product, "review_summary").type, Text)
     assert isinstance(column(Product, "description").type, Text)
     assert isinstance(column(Product, "specs").type, JSON)
     assert isinstance(column(Product, "tags").type, JSON)
@@ -98,6 +104,7 @@ def test_recommendation_table_schema() -> None:
     assert isinstance(column(Recommendation, "score").type, Numeric)
     assert column(Recommendation, "score").type.precision == 5
     assert column(Recommendation, "score").type.scale == 2
+    assert isinstance(column(Recommendation, "explanation").type, JSON)
     assert isinstance(column(Recommendation, "created_at").type, DateTime)
     assert ("session_id",) in index_columns(Recommendation)
     assert ("product_id",) in index_columns(Recommendation)

@@ -49,6 +49,10 @@ def test_structured_need_and_product_card_defaults() -> None:
     assert card.rating is None
     assert card.score is None
     assert card.reason is None
+    assert card.budget_match is None
+    assert card.scenario_match is None
+    assert card.conflicts == []
+    assert card.alternatives == []
 
 
 def test_product_schemas_validate_create_update_read_and_list() -> None:
@@ -59,10 +63,13 @@ def test_product_schemas_validate_create_update_read_and_list() -> None:
         name="Phone",
         category="phone",
         brand="Brand",
+        sku="SKU-1",
         price=Decimal("1999.00"),
         original_price=Decimal("2199.00"),
         platform="tmall",
+        product_url="https://example.com/item",
         image_url="https://example.com/p.png",
+        image_urls=["https://example.com/p.png", "https://example.com/p2.png"],
         rating=Decimal("4.80"),
         sales=100,
         description="good",
@@ -70,7 +77,10 @@ def test_product_schemas_validate_create_update_read_and_list() -> None:
         tags=["mobile"],
         suitable_scene=["gift"],
         stock=20,
+        stock_status="in_stock",
+        review_summary="good reviews",
         created_at=None,
+        price_history=[],
     )
 
     read = ProductRead.model_validate(orm_product)
@@ -79,6 +89,10 @@ def test_product_schemas_validate_create_update_read_and_list() -> None:
     assert created.name == "Phone"
     assert updated.price == 1899.0
     assert read.id == 1
+    assert read.sku == "SKU-1"
+    assert read.image_urls == ["https://example.com/p.png", "https://example.com/p2.png"]
+    assert read.stock_status == "in_stock"
+    assert read.review_summary == "good reviews"
     assert read.price == 1999.0
     assert response.items[0].name == "Phone"
 

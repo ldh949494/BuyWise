@@ -7,27 +7,38 @@ from typing import Any
 
 
 def build_product_text(product: Any) -> str:
-    """Build Chinese product text suitable for embedding."""
+    """Build product text suitable for embedding."""
 
-    fields = [
+    lines = []
+    for label, value in _product_fields(product):
+        formatted = _format_value(value)
+        if formatted:
+            lines.append(f"{label}：{formatted}")
+    return "\n".join(lines)
+
+
+def _product_fields(product: Any) -> list[tuple[str, Any]]:
+    return [
         ("商品名称", _get_value(product, "name")),
         ("类别", _get_value(product, "category")),
         ("品牌", _get_value(product, "brand")),
+        ("SKU", _get_value(product, "sku")),
+        ("平台", _get_value(product, "platform")),
+        ("平台链接", _get_value(product, "product_url")),
         ("价格", _get_value(product, "price")),
+        ("原价", _get_value(product, "original_price")),
+        ("库存", _get_value(product, "stock")),
+        ("库存状态", _get_value(product, "stock_status")),
         ("评分", _get_value(product, "rating")),
         ("销量", _get_value(product, "sales")),
         ("商品描述", _get_value(product, "description")),
         ("商品参数", _get_value(product, "specs")),
         ("商品标签", _get_value(product, "tags")),
         ("适合场景", _get_value(product, "suitable_scene")),
+        ("评论摘要", _get_value(product, "review_summary")),
+        ("商品主图", _get_value(product, "image_url")),
+        ("商品图片", _get_value(product, "image_urls")),
     ]
-
-    lines = []
-    for label, value in fields:
-        formatted = _format_value(value)
-        if formatted:
-            lines.append(f"{label}：{formatted}")
-    return "\n".join(lines)
 
 
 def build_query_from_need(need: Any) -> str:
