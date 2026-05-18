@@ -8,6 +8,11 @@ from uuid import uuid4
 
 from fastapi import UploadFile
 
+from app.utils.logging import get_logger
+
+
+logger = get_logger(__name__)
+
 
 class UploadService:
     """Local upload service, replaceable with Tencent COS later."""
@@ -24,4 +29,8 @@ class UploadService:
         with target.open("wb") as output:
             shutil.copyfileobj(file.file, output)
 
+        logger.info(
+            "Upload saved",
+            extra={"stored_filename": filename, "content_type": file.content_type},
+        )
         return {"url": f"/uploads/{filename}", "filename": filename}

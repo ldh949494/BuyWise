@@ -9,7 +9,11 @@ from sqlalchemy.orm import Session
 
 from app.repositories.product_repo import ProductRepository
 from app.schemas.rag import RagSearchRequest, RagSearchResponse
+from app.utils.logging import get_logger
 from app.vectorstore.chroma_client import ChromaProductStore
+
+
+logger = get_logger(__name__)
 
 
 class RagService:
@@ -20,9 +24,17 @@ class RagService:
         vector_items = self._search_vector_store(request)
         if vector_items:
             items = vector_items[: request.top_k]
+            logger.info(
+                "RAG search completed",
+                extra={"source": "vector", "top_k": request.top_k, "result_count": len(items)},
+            )
             return RagSearchResponse(query=request.query, items=items, total=len(items))
 
         fallback_items = self._search_database(request, db)
+        logger.info(
+            "RAG search completed",
+            extra={"source": "database", "top_k": request.top_k, "result_count": len(fallback_items)},
+        )
         return RagSearchResponse(
             query=request.query,
             items=fallback_items,

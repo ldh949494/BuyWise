@@ -65,10 +65,14 @@ def test_list_products_returns_pydantic_response() -> None:
 def test_get_product_returns_404_when_missing() -> None:
     client = make_client()
 
-    response = client.get("/api/v1/products/999")
+    response = client.get("/api/v1/products/999", headers={"X-Request-ID": "product-missing"})
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "Product not found"
+    payload = response.json()
+    assert response.headers["x-request-id"] == "product-missing"
+    assert payload["detail"] == "Product not found"
+    assert payload["code"] == "not_found"
+    assert payload["extra"]["request_id"] == "product-missing"
 
 
 def test_create_product_returns_created_product() -> None:

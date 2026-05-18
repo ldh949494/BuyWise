@@ -21,3 +21,5 @@ Use `scripts/browser_check.py` to validate `/api/v1/health`, open `/docs`, captu
 ## Observability
 
 The observability overlay adds Prometheus, Loki, Promtail, and Grafana. Promtail reads Docker logs and labels them with compose project and service metadata.
+
+Backend requests use `X-Request-ID` for correlation. The API echoes an incoming non-empty value or generates one, includes it in structured JSON logs, and adds it to error responses under `extra.request_id`. `LOG_LEVEL` controls backend verbosity.

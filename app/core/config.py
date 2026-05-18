@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     app_port: int = Field(default=8000, validation_alias="APP_PORT")
     app_debug: bool = Field(default=True, validation_alias="APP_DEBUG")
     api_v1_prefix: str = Field(default="/api/v1", validation_alias="API_V1_PREFIX")
+    log_level: str = Field(default="INFO", validation_alias="LOG_LEVEL")
 
     mysql_host: str = Field(default="127.0.0.1", validation_alias="MYSQL_HOST")
     mysql_port: int = Field(default=3306, validation_alias="MYSQL_PORT")

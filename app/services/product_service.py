@@ -6,6 +6,10 @@ from sqlalchemy.orm import Session
 from app.models.product import Product
 from app.repositories.product_repo import ProductRepository
 from app.schemas.product import ProductCreate
+from app.utils.logging import get_logger
+
+
+logger = get_logger(__name__)
 
 
 class ProductService:
@@ -46,11 +50,26 @@ class ProductService:
         )
         for product in items:
             self._normalize_product(product)
+        logger.info(
+            "Product list completed",
+            extra={
+                "category": category,
+                "has_keyword": keyword is not None,
+                "page": page,
+                "page_size": page_size,
+                "result_count": len(items),
+                "total": total,
+            },
+        )
         return items, total
 
     def create_product(self, product_data: ProductCreate) -> Product:
         product = self.repo.create_product(product_data.model_dump(exclude_unset=True))
         self._normalize_product(product)
+        logger.info(
+            "Product created",
+            extra={"product_id": product.id, "category": product.category},
+        )
         return product
 
     def get_all_products(self) -> list[Product]:
