@@ -35,6 +35,8 @@ Alembic uses these same settings through `app.core.config.Settings.database_url`
 - `TENCENT_SECRET_KEY`
 - `COS_BUCKET`
 - `COS_REGION`
+- `UPLOAD_MAX_BYTES`
+- `UPLOAD_ALLOWED_TYPES`
 
 ## Local Runtime Overrides
 

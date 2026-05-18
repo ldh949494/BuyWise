@@ -55,10 +55,23 @@ class Settings(BaseSettings):
     cos_region: str = Field(default="", validation_alias="COS_REGION")
 
     llm_provider: str = Field(default="mock", validation_alias="LLM_PROVIDER")
+    upload_max_bytes: int = Field(default=10 * 1024 * 1024, validation_alias="UPLOAD_MAX_BYTES")
+    upload_allowed_types: str = Field(
+        default="image/png,image/jpeg,image/webp,image/gif,audio/wav,audio/mpeg,audio/mp4,audio/ogg",
+        validation_alias="UPLOAD_ALLOWED_TYPES",
+    )
 
     @property
     def chroma_persist_directory(self) -> str:
         return self.chroma_persist_dir
+
+    @property
+    def upload_allowed_content_types(self) -> tuple[str, ...]:
+        return tuple(
+            content_type.strip().lower()
+            for content_type in self.upload_allowed_types.split(",")
+            if content_type.strip()
+        )
 
     @property
     def database_url(self) -> str:

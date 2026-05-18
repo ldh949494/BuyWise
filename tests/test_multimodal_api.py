@@ -8,6 +8,11 @@ from app.main import create_app
 from app.services.upload_service import UploadService
 
 
+class UnsafeUploadService(UploadService):
+    def _build_storage_name(self, suffix: str) -> str:
+        return f"../unsafe{suffix}"
+
+
 def test_upload_endpoint_saves_file_to_local_directory() -> None:
     upload_dir = Path(".test_uploads")
     if upload_dir.exists():
@@ -28,6 +33,104 @@ def test_upload_endpoint_saves_file_to_local_directory() -> None:
         assert payload["filename"].endswith(".png")
         assert payload["url"] == f"/uploads/{payload['filename']}"
         assert (upload_dir / payload["filename"]).read_bytes() == b"fake image bytes"
+    finally:
+        if upload_dir.exists():
+            rmtree(upload_dir)
+
+
+def test_upload_endpoint_accepts_audio_file() -> None:
+    upload_dir = Path(".test_uploads")
+    if upload_dir.exists():
+        rmtree(upload_dir)
+
+    app = create_app()
+    app.dependency_overrides[get_upload_service] = lambda: UploadService(upload_dir=upload_dir)
+    client = TestClient(app)
+
+    try:
+        response = client.post(
+            "/api/v1/upload",
+            files={"file": ("voice.mp3", b"fake audio bytes", "audio/mpeg")},
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["filename"].endswith(".mp3")
+        assert (upload_dir / payload["filename"]).read_bytes() == b"fake audio bytes"
+    finally:
+        if upload_dir.exists():
+            rmtree(upload_dir)
+
+
+def test_upload_endpoint_rejects_unsupported_extension() -> None:
+    app = create_app()
+    app.dependency_overrides[get_upload_service] = lambda: UploadService()
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/v1/upload",
+        files={"file": ("demo.exe", b"fake image bytes", "image/png")},
+    )
+
+    assert response.status_code == 415
+    assert response.json()["code"] == "unsupported_upload_type"
+
+
+def test_upload_endpoint_rejects_unsupported_content_type() -> None:
+    app = create_app()
+    app.dependency_overrides[get_upload_service] = lambda: UploadService()
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/v1/upload",
+        files={"file": ("demo.png", b"plain text", "text/plain")},
+    )
+
+    assert response.status_code == 415
+    assert response.json()["code"] == "unsupported_upload_type"
+
+
+def test_upload_endpoint_rejects_oversized_file_without_partial_file() -> None:
+    upload_dir = Path(".test_uploads")
+    if upload_dir.exists():
+        rmtree(upload_dir)
+
+    app = create_app()
+    app.dependency_overrides[get_upload_service] = lambda: UploadService(upload_dir=upload_dir, max_bytes=4)
+    client = TestClient(app)
+
+    try:
+        response = client.post(
+            "/api/v1/upload",
+            files={"file": ("demo.png", b"too large", "image/png")},
+        )
+
+        assert response.status_code == 413
+        assert response.json()["code"] == "upload_too_large"
+        assert list(upload_dir.iterdir()) == []
+    finally:
+        if upload_dir.exists():
+            rmtree(upload_dir)
+
+
+def test_upload_endpoint_rejects_unsafe_storage_path() -> None:
+    upload_dir = Path(".test_uploads")
+    if upload_dir.exists():
+        rmtree(upload_dir)
+
+    app = create_app()
+    app.dependency_overrides[get_upload_service] = lambda: UnsafeUploadService(upload_dir=upload_dir)
+    client = TestClient(app)
+
+    try:
+        response = client.post(
+            "/api/v1/upload",
+            files={"file": ("demo.png", b"fake image bytes", "image/png")},
+        )
+
+        assert response.status_code == 400
+        assert response.json()["code"] == "unsafe_upload_path"
+        assert not Path("unsafe.png").exists()
     finally:
         if upload_dir.exists():
             rmtree(upload_dir)
