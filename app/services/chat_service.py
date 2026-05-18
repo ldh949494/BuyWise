@@ -69,28 +69,10 @@ class ChatService:
         session_id = chat_session.session_id or chat_repo.generate_session_id()
 
         try:
-            text = request.message or ""
-            if request.audio_url:
-                audio_text = await self.speech_service.transcribe(request.audio_url)
-                text = self._join_text(text, audio_text)
-
-            image_info = None
-            if request.image_url:
-                image_info = await self.vision_service.recognize(request.image_url)
-
-            prior_messages = chat_repo.list_messages(session_id)
-            history_context = self._history_context(prior_messages)
-
-            chat_repo.create_message(
-                session_id,
-                "user",
-                text,
-                structured_data={
-                    "image_url": request.image_url,
-                    "audio_url": request.audio_url,
-                    "image_info": image_info,
-                },
-            )
+            text = await self._build_user_text(request)
+            image_info = await self._build_image_info(request)
+            history_context = self._load_history_context(chat_repo, session_id)
+            self._save_user_message(chat_repo, session_id, request, text, image_info)
 
             need = await self.intent_service.extract(
                 text,
@@ -99,45 +81,8 @@ class ChatService:
             )
 
             if need.need_clarify:
-                reply = await self.llm_client.generate_clarify_question(need)
-                chat_repo.create_message(
-                    session_id,
-                    "assistant",
-                    reply,
-                    structured_data={"need": self._dump(need), "need_clarify": True},
-                )
-                chat_repo.update_commit()
-                return ChatResponse(
-                    reply=reply,
-                    need_clarify=True,
-                    structured_need=need,
-                    products=[],
-                    extra={"session_id": session_id},
-                )
-
-            products = await self.rag_pipeline.search_products(need, db)
-            ranked_products = self.recommend_service.rank(products, need)
-            top_products = ranked_products[:5]
-            reply = await self.llm_client.generate_recommendation(need, top_products)
-
-            chat_repo.create_message(
-                session_id,
-                "assistant",
-                reply,
-                structured_data={
-                    "need": self._dump(need),
-                    "products": [self._dump(product) for product in top_products],
-                },
-            )
-            chat_repo.create_recommendations(session_id, top_products)
-            chat_repo.update_commit()
-            return ChatResponse(
-                reply=reply,
-                need_clarify=False,
-                structured_need=need,
-                products=top_products,
-                extra={"session_id": session_id},
-            )
+                return await self._handle_clarify(chat_repo, session_id, need)
+            return await self._handle_recommendation(chat_repo, session_id, need, db)
         except RuntimeError:
             logger.exception("Chat handling failed", extra={"session_id": session_id})
             chat_repo.update_rollback()
@@ -148,6 +93,89 @@ class ChatService:
                 products=[],
                 extra={"session_id": session_id},
             )
+
+    async def _build_user_text(self, request: ChatRequest) -> str:
+        text = request.message or ""
+        if request.audio_url:
+            audio_text = await self.speech_service.transcribe(request.audio_url)
+            text = self._join_text(text, audio_text)
+        return text
+
+    async def _build_image_info(self, request: ChatRequest) -> dict | None:
+        if not request.image_url:
+            return None
+        return await self.vision_service.recognize(request.image_url)
+
+    def _load_history_context(self, chat_repo: Any, session_id: str) -> dict[str, Any]:
+        prior_messages = chat_repo.list_messages(session_id)
+        return self._history_context(prior_messages)
+
+    def _save_user_message(
+        self,
+        chat_repo: Any,
+        session_id: str,
+        request: ChatRequest,
+        text: str,
+        image_info: dict | None,
+    ) -> None:
+        chat_repo.create_message(
+            session_id,
+            "user",
+            text,
+            structured_data={
+                "image_url": request.image_url,
+                "audio_url": request.audio_url,
+                "image_info": image_info,
+            },
+        )
+
+    async def _handle_clarify(self, chat_repo: Any, session_id: str, need: Any) -> ChatResponse:
+        reply = await self.llm_client.generate_clarify_question(need)
+        chat_repo.create_message(
+            session_id,
+            "assistant",
+            reply,
+            structured_data={"need": self._dump(need), "need_clarify": True},
+        )
+        chat_repo.update_commit()
+        return ChatResponse(
+            reply=reply,
+            need_clarify=True,
+            structured_need=need,
+            products=[],
+            extra={"session_id": session_id},
+        )
+
+    async def _handle_recommendation(
+        self,
+        chat_repo: Any,
+        session_id: str,
+        need: Any,
+        db: Session,
+    ) -> ChatResponse:
+        products = await self.rag_pipeline.search_products(need, db)
+        ranked_products = self.recommend_service.rank(products, need)
+        top_products = ranked_products[:5]
+        reply = await self.llm_client.generate_recommendation(need, top_products)
+
+        chat_repo.create_message(
+            session_id,
+            "assistant",
+            reply,
+            structured_data={
+                "need": self._dump(need),
+                "products": [self._dump(product) for product in top_products],
+            },
+        )
+        chat_repo.create_recommendations(session_id, top_products)
+        chat_repo.update_commit()
+        return ChatResponse(
+            reply=reply,
+            need_clarify=False,
+            structured_need=need,
+            products=top_products,
+            extra={"session_id": session_id},
+        )
 
     def _join_text(self, first: str, second: str) -> str:
         parts = [part.strip() for part in [first, second] if part and part.strip()]

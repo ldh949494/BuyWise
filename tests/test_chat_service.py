@@ -2,8 +2,7 @@ from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -27,7 +26,7 @@ API_MESSAGE = (
 
 class FakeSpeechService:
     async def transcribe(self, audio_url: str) -> str:
-        return "语音说预算300以内"
+        return "语音补充：300 元以内"
 
 
 class FakeVisionService:
@@ -137,15 +136,15 @@ async def test_handle_chat_runs_multimodal_recommendation_flow() -> None:
     )
 
     response = await service.handle_chat(
-        ChatRequest(message="推荐宿舍用的", audio_url="a.wav", image_url="p.jpg"),
+        ChatRequest(message="推荐宿舍用键盘", audio_url="a.wav", image_url="p.jpg"),
         db=object(),
     )
 
-    assert "推荐：K87 静音红轴机械键盘" == response.reply
+    assert response.reply == "推荐：K87 静音红轴机械键盘"
     assert response.need_clarify is False
     assert response.structured_need == need
     assert response.products[0].name == "K87 静音红轴机械键盘"
-    assert "语音说预算300以内" in intent_service.calls[0]["text"]
+    assert "语音补充：300 元以内" in intent_service.calls[0]["text"]
     assert intent_service.calls[0]["image_info"] == {"category": "机械键盘", "features": ["低噪音"]}
 
 
@@ -158,7 +157,7 @@ async def test_handle_chat_returns_friendly_error_response() -> None:
         llm_client=FakeLLMClient(),
     )
 
-    response = await service.handle_chat(ChatRequest(message="推荐键盘"), db=object())
+    response = await service.handle_chat(ChatRequest(message="推荐机械键盘"), db=object())
 
     assert response.reply == "抱歉，当前暂时无法完成推荐，请稍后再试或换个条件。"
     assert response.need_clarify is False
@@ -175,7 +174,7 @@ def test_chat_api_route_is_registered_and_returns_response() -> None:
     session_factory = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     with session_factory() as db:
         db.add(
-                Product(
+            Product(
                 name=KEYBOARD_NAME,
                 category=KEYBOARD_CATEGORY,
                 price=Decimal("299.00"),
@@ -202,11 +201,11 @@ def test_chat_api_route_is_registered_and_returns_response() -> None:
 
     response = client.post(
         "/api/v1/ai/chat",
-            json={
-                "session_id": "s001",
-                "message": API_MESSAGE,
-            },
-        )
+        json={
+            "session_id": "s001",
+            "message": API_MESSAGE,
+        },
+    )
 
     assert response.status_code == 200
     payload = response.json()

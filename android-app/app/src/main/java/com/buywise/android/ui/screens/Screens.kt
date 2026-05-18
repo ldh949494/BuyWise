@@ -1,13 +1,11 @@
 package com.buywise.android.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -59,19 +57,19 @@ fun HomeScreen(state: HomeState, onProductClick: (String) -> Unit, onOpenGuide: 
                     Button(onClick = onOpenGuide) {
                         Icon(Icons.Outlined.AutoAwesome, contentDescription = null)
                         Spacer(modifier = Modifier.padding(horizontal = 4.dp))
-                        Text("开始 AI 导购")
+                        Text("打开 AI 导购")
                     }
                 }
             }
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                MetricPill("导购模式", "文本 MVP")
-                MetricPill("后端预留", "10.0.2.2")
+                MetricPill("导购模式", "MVP")
+                MetricPill("后端地址", "10.0.2.2")
             }
         }
         item {
-            SectionTitle("精选商品", "先用 mock 数据把移动端导购体验跑通")
+            SectionTitle("精选商品", "先用 mock 数据跑通移动端导购体验")
         }
         items(state.products) { product ->
             ProductCard(product = product, onClick = { onProductClick(product.id) })
@@ -90,7 +88,7 @@ fun GuideScreen(
         modifier = Modifier.fillMaxSize().padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item { SectionTitle("AI 导购", "输入预算、场景和偏好，先生成结构化需求") }
+        item { SectionTitle("AI 导购", "输入预算、场景和偏好，生成候选商品建议") }
         item {
             OutlinedTextField(
                 value = state.query,
@@ -98,7 +96,7 @@ fun GuideScreen(
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 3,
                 label = { Text("购物需求") },
-                placeholder = { Text("例如：300 元以内，适合 FPS 的轻量化无线鼠标") },
+                placeholder = { Text("例如：300 元以内，适合 FPS 的轻量无线鼠标") },
             )
         }
         item {
@@ -138,7 +136,7 @@ fun CompareScreen(state: CompareState, onProductClick: (String) -> Unit) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(Icons.AutoMirrored.Outlined.CompareArrows, contentDescription = null)
-                        Text("对比摘要", fontWeight = FontWeight.Bold)
+                        Text("对比维度", fontWeight = FontWeight.Bold)
                     }
                     state.rows.forEach { row ->
                         Text(row.title, fontWeight = FontWeight.SemiBold)
@@ -161,8 +159,8 @@ fun VisionScreen(state: VisionState, onProductClick: (String) -> Unit) {
             Card(colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel)) {
                 Column(modifier = Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Icon(Icons.Outlined.CameraAlt, contentDescription = null)
-                    Text("上传或拍摄商品图片", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                    Text("首版不接入真实识别，先承接结果结构和推荐区块。", color = BuyWiseTheme.colors.muted)
+                    Text("上传商品图片", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text("后续会接入真实多模态识别服务，当前展示固定识别结果。", color = BuyWiseTheme.colors.muted)
                     FilledTonalButton(onClick = {}) {
                         Icon(Icons.Outlined.ImageSearch, contentDescription = null)
                         Spacer(modifier = Modifier.padding(horizontal = 4.dp))
@@ -204,17 +202,17 @@ fun ProductDetailScreen(product: Product?, onBack: () -> Unit) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(product.brand, color = BuyWiseTheme.colors.secondary, fontWeight = FontWeight.Bold)
                     Text(product.name, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-                    Text("¥${product.price} · 推荐分 ${product.score}", color = BuyWiseTheme.colors.primary, fontWeight = FontWeight.Bold)
+                    Text("¥${product.price} · 评分 ${product.score}", color = BuyWiseTheme.colors.primary, fontWeight = FontWeight.Bold)
                     Text(product.headline, color = BuyWiseTheme.colors.muted)
                 }
             }
         }
         if (product != null) {
             item {
-                DetailBlock("适合", product.advantages)
+                DetailBlock("适合原因", product.advantages)
             }
             item {
-                DetailBlock("注意", product.cautions)
+                DetailBlock("注意事项", product.cautions)
             }
             item {
                 DetailBlock("标签", product.tags)

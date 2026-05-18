@@ -13,10 +13,10 @@ from app.schemas.chat import ProductCard, StructuredNeed
 
 
 def test_prompt_constants_are_defined_for_future_llm_calls() -> None:
-    assert "结构化需求" in INTENT_EXTRACT_PROMPT
-    assert "电商导购" in RECOMMEND_PROMPT
+    assert "结构化购物需求" in INTENT_EXTRACT_PROMPT
+    assert "电商导购助手" in RECOMMEND_PROMPT
     assert "追问" in CLARIFY_PROMPT
-    assert "对比" in COMPARE_PROMPT
+    assert "对比总结" in COMPARE_PROMPT
 
 
 @pytest.mark.anyio
@@ -25,7 +25,7 @@ async def test_chat_returns_last_user_message_mock_reply() -> None:
 
     reply = await client.chat(
         [
-            {"role": "system", "content": "你是导购"},
+            {"role": "system", "content": "你是导购助手"},
             {"role": "user", "content": "推荐一个键盘"},
         ]
     )

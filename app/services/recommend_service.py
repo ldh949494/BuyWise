@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import json
 from decimal import Decimal
-from typing import Any, List
+from typing import Any
 
 from app.schemas.chat import ProductCard
 
 
 class RecommendService:
-    def rank(self, products: list[Any], need: Any) -> List[ProductCard]:
+    def rank(self, products: list[Any], need: Any) -> list[ProductCard]:
         cards = [self._rank_product(product, need) for product in products]
         cards = sorted(cards, key=lambda card: card.score or 0, reverse=True)
         self._attach_alternatives(cards)

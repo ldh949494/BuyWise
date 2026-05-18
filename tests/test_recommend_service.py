@@ -80,10 +80,10 @@ def test_rank_handles_json_string_tags_scenes_and_none_values() -> None:
 def test_rank_caps_preference_score_at_30_points() -> None:
     service = RecommendService()
     need = {
-        "preferences": ["低噪音", "无线", "降噪", "护眼"],
+        "preferences": ["低噪音", "无线", "护眼", "颜值高"],
     }
     product = make_product(
-        tags=["低噪音", "无线", "降噪", "护眼"],
+        tags=["低噪音", "无线", "护眼", "颜值高"],
         suitable_scene=None,
         rating=None,
         sales=None,
@@ -93,4 +93,4 @@ def test_rank_caps_preference_score_at_30_points() -> None:
     cards = service.rank([product], need)
 
     assert cards[0].score == 30
-    assert "符合护眼偏好" not in cards[0].reason
+    assert "符合颜值高偏好" not in cards[0].reason
