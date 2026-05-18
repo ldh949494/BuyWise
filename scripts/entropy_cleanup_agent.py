@@ -5,9 +5,13 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
-from scripts.validate_entropy import ROOT, EntropyIssue, collect_issues, load_baseline
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from scripts.validate_entropy import ROOT, EntropyIssue, collect_issues, load_baseline  # noqa: E402
 
 
 ARTIFACTS_DIR = ROOT / "artifacts" / "entropy-cleanup"
