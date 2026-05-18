@@ -27,28 +27,63 @@ class RAGPipeline:
         db: Session,
         top_k: int = 20,
     ) -> list[Product]:
-        query = build_query_from_need(need)
         repo = ProductRepository(db)
-
-        search_results = self.product_store.search(query, top_k=top_k)
-        if search_results:
-            product_ids = self._extract_product_ids(search_results)
-            products = repo.get_by_ids(product_ids)
-            products_by_id = {product.id: product for product in products}
-            candidates = [
-                products_by_id[product_id]
-                for product_id in product_ids
-                if product_id in products_by_id
-            ]
-        else:
-            candidates, _ = repo.list_products(
-                category=self._get_need_value(need, "category"),
-                price_max=self._get_need_value(need, "budget_max"),
-                page=1,
-                page_size=top_k,
-            )
-
+        search_results = self._search_vector_store(need, top_k)
+        candidates = self._build_candidates(repo, need, search_results, top_k)
         filtered = self._filter_products(candidates, need)[:top_k]
+        self._log_search(search_results, top_k, candidates, filtered)
+        return filtered
+
+    def _search_vector_store(self, need: Any, top_k: int) -> list[dict]:
+        query = build_query_from_need(need)
+        return self.product_store.search(query, top_k=top_k)
+
+    def _build_candidates(
+        self,
+        repo: ProductRepository,
+        need: Any,
+        search_results: list[dict],
+        top_k: int,
+    ) -> list[Product]:
+        if search_results:
+            return self._candidates_from_vector_results(repo, search_results)
+        return self._fallback_candidates(repo, need, top_k)
+
+    def _candidates_from_vector_results(
+        self,
+        repo: ProductRepository,
+        search_results: list[dict],
+    ) -> list[Product]:
+        product_ids = self._extract_product_ids(search_results)
+        products = repo.get_by_ids(product_ids)
+        products_by_id = {product.id: product for product in products}
+        return [
+            products_by_id[product_id]
+            for product_id in product_ids
+            if product_id in products_by_id
+        ]
+
+    def _fallback_candidates(
+        self,
+        repo: ProductRepository,
+        need: Any,
+        top_k: int,
+    ) -> list[Product]:
+        candidates, _ = repo.list_products(
+            category=self._get_need_value(need, "category"),
+            price_max=self._get_need_value(need, "budget_max"),
+            page=1,
+            page_size=top_k,
+        )
+        return candidates
+
+    def _log_search(
+        self,
+        search_results: list[dict],
+        top_k: int,
+        candidates: list[Product],
+        filtered: list[Product],
+    ) -> None:
         logger.info(
             "RAG pipeline search completed",
             extra={
@@ -58,7 +93,6 @@ class RAGPipeline:
                 "result_count": len(filtered),
             },
         )
-        return filtered
 
     def _extract_product_ids(self, search_results: list[dict]) -> list[int]:
         product_ids = []
@@ -82,13 +116,17 @@ class RAGPipeline:
         for product in products:
             if category and product.category != category:
                 continue
-            if budget_max is not None and product.price is not None:
-                if Decimal(str(product.price)) > Decimal(str(budget_max)):
-                    continue
+            if self._exceeds_budget(product, budget_max):
+                continue
             if product.stock is not None and product.stock <= 0:
                 continue
             filtered.append(product)
         return filtered
+
+    def _exceeds_budget(self, product: Product, budget_max: Any) -> bool:
+        if budget_max is None or product.price is None:
+            return False
+        return Decimal(str(product.price)) > Decimal(str(budget_max))
 
     def _get_need_value(self, need: Any, key: str) -> Any:
         if isinstance(need, dict):

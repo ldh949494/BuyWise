@@ -96,20 +96,20 @@ class LLMClient:
     async def generate_clarify_question(self, need: Any) -> str:
         missing_fields = self._coerce_list(self._get_value(need, "missing_fields"))
         if not missing_fields:
-            return "请补充你的预算、使用场景或偏好，我会继续帮你筛选。"
+            return "请补充预算、使用场景或偏好，我会继续帮你筛选。"
 
         labels = {
-            "category": "商品类型",
+            "category": "商品品类",
             "budget_max": "预算上限",
             "scenario": "使用场景",
             "preferences": "偏好",
         }
         missing = "、".join(labels.get(field, field) for field in missing_fields)
-        return f"还需要补充：{missing}。"
+        return f"为了更准确推荐，请补充：{missing}。"
 
     async def generate_compare_summary(self, user_need: Any, products: list[Any]) -> str:
         if not products:
-            return "暂时没有可比较的商品。"
+            return "暂时没有可对比的商品。"
         return await self.chat(
             [
                 {

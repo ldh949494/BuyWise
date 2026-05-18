@@ -1,63 +1,39 @@
-# ShopAgent 后端与 Android 客户端
+# BuyWise
 
 Agent instructions start at `AGENTS.md`.
 
-BuyWise Backend is a FastAPI skeleton for a multimodal e-commerce shopping guide agent.
-The first milestone focuses on a runnable text-guidance MVP foundation, with reserved
-modules for image, speech, upload, vector retrieval, and LLM integration.
+BuyWise 是一个多模态电商导购 Agent 项目，包含 FastAPI 后端和原生 Android 客户端。当前里程碑是可运行的文本导购 MVP，并预留图片识别、语音识别、上传、向量检索和 LLM 接入能力。
 
----
+## 快速开始
 
-## 快速启动
+### 后端
 
-### Python FastAPI 后端
+1. 准备 Python 3.11 环境。
+2. 安装依赖：
 
-1. 建立并激活 Python 虚拟环境。
-2. 安装后端依赖：
-
-   ```
-   pip install -r requirements.txt
+   ```powershell
+   .\.venv\Scripts\python.exe -m pip install -r requirements.txt
    ```
 
-3. （可选）复制 `.env.example` 为 `.env`，调整配置项。
-4. 启动 API 服务：
+3. 复制环境变量模板：
 
-   ```
-   .\.venv\Scripts\activate
-   uvicorn app.main:app --reload --port 8000
+   ```powershell
+   Copy-Item .env.example .env
    ```
 
-5. 打开 API 文档与健康检查：
-   - API 文档：http://127.0.0.1:8000/docs
-   - 健康检查：http://127.0.0.1:8000/api/v1/health
+4. 启动 API：
 
-6. 数据库初始化（首次请手动执行一次）：
-
-   ```
-   python app/scripts/create_tables.py
+   ```powershell
+   .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
    ```
 
-### 原生 Android 客户端
+5. 打开接口文档和健康检查：
+   - Swagger UI: `http://127.0.0.1:8000/docs`
+   - Health: `http://127.0.0.1:8000/api/v1/health`
 
-1. 用 Android Studio 打开 `android-app/` 目录直接运行项目。
-2. 或命令行编译调试版本：
+### Demo 数据
 
-   ```
-   cd android-app
-   .\gradlew.bat :app:assembleDebug
-   ```
-
-3. 默认后端访问地址（安卓模拟器默认内网映射）：
-
-   ```
-   http://10.0.2.2:8000
-   ```
-
----
-
-## Demo Product Data
-
-Run database migrations, then import the demo product CSV:
+运行迁移、导入商品数据并构建向量索引：
 
 ```powershell
 .\.venv\Scripts\python.exe -m app.scripts.migrate_database
@@ -65,30 +41,41 @@ Run database migrations, then import the demo product CSV:
 .\.venv\Scripts\python.exe -m app.scripts.build_vector_index
 ```
 
-The importer reads `data/products.csv` and skips products with duplicate names, so it can be run repeatedly. The vector index command rebuilds the persistent ChromaDB product collection under `CHROMA_PERSIST_DIR`.
+导入脚本读取 `data/products.csv`，会跳过重复商品名称，因此可以重复运行。向量索引默认写入 `CHROMA_PERSIST_DIR`。
 
-For a product-only incremental update, run:
+只更新指定商品的向量索引：
 
 ```powershell
 .\.venv\Scripts\python.exe -m app.scripts.build_vector_index --mode upsert --product-id 123
 ```
 
-## 向量索引构建（RAG 支持）
+### Android
 
-如需构建/更新产品向量检索索引（RAG），请执行：
+1. 使用 Android Studio 打开 `android-app/`。
+2. 构建 Debug 包：
+
+   ```powershell
+   cd android-app
+   .\gradlew.bat :app:assembleDebug
+   ```
+
+3. Android 模拟器访问本机后端时使用：
+
+   ```text
+   http://10.0.2.2:8000
+   ```
+
+当前 Android 客户端仍使用本地 mock 数据，真实后端联调会在后续里程碑接入。
+
+## Docker
+
+启动后端和 MySQL：
 
 ```powershell
-python app/scripts/build_vector_index.py
+docker compose up --build
 ```
 
-脚本会自动从数据库读取所有产品，调用内置 embedding 客户端，构建向量并存入内存型向量库（仿 Chroma）。
-支持二次多次构建，便于开发调试。
-
----
-
-## 功能模块
-
-After the containers are running, run migrations and import demo products:
+容器启动后执行迁移和导入：
 
 ```powershell
 docker compose exec backend python -m app.scripts.migrate_database
@@ -96,345 +83,150 @@ docker compose exec backend python -m app.scripts.import_products
 docker compose exec backend python -m app.scripts.build_vector_index
 ```
 
-### PR 独立环境启动
+## PR 环境
 
-Compose 支持多环境，PR 可独立运行容器、网络、存储：
+启动隔离 PR 环境：
 
 ```powershell
 .\scripts\start_pr_env.ps1 -Name pr-123 -Branch feature/pr-123 -BackendPort 8123 -MysqlPort 3323
 ```
 
-脚本会创建对应 Git 工作区 BuyWise-pr-123，自动复制 `.env.dev.example`，并启动：
-
-```powershell
-docker compose -p buywise-pr-123 up -d --build
-```
-
-停止环境但保留数据：
+停止环境：
 
 ```powershell
 .\scripts\stop_pr_env.ps1 -Name pr-123
 ```
 
-移除容器、数据卷和工作区：
+删除 volume 和 worktree：
 
 ```powershell
 .\scripts\stop_pr_env.ps1 -Name pr-123 -RemoveVolumes -RemoveWorktree
 ```
 
-### 浏览器端校验
-
-一次性安装依赖与 chromium 浏览器：
-
-```powershell
-pip install -r requirements.txt
-python -m playwright install chromium
-```
-
-本地开启 API 服务后：
-
-```powershell
-python .\scripts\browser_check.py --base-url http://127.0.0.1:8123 --record-video
-```
-
-自动访问 `/api/v1/health`、`/docs` 并截图生成快照到 `artifacts/browser`。
-
-附加已启动 CDP 的 Chrome：
-
-```powershell
-chrome.exe --remote-debugging-port=9222 --user-data-dir=.chrome-agent
-python .\scripts\browser_check.py --base-url http://127.0.0.1:8123 --cdp-url http://127.0.0.1:9222
-```
-
-### 观测性支持
-
-启动 PR 实例时包含 Prometheus/Loki/Promtail/Grafana:
+带观测组件启动：
 
 ```powershell
 .\scripts\start_pr_env.ps1 -Name pr-123 -BackendPort 8123 -MysqlPort 3323 -Observability
 ```
 
-默认本地端口：
+默认入口：
 
-- 后端: `http://127.0.0.1:8123`
+- Backend: `http://127.0.0.1:8123`
 - Prometheus: `http://127.0.0.1:9090`
 - Loki: `http://127.0.0.1:3100`
-- Grafana: `http://127.0.0.1:3000`（`admin` / `admin`）
+- Grafana: `http://127.0.0.1:3000`，默认账号 `admin` / `admin`
 
-FastAPI 应用自动暴露 `/metrics` Prometheus 指标。应用日志全部以 JSON 格式写入 stdout，Promtail 自动绑定 compose 项目/服务等 labels，便于云原生可观测性。
-常用日志/监控查询：
+## 验证
 
-```logql
-{compose_project="buywise-pr-123", service="backend"} |= "ERROR"
+常用验证命令：
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe scripts\validate_docs.py
+.\.venv\Scripts\python.exe scripts\validate_providers.py
+.\.venv\Scripts\python.exe scripts\validate_repo_lint.py
+.\.venv\Scripts\python.exe scripts\validate_entropy.py
 ```
 
-Prometheus 查询：
+本机临时目录权限异常时，可以将 pytest 临时目录切到仓库内：
 
-```promql
-rate(http_requests_total[5m])
+```powershell
+New-Item -ItemType Directory -Force artifacts\tmp | Out-Null
+$env:TMP='D:\github\BuyWise\artifacts\tmp'
+$env:TEMP='D:\github\BuyWise\artifacts\tmp'
+.\.venv\Scripts\python.exe -m pytest -q
 ```
 
----
+一键验证：
 
-## Project Layout
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1 -SkipDependencyInstall -SkipAndroidBuild
+```
+
+包含 Android 构建的一键验证：
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1 -SkipDependencyInstall
+```
+
+## 浏览器检查
+
+安装 Playwright Chromium：
+
+```powershell
+.\.venv\Scripts\python.exe -m playwright install chromium
+```
+
+检查本地 API 和文档页：
+
+```powershell
+.\.venv\Scripts\python.exe .\scripts\browser_check.py --base-url http://127.0.0.1:8123 --record-video
+```
+
+使用已有 Chrome CDP：
+
+```powershell
+chrome.exe --remote-debugging-port=9222 --user-data-dir=.chrome-agent
+.\.venv\Scripts\python.exe .\scripts\browser_check.py --base-url http://127.0.0.1:8123 --cdp-url http://127.0.0.1:9222
+```
+
+## 项目结构
 
 ```text
 app/
-  ai/                     # 智能体基础设施（agent、RAG、LLM、embedding）
-    llm_client.py         # LLM结构化推荐/对比/澄清理由与问句生成（Mock或对接API）
-    prompts.py
-    agent.py
-    rag_pipeline.py
-    embedding_client.py
-  api/                    # FastAPI 路由与 API 逻辑
-    router.py
-    v1/
-      health.py
-      chat.py
-      products.py
-      rag.py
-      compare.py
-      upload.py
-      vision.py
-      speech.py
-  core/
-    config.py
-    database.py
-    logging.py            # 日志封装器（已适配 provider 方案）
-    exceptions.py
-    providers.py          # 横切关注点统一声明: 日志/监控/异常/认证
-  integrations/           # 云服务、Chroma等集成
-  models/                 # ORM 数据模型
-  repositories/
-  schemas/
-  services/
-    intent_service.py     
-    recommend_service.py  
-    upload_service.py     
-    vision_service.py     
-    speech_service.py
-  scripts/
-    create_tables.py      
-    build_vector_index.py 
-    import_products.py
-    seed_products.py
-  utils/
-    logging.py            # 日志适配器接口
-    text_builder.py
-  vectorstore/
-alembic/
-  versions/
-data/
-vector_store/
-  chroma/
-tests/
-scripts/
-Dockerfile
-docker-compose.yml
-requirements.txt
-.env.example
-.env.dev.example
-.env.test.example
-.env.prod.example
+  ai/             LLM、embedding、RAG 和 Agent 相关代码
+  api/v1/         FastAPI v1 路由
+  core/           配置、数据库、日志、错误和 provider
+  integrations/   外部服务集成占位
+  models/         SQLAlchemy ORM 模型
+  repositories/   数据访问层
+  schemas/        Pydantic API 契约
+  services/       业务编排和用例逻辑
+  scripts/        应用级脚本
+  utils/          通用工具
+  vectorstore/    ChromaDB 商品索引封装
+android-app/      Kotlin Jetpack Compose 客户端
+alembic/          数据库迁移
+data/             Demo CSV 数据
+docs/             架构、约定、计划和参考文档
+observability/    Prometheus、Loki、Promtail、Grafana 配置
+scripts/          仓库维护和验证脚本
+tests/            后端测试
 ```
 
----
+## 文档入口
 
-## 自动化校验与 AI 文档维护
+- 系统概览：`docs/architecture/system-overview.md`
+- 后端边界：`docs/architecture/backend-boundaries.md`
+- Android 边界：`docs/architecture/android-boundaries.md`
+- 运行和观测：`docs/architecture/runtime-observability.md`
+- 产品规格：`docs/product/buywise-mvp.md`
+- API 参考：`docs/reference/api.md`
+- 配置参考：`docs/reference/configuration.md`
+- 脚本参考：`docs/reference/scripts.md`
 
-### 本地自动化校验
+## 主要接口
 
-```powershell
-powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1
-```
+所有公开 API 默认挂载在 `/api/v1` 下：
 
-- 自动检查依赖、环境变量、仓库文档结构及链接有效性
-- 文档校验用 `scripts/validate_docs.py`，包括：
-  - AGENTS.md 导航映射检查
-  - docs/ 结构与链接目标校验
-  - Feature 设计文档状态校验
+- `GET /api/v1/health`
+- `GET /api/v1/products`
+- `GET /api/v1/products/{product_id}`
+- `POST /api/v1/products`
+- `POST /api/v1/products/compare`
+- `POST /api/v1/ai/chat`
+- `POST /api/v1/rag/search`
+- `POST /api/v1/upload`
+- `POST /api/v1/vision/recognize`
+- `POST /api/v1/speech/asr`
 
-- FastAPI application bootstrap
-- Versioned API router
-- `/api/v1/health`
-- MySQL + SQLAlchemy configuration scaffolding
-- Mock LLM client wrapper
-- Persistent ChromaDB product vector index
-- Reserved multimodal service modules
-- Docker and Compose placeholders for later integration
+## 开发约定
 
-```powershell
-python .\scripts\validate_providers.py
-```
-
-自定义仓库 Lint 校验：
-
-```powershell
-python .\scripts\validate_repo_lint.py
-```
-
-人工触发 AI Doc-gardening 检查建议：
-
-```powershell
-python .\scripts\doc_gardening.py
-```
-
-- 实审后应用 AI 提议的文档改动：
-
-  ```powershell
-  powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1
-  ```
-
-  - 自动执行依赖、数据库、Provider 边界和文档校验
-
-- **文档校验、Provider 校验单独命令**：
-
-  ```powershell
-  python .\scripts\validate_docs.py
-  python .\scripts\validate_providers.py
-  ```
-
-  - validate_providers.py 可自动发现非法跨 Provider 导入，避免横切关注点滥用
-
-- **GitHub Actions**：  
-  `.github/workflows/ai-auto-commit.yml`  
-  支持 main 分支 push 或手动触发时，执行本地校验与 AI 自动维护 README。只在有真实内容变更时创建 PR。Pull Request 标题与说明自动生成。
-
-- **AI-Driven README 更新需配置：**
-  - 在仓库 Secrets 配置 `GH_TOKEN`（GitHub Actions 自动化令牌）。
-  - 自动维护脚本基于 GitHub 模型扩展（`gh models`），无需 OpenAI 直连变量。
-  - Pull Request 标题与说明、README 更新 PR 说明模板，适配简体中文。
-
----
-
-<!-- AUTO-DOCS:START -->
-
-### Repository memory
-
-- `/api/v1/health` 健康检查
-- `/api/v1/chat` 智能聊天&问答
-- `/api/v1/products` 商品信息&检索
-- `/api/v1/compare` 商品对比分析
-- `/api/v1/rag` 检索增强生成
-- `/api/v1/upload/upload` 文件上传（支持图片/音频等二进制，返回文件访问路径）
-- `/api/v1/vision/recognize` 图像识别/类目&属性解析
-- `/api/v1/speech/asr` 语音识别转文本（Mock/可对接腾讯ASR）
-
----
-
-## 开发与测试说明
-
-### 启动 FastAPI 服务
-
-```
-uvicorn app.main:app --reload --port 8000
-```
-
-> 生产环境请使用 WSGI/ASGI 部署，配置安全数据库。
-
-### Provider 边界/横切关注点约束说明
-
-- **日志接口**：统一通过 `app/core/providers.py` 或 `app/utils/logging.py` 获取，不允许直接 import logging
-- **监控埋点**：通过 provider 获取，只允许统一封装后使用
-- **自动化校验**：`scripts/validate_providers.py` 强制检测模块边界，如发现违规直接提示需整改
-
-### Repository memory
-
-```
-python .\scripts\validate_docs.py
-```
-
-Validate Provider 校验：
-
-- `AGENTS.md`: 紧凑的 Agent 入口文档
-- `docs/architecture/`: 模块边界说明
-- `docs/design/`: 设计方案与验收状态
-- `docs/conventions/`: 编码/测试/文档规范
-- `docs/plans/`: 实现计划
-- `docs/reference/`: API、配置、脚本说明
-
-验证文档：
-
-```powershell
-python .\scripts\validate_repo_lint.py
-```
-
-Provider 横切关注点检测：
-
-```powershell
-python .\scripts\validate_entropy.py
-python .\scripts\entropy_gc.py
-```
-
-生成文档维护建议报告：
-
-```
-python .\scripts\doc_gardening.py
-```
-
-应用 AI 补丁：
-
-```
-python .\scripts\doc_gardening.py --apply
-```
-
-### 数据库表初始化
-
-```
-python app/scripts/create_tables.py
-```
-
-### 构建产品向量索引（RAG）
-
-推荐每次商品表变动后重新同步索引：
-
-```
-python app/scripts/build_vector_index.py
-```
-
-支持数据库同步所有产品，并更新嵌入向量及语义检索索引。
-
-数据库产品变更后请同步索引。
-
-建议建立 `tests/` 目录，运行：
-
-```
-pytest -q
-```
-
-脚本亦会自动化检测所有测试。
-
-### 构建 Android 客户端
-
-```
-cd android-app
-.\gradlew.bat :app:assembleDebug
-```
-或使用 Android Studio 可视化构建与调试。
-
----
-
-## 重要说明
-
-- **Provider/横切关注点能力在 `app/core/providers.py` 集中实现：**
-  - logging / telemetry / errors / auth 统一注册、可插拔，相关模块只允许通过 providers 获取
-  - 采用自动化校验强制约束边界，便于可观测性与安全
-- **RAG/Agent 能力在 `app/ai/agent.py`、`app/ai/rag_pipeline.py`、`vectorstore/chroma_client.py`、`app/ai/embedding_client.py` 植入**
-- **多模态相关**：
-  - 视觉：`vision.py`、`app/services/vision_service.py`
-  - 语音 ASR：`speech.py`、`app/services/speech_service.py`
-  - 文件上传：`upload.py`、`app/services/upload_service.py`
-- **文本组装**：`app/utils/text_builder.py` 用于嵌入与检索表达结构化拼装
-- **意图识别与需求结构化**：`app/services/intent_service.py`，LLM/规则混合抽取用户消费意图、商品范畴、预算、喜欢字段
-- **推荐服务说明**：`app/services/recommend_service.py` 综合预算/场景/评分等多因子排序并理由说明
-- **LLM 智能输出**：`app/ai/llm_client.py` 输出推荐理由、追问、对比总结，Prompt 模板见 `app/ai/prompts.py`
-
----
-
-## 贡献指南
-
-- 提交前请确保本地测试 & 校验通过
-- 欢迎扩展 Agent、RAG、产品数据结构等边界
-- 如需技术支持或有建议，请提交 issue
-
----
+- 新后端路由放在 `app/api/v1/`，并在 `app/api/router.py` 注册。
+- 业务逻辑放在 `app/services/`。
+- 数据访问放在 `app/repositories/`。
+- ORM 模型放在 `app/models/`。
+- Pydantic schema 放在 `app/schemas/`。
+- 测试放在 `tests/test_*.py`。
+- Android 代码放在 `android-app/app/src/main/java/com/buywise/android/`。
+- 认证、telemetry、日志和错误处理通过 `app.core.providers` 访问。

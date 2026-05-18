@@ -63,7 +63,7 @@ fun ProductCard(product: Product, onClick: () -> Unit) {
                 }
             }
             Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                Text("推荐分 ${product.score}", fontWeight = FontWeight.Bold, color = BuyWiseTheme.colors.accent)
+                Text("评分 ${product.score}", fontWeight = FontWeight.Bold, color = BuyWiseTheme.colors.accent)
                 Text(product.category, color = Color(0xFF64748B))
             }
         }

@@ -98,14 +98,14 @@ def test_product_schemas_validate_create_update_read_and_list() -> None:
 
 
 def test_rag_schemas() -> None:
-    request = RagSearchRequest(query="轻薄笔记本", top_k=3)
+    request = RagSearchRequest(query="轻量无线键盘", top_k=3)
     response = RagSearchResponse(
         query=request.query,
         items=[{"id": 1, "score": 0.9}],
         total=1,
     )
 
-    assert request.query == "轻薄笔记本"
+    assert request.query == "轻量无线键盘"
     assert request.top_k == 3
     assert response.items[0]["score"] == 0.9
 
@@ -120,11 +120,11 @@ def test_compare_schemas() -> None:
         cons=["heavy"],
         score=88.5,
     )
-    response = CompareResponse(items=[item], summary="第一款更适合性能需求")
+    response = CompareResponse(items=[item], summary="更适合宿舍需求")
 
     assert request.product_ids == [1, 2]
     assert response.items[0].pros == ["fast"]
-    assert response.summary == "第一款更适合性能需求"
+    assert response.summary == "更适合宿舍需求"
 
 
 def test_return_models_enable_from_attributes() -> None:
