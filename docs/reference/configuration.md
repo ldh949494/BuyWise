@@ -38,6 +38,8 @@ Alembic uses these same settings through `app.core.config.Settings.database_url`
 - `UPLOAD_MAX_BYTES`
 - `UPLOAD_ALLOWED_TYPES`
 
+`LLM_PROVIDER` accepts `mock`, `openai`, or `openai-compatible`. Non-mock providers use `LLM_BASE_URL`, `LLM_API_KEY`, and `LLM_MODEL` through the OpenAI-compatible client.
+
 ## Local Runtime Overrides
 
 - `BACKEND_PORT`

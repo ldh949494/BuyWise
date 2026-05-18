@@ -2,13 +2,14 @@ from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base, get_db
 from app.main import create_app
-from app.models import Product
+from app.models import ChatMessage, ChatSession, Product, Recommendation
 from app.schemas.chat import ChatRequest, ProductCard, StructuredNeed
 from app.services.chat_service import ChatService
 
@@ -213,3 +214,16 @@ def test_chat_api_route_is_registered_and_returns_response() -> None:
     assert payload["structured_need"]["category"] == KEYBOARD_CATEGORY
     assert payload["products"][0]["name"] == KEYBOARD_NAME
     assert KEYBOARD_NAME in payload["reply"]
+    assert payload["extra"]["session_id"] == "s001"
+
+    with session_factory() as db:
+        session = db.scalar(select(ChatSession).where(ChatSession.session_id == "s001"))
+        messages = list(db.scalars(select(ChatMessage).where(ChatMessage.session_id == "s001")).all())
+        recommendations = list(
+            db.scalars(select(Recommendation).where(Recommendation.session_id == "s001")).all()
+        )
+
+    assert session is not None
+    assert [message.role for message in messages] == ["user", "assistant"]
+    assert recommendations
+    assert recommendations[0].explanation["budget_match"] is True

@@ -16,3 +16,9 @@ The backend registers public routes under `/api/v1` by default.
 ## Generated Reference
 
 Run the backend and open `/docs` for the OpenAPI UI. Browser validation can capture the docs page with `scripts/browser_check.py`.
+
+## Response Notes
+
+- Product responses include optional extended commerce fields: `sku`, `product_url`, `image_urls`, `stock_status`, `review_summary`, and `price_history`.
+- Chat responses include `extra.session_id` for the persisted chat session.
+- Chat product cards include explanation fields: `budget_match`, `scenario_match`, `conflicts`, and `alternatives`.

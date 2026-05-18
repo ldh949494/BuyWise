@@ -34,6 +34,10 @@ class ProductCard(BaseSchema):
     score: float | None = None
     tags: list[str] = Field(default_factory=list)
     reason: str | None = None
+    budget_match: bool | None = None
+    scenario_match: bool | None = None
+    conflicts: list[str] = Field(default_factory=list)
+    alternatives: list[str] = Field(default_factory=list)
 
 
 class ChatResponse(BaseSchema):
