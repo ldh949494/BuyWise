@@ -121,7 +121,7 @@ async def test_search_products_runs_blocking_path_in_threadpool(monkeypatch) -> 
         calls.append(func.__name__)
         return func(*args, **kwargs)
 
-    monkeypatch.setattr("app.ai.rag_pipeline.run_in_threadpool", fake_threadpool)
+    monkeypatch.setattr("app.ai.rag_pipeline.run_blocking_io", fake_threadpool)
 
     await pipeline.search_products({"category": "机械键盘"}, db, top_k=20)
 

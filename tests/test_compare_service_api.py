@@ -72,7 +72,7 @@ async def test_compare_service_builds_items_with_rules_and_summary(monkeypatch) 
         calls.append(func.__name__)
         return func(*args, **kwargs)
 
-    monkeypatch.setattr("app.services.compare_service.run_in_threadpool", fake_threadpool)
+    monkeypatch.setattr("app.services.compare_service.run_blocking_io", fake_threadpool)
 
     with session_factory() as db:
         product_ids = seed_products(db)

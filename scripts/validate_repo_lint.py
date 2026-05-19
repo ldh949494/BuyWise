@@ -21,6 +21,9 @@ CONSTANT_RE = re.compile(r"^[A-Z_][A-Z0-9_]*$")
 KOTLIN_FILE_RE = re.compile(r"^[A-Z][A-Za-z0-9]*\.kt$")
 PYTHON_FILE_RE = re.compile(r"^(__init__|[a-z_][a-z0-9_]*)\.py$")
 KOTLIN_UNSTRUCTURED_LOG_RE = re.compile(r"\b(console\.log|System\.out\.println|Log\.[diewv]\s*\()")
+RUNTIME_IMPORT_LAYERS = {"services", "ai"}
+RUNTIME_IMPORT_PREFIXES = ("fastapi", "starlette")
+RUNTIME_PREFIX_TUPLE = tuple(f"{prefix}." for prefix in RUNTIME_IMPORT_PREFIXES)
 
 
 LAYER_RULES: dict[str, set[str]] = {
@@ -58,22 +61,16 @@ class Diagnostic:
         if self.line:
             location = f"{location}:{self.line}"
         return f"{location}\nERROR: {self.error}\nFIX: {self.fix}"
-
-
 def iter_python_files() -> list[Path]:
     files: list[Path] = []
     for root in PYTHON_ROOTS:
         if root.exists():
             files.extend(path for path in root.rglob("*.py") if "__pycache__" not in path.parts)
     return sorted(files)
-
-
 def iter_kotlin_files() -> list[Path]:
     if not KOTLIN_ROOT.exists():
         return []
     return sorted(path for path in KOTLIN_ROOT.rglob("*.kt") if "build" not in path.parts)
-
-
 def check_file_size(path: Path, diagnostics: list[Diagnostic]) -> None:
     line_count = len(path.read_text(encoding="utf-8", errors="replace").splitlines())
     if line_count > MAX_SOURCE_LINES:
@@ -86,8 +83,6 @@ def check_file_size(path: Path, diagnostics: list[Diagnostic]) -> None:
                 "See docs/conventions/file-size.md for guidelines.",
             )
         )
-
-
 def check_python_filename(path: Path, diagnostics: list[Diagnostic]) -> None:
     if not PYTHON_FILE_RE.match(path.name):
         diagnostics.append(
@@ -98,8 +93,6 @@ def check_python_filename(path: Path, diagnostics: list[Diagnostic]) -> None:
                 "Rename the file to snake_case.py. Keep package exports in __init__.py if callers need a stable import.",
             )
         )
-
-
 def check_kotlin_filename(path: Path, diagnostics: list[Diagnostic]) -> None:
     if not KOTLIN_FILE_RE.match(path.name):
         diagnostics.append(
@@ -230,6 +223,27 @@ def check_import_layers(path: Path, tree: ast.AST, diagnostics: list[Diagnostic]
             )
 
 
+def check_runtime_framework_imports(path: Path, tree: ast.AST, diagnostics: list[Diagnostic]) -> None:
+    source_layer = layer_for(path)
+    if source_layer not in RUNTIME_IMPORT_LAYERS:
+        return
+    for node in ast.walk(tree):
+        modules: list[str] = []
+        if isinstance(node, ast.ImportFrom) and node.module:
+            modules.append(node.module)
+        elif isinstance(node, ast.Import):
+            modules.extend(alias.name for alias in node.names)
+        for module in modules:
+            if module not in RUNTIME_IMPORT_PREFIXES and not module.startswith(RUNTIME_PREFIX_TUPLE):
+                continue
+            fix = "Move HTTP/runtime framework usage behind app.core or app.api before calling it here."
+            if module == "starlette.concurrency":
+                fix = "Use app.core.concurrency.run_blocking_io instead of Starlette threadpool helpers."
+            diagnostics.append(
+                Diagnostic(path, node.lineno, f"Layer '{source_layer}' imports runtime framework module '{module}'.", fix)
+            )
+
+
 def check_python_file(path: Path, diagnostics: list[Diagnostic]) -> None:
     check_file_size(path, diagnostics)
     check_python_filename(path, diagnostics)
@@ -237,6 +251,7 @@ def check_python_file(path: Path, diagnostics: list[Diagnostic]) -> None:
     check_python_names(path, tree, diagnostics)
     check_python_logging(path, tree, diagnostics)
     check_import_layers(path, tree, diagnostics)
+    check_runtime_framework_imports(path, tree, diagnostics)
 
 
 def check_kotlin_file(path: Path, diagnostics: list[Diagnostic]) -> None:
