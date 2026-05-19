@@ -2,8 +2,11 @@ import json
 import logging
 
 from fastapi import FastAPI
+from fastapi import Depends
 from fastapi.testclient import TestClient
+from pydantic import BaseModel
 
+from app.core.config import settings
 from app.core.exceptions import AppError
 from app.core.providers import (
     AuthProvider,
@@ -14,6 +17,7 @@ from app.core.providers import (
     TelemetryProvider,
     get_middleware_provider,
     get_provider,
+    require_principal,
 )
 
 
@@ -29,6 +33,38 @@ def test_auth_provider_defaults_to_anonymous_context() -> None:
     auth = get_provider("auth")
 
     assert auth.get_current_principal() is None
+
+
+def test_auth_dependency_accepts_bearer_api_key() -> None:
+    settings.auth_api_keys = "android:test-token:upload:write"
+    app = FastAPI()
+
+    @app.get("/secure")
+    def secure(principal=Depends(require_principal(("upload:write",)))) -> dict[str, object]:
+        return {"subject": principal.subject, "scopes": list(principal.scopes)}
+
+    response = TestClient(app).get("/secure", headers={"Authorization": "Bearer test-token"})
+
+    assert response.status_code == 200
+    assert response.json() == {"subject": "android", "scopes": ["upload:write"]}
+
+
+def test_auth_dependency_rejects_missing_and_insufficient_tokens() -> None:
+    settings.auth_api_keys = "android:test-token:upload:write"
+    app = FastAPI()
+    get_provider("errors").register_exception_handlers(app)
+
+    @app.get("/secure")
+    def secure(principal=Depends(require_principal(("products:write",)))) -> dict[str, str]:
+        return {"subject": principal.subject}
+
+    missing = TestClient(app).get("/secure")
+    insufficient = TestClient(app).get("/secure", headers={"Authorization": "Bearer test-token"})
+
+    assert missing.status_code == 401
+    assert missing.json()["code"] == "unauthorized"
+    assert insufficient.status_code == 403
+    assert insufficient.json()["code"] == "forbidden"
 
 
 def test_error_provider_registers_without_side_effect_error() -> None:
@@ -134,6 +170,22 @@ def test_middleware_echoes_incoming_request_id() -> None:
     assert response.headers["x-request-id"] == "req-123"
 
 
+def test_middleware_rejects_oversized_requests() -> None:
+    settings.request_max_bytes = 4
+    app = FastAPI()
+    get_middleware_provider().register_middleware(app)
+
+    @app.post("/items")
+    async def items() -> dict[str, str]:
+        return {"status": "ok"}
+
+    response = TestClient(app).post("/items", content=b"too large")
+
+    assert response.status_code == 413
+    assert response.json()["code"] == "request_too_large"
+    settings.request_max_bytes = 20 * 1024 * 1024
+
+
 def test_error_provider_renders_app_error_with_request_id() -> None:
     app = FastAPI()
     get_middleware_provider().register_middleware(app)
@@ -173,6 +225,25 @@ def test_error_provider_renders_validation_errors() -> None:
     assert payload["extra"]["errors"]
 
 
+def test_error_provider_redacts_sensitive_validation_input() -> None:
+    class LoginRequest(BaseModel):
+        token: int
+
+    app = FastAPI()
+    get_middleware_provider().register_middleware(app)
+    get_provider("errors").register_exception_handlers(app)
+
+    @app.post("/login")
+    def login(request: LoginRequest) -> dict[str, int]:
+        return {"token": request.token}
+
+    response = TestClient(app).post("/login", json={"token": "secret-value"})
+
+    assert response.status_code == 422
+    errors = response.json()["extra"]["errors"]
+    assert errors[0]["input"] == "[redacted]"
+
+
 def test_error_provider_hides_unexpected_exception_details() -> None:
     app = FastAPI()
     get_middleware_provider().register_middleware(app)
@@ -194,3 +265,4 @@ def test_error_provider_hides_unexpected_exception_details() -> None:
         "code": "internal_error",
         "extra": {"request_id": "req-999"},
     }
+

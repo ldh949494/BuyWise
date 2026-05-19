@@ -6,6 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.api.v1.compare import get_compare_service
 from app.core.database import Base, get_db
 from app.main import create_app
 from app.models import Product
@@ -98,6 +99,9 @@ def test_compare_api_returns_frontend_ready_table_payload() -> None:
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_compare_service] = lambda: CompareService(
+        llm_client=FakeLLMClient()
+    )
     client = TestClient(app)
 
     response = client.post(

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.providers import Principal, require_principal
 from app.schemas.product import ProductCreate, ProductListResponse, ProductRead
 from app.services.product_service import ProductService
 
@@ -48,5 +49,7 @@ def get_product(
 def create_product(
     product_data: ProductCreate,
     service: ProductService = Depends(get_product_service),
+    principal: Principal = Depends(require_principal(("products:write",))),
 ) -> ProductRead:
+    _ = principal
     return service.create_product(product_data)

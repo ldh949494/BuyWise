@@ -7,20 +7,18 @@ import sys
 import time
 import uuid
 from logging.config import dictConfig
-from typing import Any, Literal, Protocol, TypeAlias, cast
+from typing import Any, Callable, Literal, Protocol, TypeAlias, cast
 
 from fastapi import FastAPI, Request, status
-from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from starlette.exceptions import HTTPException
 from starlette.responses import Response
 
 from app.core.config import settings
-from app.core.exceptions import AppError
+from app.core.auth_provider import AuthProvider, Principal, require_principal_dependency
+from app.core.error_provider import ErrorProvider
 from app.core.logging_utils import JsonFormatter
 from app.core.request_context import (
     REQUEST_ID_HEADER,
-    get_request_id,
     reset_request_id,
     set_request_id,
 )
@@ -36,12 +34,6 @@ ProviderName: TypeAlias = Literal["auth", "telemetry", "logging", "errors", "mid
 
 class Provider(Protocol):
     name: ProviderName
-
-
-class Principal:
-    def __init__(self, subject: str, scopes: tuple[str, ...] = ()) -> None:
-        self.subject = subject
-        self.scopes = scopes
 
 
 class LoggingProvider:
@@ -107,6 +99,10 @@ class MiddlewareProvider:
             started_at = time.perf_counter()
             status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
             try:
+                size_response = self._request_size_response(request)
+                if size_response is not None:
+                    status_code = size_response.status_code
+                    return size_response
                 response = await call_next(request)
                 status_code = response.status_code
                 return response
@@ -125,6 +121,29 @@ class MiddlewareProvider:
         token = set_request_id(request_id)
         request.state.request_id = request_id
         return token
+
+    def _request_size_response(self, request: Request) -> JSONResponse | None:
+        content_length = request.headers.get("content-length")
+        if content_length is None:
+            return None
+        try:
+            request_bytes = int(content_length)
+        except ValueError:
+            return None
+        if request_bytes <= settings.request_max_bytes:
+            return None
+        return JSONResponse(
+            status_code=413,
+            content={
+                "detail": "Request body is too large.",
+                "code": "request_too_large",
+                "extra": {
+                    "max_bytes": settings.request_max_bytes,
+                    "request_id": getattr(request.state, "request_id", None),
+                },
+            },
+            headers={REQUEST_ID_HEADER: request.state.request_id},
+        )
 
     def _log_unhandled_request_error(self, logger: logging.Logger, request: Request, status_code: int) -> None:
         logger.exception(
@@ -154,121 +173,6 @@ class MiddlewareProvider:
         }
 
 
-class ErrorProvider:
-    name: ProviderName = "errors"
-
-    def register_exception_handlers(self, app: FastAPI) -> None:
-        logger = get_logging_provider().get_logger("app.errors")
-
-        @app.exception_handler(AppError)
-        async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
-            return self._app_error_response(request, exc)
-
-        @app.exception_handler(HTTPException)
-        async def http_error_handler(request: Request, exc: HTTPException) -> JSONResponse:
-            return self._http_error_response(request, exc)
-
-        @app.exception_handler(RequestValidationError)
-        async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
-            return self._validation_error_response(request, exc)
-
-        @app.exception_handler(Exception)
-        async def unexpected_error_handler(request: Request, exc: Exception) -> JSONResponse:
-            self._log_unexpected_error(logger, request)
-            return self._unexpected_error_response(request)
-
-    def _app_error_response(self, request: Request, exc: AppError) -> JSONResponse:
-        return self._error_response(
-            request,
-            status_code=exc.status_code,
-            detail=exc.message,
-            code=exc.code,
-            extra=exc.extra,
-        )
-
-    def _http_error_response(self, request: Request, exc: HTTPException) -> JSONResponse:
-        return self._error_response(
-            request,
-            status_code=exc.status_code,
-            detail=str(exc.detail),
-            code=self._http_error_code(exc.status_code),
-            headers=exc.headers,
-        )
-
-    def _validation_error_response(self, request: Request, exc: RequestValidationError) -> JSONResponse:
-        return self._error_response(
-            request,
-            status_code=422,
-            detail="Request validation failed",
-            code="validation_error",
-            extra={"errors": exc.errors()},
-        )
-
-    def _unexpected_error_response(self, request: Request) -> JSONResponse:
-        return self._error_response(
-            request,
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error",
-            code="internal_error",
-        )
-
-    def _log_unexpected_error(self, logger: logging.Logger, request: Request) -> None:
-        logger.exception(
-            "Unhandled application error",
-            extra={"method": request.method, "path": request.url.path},
-        )
-
-    def _error_response(
-        self,
-        request: Request,
-        *,
-        status_code: int,
-        detail: str,
-        code: str,
-        extra: dict[str, Any] | None = None,
-        headers: dict[str, str] | None = None,
-    ) -> JSONResponse:
-        request_id = self._response_request_id(request)
-        response_headers = self._response_headers(headers, request_id)
-        payload_extra = self._payload_extra(extra, request_id)
-        return JSONResponse(
-            status_code=status_code,
-            content={"detail": detail, "code": code, "extra": payload_extra},
-            headers=response_headers,
-        )
-
-    def _response_request_id(self, request: Request) -> str | None:
-        return getattr(request.state, "request_id", None) or get_request_id()
-
-    def _response_headers(self, headers: dict[str, str] | None, request_id: str | None) -> dict[str, str]:
-        response_headers = dict(headers or {})
-        if request_id:
-            response_headers[REQUEST_ID_HEADER] = request_id
-        return response_headers
-
-    def _payload_extra(self, extra: dict[str, Any] | None, request_id: str | None) -> dict[str, Any]:
-        payload_extra = dict(extra or {})
-        if request_id:
-            payload_extra["request_id"] = request_id
-        return payload_extra
-
-    def _http_error_code(self, status_code: int) -> str:
-        if status_code == status.HTTP_404_NOT_FOUND:
-            return "not_found"
-        if status_code == status.HTTP_401_UNAUTHORIZED:
-            return "unauthorized"
-        if status_code == status.HTTP_403_FORBIDDEN:
-            return "forbidden"
-        return "http_error"
-
-
-class AuthProvider:
-    name: ProviderName = "auth"
-
-    def get_current_principal(self) -> Principal | None:
-        return None
-
-
 _PROVIDERS: dict[ProviderName, Provider] = {
     "auth": AuthProvider(),
     "telemetry": TelemetryProvider(),
@@ -294,3 +198,6 @@ def get_middleware_provider() -> MiddlewareProvider:
 
 def get_auth_provider() -> AuthProvider:
     return cast(AuthProvider, get_provider("auth"))
+
+def require_principal(required_scopes: tuple[str, ...] = ()) -> Callable[[Request], Principal]:
+    return require_principal_dependency(get_auth_provider(), required_scopes)

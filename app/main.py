@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import settings
@@ -11,6 +12,7 @@ from app.core.providers import (
 
 
 def create_app() -> FastAPI:
+    settings.validate_production()
     get_logging_provider().configure()
     app = FastAPI(
         title=settings.app_name,
@@ -19,6 +21,13 @@ def create_app() -> FastAPI:
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/openapi.json",
+    )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=settings.cors_allow_credentials,
+        allow_methods=settings.cors_methods,
+        allow_headers=settings.cors_headers,
     )
     get_middleware_provider().register_middleware(app)
     app.include_router(api_router, prefix=settings.api_v1_prefix)

@@ -21,6 +21,7 @@
 - `app.scripts.migrate_database`: applies Alembic migrations to the configured database.
 - `app.scripts.create_tables`: compatibility wrapper that applies Alembic migrations.
 - `app.scripts.build_vector_index`: rebuilds or incrementally upserts the persistent ChromaDB product index. Use `--mode rebuild` for a full collection reset, `--mode upsert` for a full upsert without reset, or `--mode upsert --product-id <id>` for product-level updates.
+- `app.scripts.evaluate_rag`: runs the small RAG shopping-needs evaluation set and prints `recall@k`, `top1_accuracy`, `mrr@k`, and failure cases. Use `python -m app.scripts.evaluate_rag`; pass `--output-json <path>` to save a report.
 - `scripts/init_db.py`: database initialization helper that applies Alembic migrations.
 - `scripts/ai_update_readme.py`: AI-assisted README update helper used by GitHub Actions.
 - `scripts/doc_gardening.py`: AI-assisted repository memory maintenance report. It writes a report by default and only edits `AGENTS.md`, README, or `docs/` when called with `--apply`.

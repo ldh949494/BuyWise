@@ -22,3 +22,23 @@ Run the backend and open `/docs` for the OpenAPI UI. Browser validation can capt
 - Product responses include optional extended commerce fields: `sku`, `product_url`, `image_urls`, `stock_status`, `review_summary`, and `price_history`.
 - Chat responses include `extra.session_id` for the persisted chat session.
 - Chat product cards include explanation fields: `budget_match`, `scenario_match`, `conflicts`, and `alternatives`.
+
+## Authentication Notes
+
+- `POST /api/v1/upload` requires `Authorization: Bearer <token>` with the `upload:write` scope.
+- `POST /api/v1/products` requires `Authorization: Bearer <token>` with the `products:write` scope.
+- Product browse/detail, compare, and AI chat remain public for the current Android integration flow.
+
+## Android Contract Flows
+
+The native Android client should depend on these three backend flows first:
+
+- Product browse: `GET /api/v1/products` for category, keyword, price, and pagination filters; `GET /api/v1/products/{product_id}` for detail.
+- Product compare: `POST /api/v1/products/compare` with `product_ids` and optional `user_need`.
+- AI guide: `POST /api/v1/ai/chat` with `session_id` and `message`, optionally `image_url` and `audio_url`.
+
+`app.scripts.seed_products.seed_android_contract_products` provides deterministic product data for these flows. `tests/test_android_contract_api.py` locks the response shapes used by Android so future real AI provider work can change ranking and prose without removing required fields.
+
+## RAG Quality Loop
+
+RAG retrieval quality is tracked with `data/rag_eval/shopping_needs.jsonl`. Run `python -m app.scripts.evaluate_rag` to inspect `recall@k`, `top1_accuracy`, `mrr@k`, and current failure cases. `tests/test_rag_eval.py` keeps a light regression gate over the fixed evaluation set.

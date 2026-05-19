@@ -4,8 +4,15 @@ from shutil import rmtree
 from fastapi.testclient import TestClient
 
 from app.api.v1.upload import get_upload_service
+from app.core.config import settings
 from app.main import create_app
 from app.services.upload_service import UploadService
+
+AUTH_HEADER = {"Authorization": "Bearer upload-token"}
+
+
+def configure_upload_auth() -> None:
+    settings.auth_api_keys = "uploader:upload-token:upload:write"
 
 
 class UnsafeUploadService(UploadService):
@@ -14,6 +21,7 @@ class UnsafeUploadService(UploadService):
 
 
 def test_upload_endpoint_saves_file_to_local_directory() -> None:
+    configure_upload_auth()
     upload_dir = Path(".test_uploads")
     if upload_dir.exists():
         rmtree(upload_dir)
@@ -26,6 +34,7 @@ def test_upload_endpoint_saves_file_to_local_directory() -> None:
         response = client.post(
             "/api/v1/upload",
             files={"file": ("demo.png", b"fake image bytes", "image/png")},
+            headers=AUTH_HEADER,
         )
 
         assert response.status_code == 200
@@ -39,6 +48,7 @@ def test_upload_endpoint_saves_file_to_local_directory() -> None:
 
 
 def test_upload_endpoint_accepts_audio_file() -> None:
+    configure_upload_auth()
     upload_dir = Path(".test_uploads")
     if upload_dir.exists():
         rmtree(upload_dir)
@@ -51,6 +61,7 @@ def test_upload_endpoint_accepts_audio_file() -> None:
         response = client.post(
             "/api/v1/upload",
             files={"file": ("voice.mp3", b"fake audio bytes", "audio/mpeg")},
+            headers=AUTH_HEADER,
         )
 
         assert response.status_code == 200
@@ -63,6 +74,7 @@ def test_upload_endpoint_accepts_audio_file() -> None:
 
 
 def test_upload_endpoint_rejects_unsupported_extension() -> None:
+    configure_upload_auth()
     app = create_app()
     app.dependency_overrides[get_upload_service] = lambda: UploadService()
     client = TestClient(app)
@@ -70,6 +82,7 @@ def test_upload_endpoint_rejects_unsupported_extension() -> None:
     response = client.post(
         "/api/v1/upload",
         files={"file": ("demo.exe", b"fake image bytes", "image/png")},
+        headers=AUTH_HEADER,
     )
 
     assert response.status_code == 415
@@ -77,6 +90,7 @@ def test_upload_endpoint_rejects_unsupported_extension() -> None:
 
 
 def test_upload_endpoint_rejects_unsupported_content_type() -> None:
+    configure_upload_auth()
     app = create_app()
     app.dependency_overrides[get_upload_service] = lambda: UploadService()
     client = TestClient(app)
@@ -84,6 +98,7 @@ def test_upload_endpoint_rejects_unsupported_content_type() -> None:
     response = client.post(
         "/api/v1/upload",
         files={"file": ("demo.png", b"plain text", "text/plain")},
+        headers=AUTH_HEADER,
     )
 
     assert response.status_code == 415
@@ -91,6 +106,7 @@ def test_upload_endpoint_rejects_unsupported_content_type() -> None:
 
 
 def test_upload_endpoint_rejects_oversized_file_without_partial_file() -> None:
+    configure_upload_auth()
     upload_dir = Path(".test_uploads")
     if upload_dir.exists():
         rmtree(upload_dir)
@@ -103,6 +119,7 @@ def test_upload_endpoint_rejects_oversized_file_without_partial_file() -> None:
         response = client.post(
             "/api/v1/upload",
             files={"file": ("demo.png", b"too large", "image/png")},
+            headers=AUTH_HEADER,
         )
 
         assert response.status_code == 413
@@ -114,6 +131,7 @@ def test_upload_endpoint_rejects_oversized_file_without_partial_file() -> None:
 
 
 def test_upload_endpoint_rejects_unsafe_storage_path() -> None:
+    configure_upload_auth()
     upload_dir = Path(".test_uploads")
     if upload_dir.exists():
         rmtree(upload_dir)
@@ -126,6 +144,7 @@ def test_upload_endpoint_rejects_unsafe_storage_path() -> None:
         response = client.post(
             "/api/v1/upload",
             files={"file": ("demo.png", b"fake image bytes", "image/png")},
+            headers=AUTH_HEADER,
         )
 
         assert response.status_code == 400
@@ -147,6 +166,21 @@ def test_vision_recognize_endpoint_returns_mock_product_info() -> None:
         "features": ["\u767d\u8272", "\u65e0\u7ebf", "\u7d27\u51d1\u5e03\u5c40"],
         "query": "\u767d\u8272 \u65e0\u7ebf \u7d27\u51d1\u5e03\u5c40 \u673a\u68b0\u952e\u76d8",
     }
+
+
+def test_upload_endpoint_requires_authentication() -> None:
+    configure_upload_auth()
+    app = create_app()
+    app.dependency_overrides[get_upload_service] = lambda: UploadService()
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/v1/upload",
+        files={"file": ("demo.png", b"fake image bytes", "image/png")},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["code"] == "unauthorized"
 
 
 def test_speech_asr_endpoint_returns_mock_transcription() -> None:

@@ -55,11 +55,21 @@ class Settings(BaseSettings):
     cos_region: str = Field(default="", validation_alias="COS_REGION")
 
     llm_provider: str = Field(default="mock", validation_alias="LLM_PROVIDER")
+    auth_api_keys: str = Field(default="", validation_alias="AUTH_API_KEYS")
+    request_max_bytes: int = Field(default=20 * 1024 * 1024, validation_alias="REQUEST_MAX_BYTES")
+    upload_dir: str = Field(default="uploads", validation_alias="UPLOAD_DIR")
     upload_max_bytes: int = Field(default=10 * 1024 * 1024, validation_alias="UPLOAD_MAX_BYTES")
     upload_allowed_types: str = Field(
         default="image/png,image/jpeg,image/webp,image/gif,audio/wav,audio/mpeg,audio/mp4,audio/ogg",
         validation_alias="UPLOAD_ALLOWED_TYPES",
     )
+    cors_allowed_origins: str = Field(
+        default="http://localhost:3000,http://localhost:5173,http://10.0.2.2:8000",
+        validation_alias="CORS_ALLOWED_ORIGINS",
+    )
+    cors_allow_credentials: bool = Field(default=False, validation_alias="CORS_ALLOW_CREDENTIALS")
+    cors_allowed_methods: str = Field(default="GET,POST,OPTIONS", validation_alias="CORS_ALLOWED_METHODS")
+    cors_allowed_headers: str = Field(default="Authorization,Content-Type,X-Request-ID", validation_alias="CORS_ALLOWED_HEADERS")
 
     @property
     def chroma_persist_directory(self) -> str:
@@ -74,6 +84,29 @@ class Settings(BaseSettings):
         )
 
     @property
+    def configured_auth_api_keys(self) -> dict[str, dict[str, object]]:
+        keys = {}
+        for raw_item in self.auth_api_keys.split(";"):
+            item = raw_item.strip()
+            if not item:
+                continue
+            subject, token, scopes = self._parse_auth_key(item)
+            keys[token] = {"subject": subject, "scopes": scopes}
+        return keys
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return self._split_csv(self.cors_allowed_origins)
+
+    @property
+    def cors_methods(self) -> list[str]:
+        return self._split_csv(self.cors_allowed_methods)
+
+    @property
+    def cors_headers(self) -> list[str]:
+        return self._split_csv(self.cors_allowed_headers)
+
+    @property
     def database_url(self) -> str:
         return URL.create(
             "mysql+pymysql",
@@ -83,6 +116,51 @@ class Settings(BaseSettings):
             port=self.mysql_port,
             database=self.mysql_database,
         ).render_as_string(hide_password=False)
+
+    def validate_production(self) -> None:
+        if self.app_env != "prod":
+            return
+        errors = []
+        if self.app_debug:
+            errors.append("APP_DEBUG must be false in prod.")
+        if not self.configured_auth_api_keys:
+            errors.append("AUTH_API_KEYS must include at least one production API key.")
+        if not self.cors_origins:
+            errors.append("CORS_ALLOWED_ORIGINS must be explicit in prod.")
+        if self.cors_allow_credentials and "*" in self.cors_origins:
+            errors.append("CORS_ALLOWED_ORIGINS cannot be '*' when credentials are enabled.")
+        if self._is_placeholder(self.mysql_password):
+            errors.append("MYSQL_PASSWORD must not be a placeholder in prod.")
+        if self.llm_provider != "mock" and self._is_placeholder(self.llm_api_key):
+            errors.append("LLM_API_KEY must be set for non-mock LLM providers in prod.")
+        if self._contains_placeholder_auth_key():
+            errors.append("AUTH_API_KEYS must not contain placeholder tokens in prod.")
+        if errors:
+            raise ValueError("Invalid production configuration: " + " ".join(errors))
+
+    def _parse_auth_key(self, item: str) -> tuple[str, str, tuple[str, ...]]:
+        parts = item.split(":", 2)
+        if len(parts) < 2:
+            return "api-key", item, ()
+        subject = parts[0].strip() or "api-key"
+        token = parts[1].strip()
+        scopes = tuple(scope.strip() for scope in parts[2].split(",") if scope.strip()) if len(parts) == 3 else ()
+        return subject, token, scopes
+
+    def _split_csv(self, value: str) -> list[str]:
+        return [item.strip() for item in value.split(",") if item.strip()]
+
+    def _contains_placeholder_auth_key(self) -> bool:
+        return any(self._is_placeholder(token) for token in self.configured_auth_api_keys)
+
+    def _is_placeholder(self, value: str) -> bool:
+        normalized = value.strip().lower()
+        return (
+            not normalized
+            or "change-me" in normalized
+            or normalized in {"placeholder", "test-placeholder"}
+            or normalized.startswith("your-")
+        )
 
 
 @lru_cache

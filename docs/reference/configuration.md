@@ -35,10 +35,25 @@ Alembic uses these same settings through `app.core.config.Settings.database_url`
 - `TENCENT_SECRET_KEY`
 - `COS_BUCKET`
 - `COS_REGION`
+- `AUTH_API_KEYS`
+- `REQUEST_MAX_BYTES`
+- `UPLOAD_DIR`
 - `UPLOAD_MAX_BYTES`
 - `UPLOAD_ALLOWED_TYPES`
+- `CORS_ALLOWED_ORIGINS`
+- `CORS_ALLOW_CREDENTIALS`
+- `CORS_ALLOWED_METHODS`
+- `CORS_ALLOWED_HEADERS`
 
 `LLM_PROVIDER` accepts `mock`, `openai`, or `openai-compatible`. Non-mock providers use `LLM_BASE_URL`, `LLM_API_KEY`, and `LLM_MODEL` through the OpenAI-compatible client.
+
+## Security
+
+`AUTH_API_KEYS` is a semicolon-separated list of API keys in `subject:token:scope1,scope2` format. The first protected scopes are `upload:write` for `/api/v1/upload` and `products:write` for `POST /api/v1/products`.
+
+`REQUEST_MAX_BYTES` limits the HTTP request body size before endpoint handling. `UPLOAD_MAX_BYTES` remains the per-file upload limit enforced by the upload service.
+
+Production configuration validation runs during app creation when `APP_ENV=prod`. Production must disable debug mode, configure non-placeholder API keys and secrets, and use explicit CORS origins. Do not combine wildcard CORS origins with credentials.
 
 ## Local Runtime Overrides
 

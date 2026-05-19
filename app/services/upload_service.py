@@ -36,12 +36,12 @@ class UploadService:
 
     def __init__(
         self,
-        upload_dir: str | Path = "uploads",
+        upload_dir: str | Path | None = None,
         *,
         max_bytes: int | None = None,
         allowed_content_types: tuple[str, ...] | None = None,
     ) -> None:
-        self.upload_dir = Path(upload_dir)
+        self.upload_dir = Path(upload_dir or settings.upload_dir)
         self.max_bytes = max_bytes if max_bytes is not None else settings.upload_max_bytes
         self.allowed_content_types = allowed_content_types or settings.upload_allowed_content_types
 
@@ -122,6 +122,7 @@ class UploadService:
         return f"{uuid4().hex}{suffix}"
 
     def _safe_target(self, upload_root: Path, filename: str) -> Path:
+        self.validate_storage_filename(filename)
         target = (upload_root / filename).resolve()
         try:
             target.relative_to(upload_root)
@@ -132,3 +133,28 @@ class UploadService:
                 code="unsafe_upload_path",
             ) from exc
         return target
+
+    def validate_storage_filename(self, filename: str) -> str:
+        path = Path(filename)
+        suffix = path.suffix.lower()
+        if path.name != filename:
+            raise AppError(
+                "Upload path is outside the upload directory.",
+                status_code=400,
+                code="unsafe_upload_path",
+            )
+        if filename.startswith(".") or not suffix:
+            raise AppError(
+                "Upload filename is not accessible.",
+                status_code=400,
+                code="invalid_upload_filename",
+            )
+        allowed_extensions = set().union(*ALLOWED_EXTENSIONS_BY_TYPE.values())
+        if suffix not in allowed_extensions:
+            raise AppError(
+                "Uploaded file extension is not supported.",
+                status_code=415,
+                code="unsupported_upload_type",
+                extra={"extension": suffix},
+            )
+        return filename
