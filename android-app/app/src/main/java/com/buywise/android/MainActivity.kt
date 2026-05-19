@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.CompareArrows
@@ -14,7 +15,9 @@ import androidx.compose.material.icons.outlined.ImageSearch
 import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -68,7 +71,10 @@ private fun BuyWiseRoot(
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
-                NavigationBar {
+                NavigationBar(
+                    containerColor = BuyWiseTheme.colors.panel,
+                    tonalElevation = NavigationBarDefaults.Elevation,
+                ) {
                     destinations.forEach { destination ->
                         NavigationBarItem(
                             selected = currentRoute == destination.route,
@@ -83,6 +89,13 @@ private fun BuyWiseRoot(
                             },
                             icon = destination.icon,
                             label = { Text(destination.label) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = BuyWiseTheme.colors.primary,
+                                selectedTextColor = BuyWiseTheme.colors.primary,
+                                indicatorColor = BuyWiseTheme.colors.primarySoft,
+                                unselectedIconColor = BuyWiseTheme.colors.muted,
+                                unselectedTextColor = BuyWiseTheme.colors.muted,
+                            ),
                         )
                     }
                 }
@@ -91,6 +104,7 @@ private fun BuyWiseRoot(
     ) { padding ->
         Box(
             modifier = Modifier
+                .fillMaxSize()
                 .background(BuyWiseTheme.colors.surface)
                 .padding(PaddingValues(bottom = padding.calculateBottomPadding())),
         ) {
