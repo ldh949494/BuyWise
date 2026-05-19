@@ -60,7 +60,17 @@ if (Test-Path -LiteralPath "tests") {
 }
 
 if ($testFiles.Count -gt 0) {
-    & $python -m pytest -q
+    $previousLlmProvider = [System.Environment]::GetEnvironmentVariable("LLM_PROVIDER", "Process")
+    try {
+        $env:LLM_PROVIDER = "mock"
+        & $python -m pytest -q --basetemp ".\.pytest_tmp"
+    } finally {
+        if ($null -eq $previousLlmProvider) {
+            [System.Environment]::SetEnvironmentVariable("LLM_PROVIDER", $null, "Process")
+        } else {
+            $env:LLM_PROVIDER = $previousLlmProvider
+        }
+    }
 } else {
     Write-Host "No project tests directory found, smoke check only."
 }

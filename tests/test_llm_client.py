@@ -21,7 +21,7 @@ def test_prompt_constants_are_defined_for_future_llm_calls() -> None:
 
 @pytest.mark.anyio
 async def test_chat_returns_last_user_message_mock_reply() -> None:
-    client = LLMClient()
+    client = LLMClient(provider_name="mock")
 
     reply = await client.chat(
         [
@@ -35,7 +35,7 @@ async def test_chat_returns_last_user_message_mock_reply() -> None:
 
 @pytest.mark.anyio
 async def test_generate_recommendation_uses_only_given_products() -> None:
-    client = LLMClient()
+    client = LLMClient(provider_name="mock")
     need = StructuredNeed(
         intent="商品推荐",
         category="机械键盘",
@@ -73,7 +73,7 @@ async def test_generate_recommendation_uses_only_given_products() -> None:
 
 @pytest.mark.anyio
 async def test_generate_recommendation_handles_empty_products() -> None:
-    client = LLMClient()
+    client = LLMClient(provider_name="mock")
 
     reply = await client.generate_recommendation({"category": "台灯"}, [])
 
@@ -82,7 +82,7 @@ async def test_generate_recommendation_handles_empty_products() -> None:
 
 @pytest.mark.anyio
 async def test_generate_clarify_question_from_missing_fields() -> None:
-    client = LLMClient()
+    client = LLMClient(provider_name="mock")
     need = StructuredNeed(
         intent="商品推荐",
         category="蓝牙耳机",
@@ -99,7 +99,7 @@ async def test_generate_clarify_question_from_missing_fields() -> None:
 
 @pytest.mark.anyio
 async def test_generate_compare_summary_uses_given_products() -> None:
-    client = LLMClient()
+    client = LLMClient(provider_name="mock")
     products = [
         SimpleNamespace(name="AirBuds Lite", price=199, rating=4.6, reason="通勤轻便"),
         SimpleNamespace(name="AirBuds Pro", price=399, rating=4.8, reason="降噪更强"),
