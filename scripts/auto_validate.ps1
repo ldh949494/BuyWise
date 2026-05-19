@@ -96,6 +96,9 @@ try {
         chmod +x ./gradlew
         ./gradlew :app:assembleDebug
     }
+    if ($LASTEXITCODE -ne 0) {
+        throw "Android Gradle build failed with exit code $LASTEXITCODE."
+    }
 } finally {
     Pop-Location
 }
