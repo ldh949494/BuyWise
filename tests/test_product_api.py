@@ -6,8 +6,11 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base, get_db
+from app.core.config import settings
 from app.main import create_app
 from app.models import Product
+
+AUTH_HEADER = {"Authorization": "Bearer test-token"}
 
 
 def make_client():
@@ -76,6 +79,22 @@ def test_get_product_returns_404_when_missing() -> None:
 
 
 def test_create_product_returns_created_product() -> None:
+    settings.auth_api_keys = "tester:test-token:products:write"
+    client = make_client()
+
+    response = client.post(
+        "/api/v1/products",
+        json={"name": "Tablet", "category": "computer", "price": 2999.0},
+        headers=AUTH_HEADER,
+    )
+
+    assert response.status_code == 201
+    assert response.json()["id"] is not None
+    assert response.json()["name"] == "Tablet"
+
+
+def test_create_product_requires_authentication() -> None:
+    settings.auth_api_keys = "tester:test-token:products:write"
     client = make_client()
 
     response = client.post(
@@ -83,6 +102,5 @@ def test_create_product_returns_created_product() -> None:
         json={"name": "Tablet", "category": "computer", "price": 2999.0},
     )
 
-    assert response.status_code == 201
-    assert response.json()["id"] is not None
-    assert response.json()["name"] == "Tablet"
+    assert response.status_code == 401
+    assert response.json()["code"] == "unauthorized"
