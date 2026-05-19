@@ -1,8 +1,8 @@
 """Product domain service."""
 
-from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.exceptions import AppError
 from app.models.product import Product
 from app.repositories.price_repo import PriceHistoryRepository
 from app.repositories.product_repo import ProductRepository
@@ -24,9 +24,10 @@ class ProductService:
     def get_product(self, product_id: int) -> Product:
         product = self.repo.get_by_id(product_id)
         if product is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Product not found",
+            raise AppError(
+                "Product not found",
+                status_code=404,
+                code="not_found",
             )
         self._normalize_product(product)
         product.price_history = self.price_repo.list_for_product(product.id)
