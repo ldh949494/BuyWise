@@ -49,7 +49,6 @@ BuyWise is a FastAPI backend plus native Android client for a multimodal e-comme
 ## Common Commands
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1 -SkipDependencyInstall -SkipAndroidBuild
 docker compose up --build
 python .\scripts\validate_docs.py
@@ -69,6 +68,7 @@ python .\scripts\validate_docs.py
 ## Validation
 
 - Run the relevant tests for code changes.
+- Run `powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1 -SkipDependencyInstall -SkipAndroidBuild` before submitting backend or docs changes.
 - Run `python scripts/validate_docs.py` when changing `AGENTS.md` or `docs/`.
 - Run `python scripts/validate_providers.py` when changing cross-cutting concerns.
 - Run `python scripts/validate_repo_lint.py` before committing structural changes.

@@ -121,20 +121,13 @@ docker compose exec backend python -m app.scripts.build_vector_index
 常用验证命令：
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q
-.\.venv\Scripts\python.exe scripts\validate_docs.py
-.\.venv\Scripts\python.exe scripts\validate_providers.py
-.\.venv\Scripts\python.exe scripts\validate_repo_lint.py
-.\.venv\Scripts\python.exe scripts\validate_entropy.py
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1 -SkipDependencyInstall -SkipAndroidBuild
 ```
 
 本机临时目录权限异常时，可以将 pytest 临时目录切到仓库内：
 
 ```powershell
-New-Item -ItemType Directory -Force artifacts\tmp | Out-Null
-$env:TMP='D:\github\BuyWise\artifacts\tmp'
-$env:TEMP='D:\github\BuyWise\artifacts\tmp'
-.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m pytest -q --basetemp .pytest_tmp\manual
 ```
 
 一键验证：
