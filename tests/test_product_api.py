@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -9,6 +10,9 @@ from app.core.database import Base, get_db
 from app.core.config import settings
 from app.main import create_app
 from app.models import Product
+from app.schemas.product import ProductCreate
+from app.services import product_service as product_service_module
+from app.services.product_service import ProductService
 
 AUTH_HEADER = {"Authorization": "Bearer test-token"}
 
@@ -104,3 +108,37 @@ def test_create_product_requires_authentication() -> None:
 
     assert response.status_code == 401
     assert response.json()["code"] == "unauthorized"
+
+
+def test_product_service_rolls_back_when_create_fails(monkeypatch) -> None:
+    class FailingProductRepository:
+        def __init__(self, db) -> None:
+            self.db = db
+
+        def create_product(self, product_data):
+            raise RuntimeError("create failed")
+
+    class FakeDb:
+        def __init__(self) -> None:
+            self.committed = False
+            self.rolled_back = False
+
+        def commit(self) -> None:
+            self.committed = True
+
+        def rollback(self) -> None:
+            self.rolled_back = True
+
+    monkeypatch.setattr(
+        product_service_module,
+        "ProductRepository",
+        FailingProductRepository,
+    )
+    db = FakeDb()
+    service = ProductService(db)
+
+    with pytest.raises(RuntimeError):
+        service.create_product(ProductCreate(name="Tablet"))
+
+    assert db.committed is False
+    assert db.rolled_back is True

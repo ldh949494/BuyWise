@@ -64,14 +64,23 @@ def seed_products(db):
 
 
 @pytest.mark.anyio
-async def test_compare_service_builds_items_with_rules_and_summary() -> None:
+async def test_compare_service_builds_items_with_rules_and_summary(monkeypatch) -> None:
     session_factory = make_session_factory()
+    calls = []
+
+    async def fake_threadpool(func, *args, **kwargs):
+        calls.append(func.__name__)
+        return func(*args, **kwargs)
+
+    monkeypatch.setattr("app.services.compare_service.run_in_threadpool", fake_threadpool)
+
     with session_factory() as db:
         product_ids = seed_products(db)
         service = CompareService(llm_client=FakeLLMClient())
 
         response = await service.compare(product_ids, USER_NEED, db)
 
+    assert calls == ["_build_items"]
     assert response.summary == f"\u5982\u679c\u4f60\u6700\u5173\u6ce8\u5bbf\u820d\u9759\u97f3\uff0c\u4f18\u5148\u63a8\u8350 {KEYBOARD_NAME}\u3002"
     assert response.winner_id == product_ids[0]
     assert response.items[0].product_id == product_ids[0]

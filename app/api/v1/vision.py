@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from app.core.dependencies import get_vision_service
 from app.services.vision_service import VisionService
 
 
@@ -11,10 +12,6 @@ class VisionRecognizeRequest(BaseModel):
 
 
 router = APIRouter(prefix="/vision")
-
-
-def get_vision_service() -> VisionService:
-    return VisionService()
 
 
 @router.post("/recognize")

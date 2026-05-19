@@ -85,7 +85,7 @@ class ChatService:
             return await self._handle_recommendation(chat_repo, session_id, need, db)
         except RuntimeError:
             logger.exception("Chat handling failed", extra={"session_id": session_id})
-            chat_repo.update_rollback()
+            self._rollback(chat_repo)
             return ChatResponse(
                 reply="抱歉，当前暂时无法完成推荐，请稍后再试或换个条件。",
                 need_clarify=False,
@@ -137,7 +137,7 @@ class ChatService:
             reply,
             structured_data={"need": self._dump(need), "need_clarify": True},
         )
-        chat_repo.update_commit()
+        self._commit(chat_repo)
         return ChatResponse(
             reply=reply,
             need_clarify=True,
@@ -168,7 +168,7 @@ class ChatService:
             },
         )
         chat_repo.create_recommendations(session_id, top_products)
-        chat_repo.update_commit()
+        self._commit(chat_repo)
         return ChatResponse(
             reply=reply,
             need_clarify=False,
@@ -194,6 +194,16 @@ class ChatService:
         if hasattr(value, "model_dump"):
             return value.model_dump(mode="json")
         return value
+
+    def _commit(self, chat_repo: Any) -> None:
+        db = getattr(chat_repo, "db", None)
+        if db is not None:
+            db.commit()
+
+    def _rollback(self, chat_repo: Any) -> None:
+        db = getattr(chat_repo, "db", None)
+        if db is not None:
+            db.rollback()
 
     def _chat_repo(self, request: ChatRequest, db: Session):
         if hasattr(db, "scalar") and hasattr(db, "add"):

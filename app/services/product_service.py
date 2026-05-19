@@ -2,7 +2,7 @@
 
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import AppError
+from app.core.providers import AppError
 from app.models.product import Product
 from app.repositories.price_repo import PriceHistoryRepository
 from app.repositories.product_repo import ProductRepository
@@ -63,13 +63,19 @@ class ProductService:
         return items, total
 
     def create_product(self, product_data: ProductCreate) -> Product:
-        product = self.repo.create_product(product_data.model_dump(exclude_unset=True))
-        self._normalize_product(product)
-        logger.info(
-            "Product created",
-            extra={"product_id": product.id, "category": product.category},
-        )
-        return product
+        try:
+            product = self.repo.create_product(product_data.model_dump(exclude_unset=True))
+            self.db.commit()
+            self.db.refresh(product)
+            self._normalize_product(product)
+            logger.info(
+                "Product created",
+                extra={"product_id": product.id, "category": product.category},
+            )
+            return product
+        except Exception:
+            self.db.rollback()
+            raise
 
     def get_all_products(self) -> list[Product]:
         products = self.repo.get_all()

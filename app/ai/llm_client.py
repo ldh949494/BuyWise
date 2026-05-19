@@ -76,7 +76,7 @@ class LLMClient:
 
     async def generate_recommendation(self, need: Any, products: list[Any]) -> str:
         if not products:
-            return "暂时没有找到完全匹配的商品，可以放宽预算或调整条件"
+            return "暂时没有找到完全匹配的商品，可以放宽预算或调整条件。"
         return await self.chat(
             [
                 {

@@ -25,7 +25,7 @@ Write-Host "========== Backend Validation =========="
 
 if (-not $SkipDependencyInstall) {
     & $python -m pip install --upgrade pip
-    & $python -m pip install -r requirements.txt pytest
+    & $python -m pip install -r requirements-dev.txt
 } else {
     Write-Host "Dependency installation skipped."
 }

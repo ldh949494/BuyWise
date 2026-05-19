@@ -10,6 +10,14 @@
 - `scripts/entropy_gc.py`: generates a read-only entropy garbage-collection report under `artifacts/entropy-gc/`.
 - `scripts/entropy_cleanup_agent.py`: applies one low-risk entropy cleanup through GitHub Models for the background cleanup workflow.
 
+## Dependency Files
+
+- `requirements.in`: production direct dependency inputs.
+- `requirements.txt`: pinned production install file used by Docker and runtime setup.
+- `requirements-dev.in`: development dependency inputs layered on production dependencies.
+- `requirements-dev.txt`: pinned development install file used by `scripts/auto_validate.ps1`.
+- Regenerate pinned files with `pip-compile requirements.in` and `pip-compile requirements-dev.in` after intentionally changing dependency inputs.
+
 ## Runtime
 
 - `scripts/start_pr_env.ps1`: creates or reuses an isolated worktree and starts Docker Compose under a project name.

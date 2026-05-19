@@ -65,7 +65,7 @@ class ProductRepository:
     def create_product(self, product_data: dict) -> Product:
         product = Product(**product_data)
         self.db.add(product)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(product)
         return product
 

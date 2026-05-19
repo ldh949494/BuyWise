@@ -7,7 +7,7 @@ from typing import BinaryIO, Protocol
 from uuid import uuid4
 
 from app.core.config import settings
-from app.core.exceptions import AppError
+from app.core.providers import AppError
 from app.utils.logging import get_logger
 
 

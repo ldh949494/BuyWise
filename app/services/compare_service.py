@@ -7,6 +7,7 @@ import re
 from decimal import Decimal
 from typing import Any
 
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
 from app.ai.llm_client import LLMClient
@@ -24,14 +25,21 @@ class CompareService:
         user_need: str | None,
         db: Session,
     ) -> CompareResponse:
-        products = ProductRepository(db).get_by_ids(product_ids)
-        ordered_products = self._order_by_requested_ids(products, product_ids)
-        items = [self._build_item(product, user_need or "") for product in ordered_products]
-        items = sorted(items, key=lambda item: item.score or 0, reverse=True)
-
+        items = await run_in_threadpool(self._build_items, product_ids, user_need or "", db)
         summary = await self.llm_client.generate_compare_summary(user_need or "", items)
         winner_id = items[0].product_id if items else None
         return CompareResponse(items=items, summary=summary, winner_id=winner_id)
+
+    def _build_items(
+        self,
+        product_ids: list[int],
+        user_need: str,
+        db: Session,
+    ) -> list[CompareItem]:
+        products = ProductRepository(db).get_by_ids(product_ids)
+        ordered_products = self._order_by_requested_ids(products, product_ids)
+        items = [self._build_item(product, user_need) for product in ordered_products]
+        return sorted(items, key=lambda item: item.score or 0, reverse=True)
 
     def _order_by_requested_ids(self, products: list[Any], product_ids: list[int]) -> list[Any]:
         products_by_id = {product.id: product for product in products}
