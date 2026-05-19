@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import BinaryIO, Protocol
 from uuid import uuid4
-
-from fastapi import UploadFile
 
 from app.core.config import settings
 from app.core.exceptions import AppError
@@ -26,6 +25,12 @@ ALLOWED_EXTENSIONS_BY_TYPE = {
 }
 
 
+class UploadInput(Protocol):
+    filename: str | None
+    content_type: str | None
+    file: BinaryIO
+
+
 class UploadService:
     """Local upload service, replaceable with Tencent COS later."""
 
@@ -40,7 +45,7 @@ class UploadService:
         self.max_bytes = max_bytes if max_bytes is not None else settings.upload_max_bytes
         self.allowed_content_types = allowed_content_types or settings.upload_allowed_content_types
 
-    def save(self, file: UploadFile) -> dict[str, str]:
+    def save(self, file: UploadInput) -> dict[str, str]:
         suffix = self._validate_upload_metadata(file)
         upload_root = self._upload_root()
         filename = self._build_storage_name(suffix)
@@ -57,7 +62,7 @@ class UploadService:
         )
         return {"url": f"/uploads/{filename}", "filename": filename}
 
-    def _write_file(self, file: UploadFile, target: Path) -> int:
+    def _write_file(self, file: UploadInput, target: Path) -> int:
         written = 0
         try:
             with target.open("wb") as output:
@@ -80,7 +85,7 @@ class UploadService:
             extra={"max_bytes": self.max_bytes},
         )
 
-    def _validate_upload_metadata(self, file: UploadFile) -> str:
+    def _validate_upload_metadata(self, file: UploadInput) -> str:
         suffix = Path(file.filename or "").suffix.lower()
         if not file.filename or not suffix:
             raise AppError(
