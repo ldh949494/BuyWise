@@ -14,5 +14,4 @@ Keep the repository memory system accurate while BuyWise evolves.
 ## Validation
 
 - `python scripts/validate_docs.py`
-- `.\.venv\Scripts\python.exe -m pytest -q`
 - `powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1 -SkipDependencyInstall -SkipAndroidBuild`

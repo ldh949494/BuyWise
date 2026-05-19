@@ -12,6 +12,9 @@ Set-Location $repoRoot
 
 Write-Host "Agent map: AGENTS.md"
 
+$pytestBaseTemp = Join-Path $repoRoot ".pytest_tmp\auto-validate"
+New-Item -ItemType Directory -Force -Path $pytestBaseTemp | Out-Null
+
 $python = if (Test-Path -LiteralPath ".\.venv\Scripts\python.exe") {
     ".\.venv\Scripts\python.exe"
 } else {
@@ -61,14 +64,28 @@ if (Test-Path -LiteralPath "tests") {
 
 if ($testFiles.Count -gt 0) {
     $previousLlmProvider = [System.Environment]::GetEnvironmentVariable("LLM_PROVIDER", "Process")
+    $previousTmp = [System.Environment]::GetEnvironmentVariable("TMP", "Process")
+    $previousTemp = [System.Environment]::GetEnvironmentVariable("TEMP", "Process")
     try {
         $env:LLM_PROVIDER = "mock"
-        & $python -m pytest -q --basetemp ".\.pytest_tmp"
+        $env:TMP = $pytestBaseTemp
+        $env:TEMP = $pytestBaseTemp
+        & $python -m pytest -q -p no:cacheprovider --basetemp $pytestBaseTemp
     } finally {
         if ($null -eq $previousLlmProvider) {
             [System.Environment]::SetEnvironmentVariable("LLM_PROVIDER", $null, "Process")
         } else {
             $env:LLM_PROVIDER = $previousLlmProvider
+        }
+        if ($null -eq $previousTmp) {
+            [System.Environment]::SetEnvironmentVariable("TMP", $null, "Process")
+        } else {
+            $env:TMP = $previousTmp
+        }
+        if ($null -eq $previousTemp) {
+            [System.Environment]::SetEnvironmentVariable("TEMP", $null, "Process")
+        } else {
+            $env:TEMP = $previousTemp
         }
     }
 } else {
