@@ -1,6 +1,6 @@
-import pytest
 from decimal import Decimal
 
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -107,3 +107,22 @@ async def test_search_products_falls_back_to_repository_when_vector_store_empty(
     results = await pipeline.search_products(need, db, top_k=20)
 
     assert [product.name for product in results] == ["K87 静音红轴机械键盘"]
+
+
+@pytest.mark.anyio
+async def test_search_products_runs_blocking_path_in_threadpool(monkeypatch) -> None:
+    db = make_session()
+    seed_products(db)
+    store = FakeProductStore([])
+    pipeline = RAGPipeline(product_store=store)
+    calls = []
+
+    async def fake_threadpool(func, *args, **kwargs):
+        calls.append(func.__name__)
+        return func(*args, **kwargs)
+
+    monkeypatch.setattr("app.ai.rag_pipeline.run_in_threadpool", fake_threadpool)
+
+    await pipeline.search_products({"category": "机械键盘"}, db, top_k=20)
+
+    assert calls == ["search_products_sync"]

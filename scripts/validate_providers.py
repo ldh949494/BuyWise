@@ -8,15 +8,24 @@ ROOT = Path(__file__).resolve().parents[1]
 APP_ROOT = ROOT / "app"
 PROVIDER_MODULE = "app.core.providers"
 ALLOWED_FILES = {
+    Path("app/core/auth_provider.py"),
+    Path("app/core/error_provider.py"),
+    Path("app/core/exceptions.py"),
     Path("app/core/logging_utils.py"),
     Path("app/core/providers.py"),
     Path("app/core/logging.py"),
+    Path("app/core/request_context.py"),
     Path("app/utils/logging.py"),
 }
 FORBIDDEN_MODULES = {
+    "app.core.auth_provider": "Use app.core.providers for authentication dependencies and principals.",
+    "app.core.error_provider": "Use app.core.providers.get_provider('errors') or get_error_provider().",
+    "app.core.exceptions": "Use app.core.providers.AppError so cross-cutting errors stay behind providers.",
     "logging": "Use app.core.providers.get_provider('logging') or app.utils.logging.get_logger().",
+    "app.core.logging_utils": "Use app.core.providers or app.utils.logging instead of logging internals.",
     "prometheus_fastapi_instrumentator": "Use app.core.providers.get_provider('telemetry').",
     "app.core.logging": "Use app.core.providers.get_provider('logging') or app.utils.logging.get_logger().",
+    "app.core.request_context": "Use app.core.providers-managed request context instead of importing internals.",
 }
 FORBIDDEN_PREFIXES = {
     "opentelemetry": "Use app.core.providers.get_provider('telemetry').",

@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+SQLAlchemy
+alembic
+pydantic
+pydantic-settings
+PyMySQL
+chromadb
+python-dotenv
+python-multipart
+openai
+prometheus-fastapi-instrumentator

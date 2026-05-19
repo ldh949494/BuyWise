@@ -18,7 +18,10 @@ CONTEXT_PATHS = [
     "README.md",
     "docker-compose.yml",
     "docker-compose.observability.yml",
+    "requirements.in",
     "requirements.txt",
+    "requirements-dev.in",
+    "requirements-dev.txt",
     "scripts/auto_validate.ps1",
     "scripts/validate_docs.py",
 ]

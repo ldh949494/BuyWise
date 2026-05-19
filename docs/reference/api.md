@@ -28,6 +28,20 @@ Run the backend and open `/docs` for the OpenAPI UI. Browser validation can capt
 - `POST /api/v1/upload` requires `Authorization: Bearer <token>` with the `upload:write` scope.
 - `POST /api/v1/products` requires `Authorization: Bearer <token>` with the `products:write` scope.
 - Product browse/detail, compare, and AI chat remain public for the current Android integration flow.
+- Auth, request context, errors, telemetry, and logging must be accessed through `app.core.providers`; `scripts/validate_providers.py` blocks direct imports from provider implementation modules.
+
+| Flow | Method | Path | Principal | Required Scope |
+| --- | --- | --- | --- | --- |
+| Health | `GET` | `/api/v1/health` | Public | None |
+| Product browse | `GET` | `/api/v1/products` | Public | None |
+| Product detail | `GET` | `/api/v1/products/{product_id}` | Public | None |
+| Product create | `POST` | `/api/v1/products` | Bearer token | `products:write` |
+| Product compare | `POST` | `/api/v1/products/compare` | Public | None |
+| AI guide | `POST` | `/api/v1/ai/chat` | Public | None |
+| RAG search | `POST` | `/api/v1/rag/search` | Public | None |
+| Upload | `POST` | `/api/v1/upload` | Bearer token | `upload:write` |
+| Vision recognize | `POST` | `/api/v1/vision/recognize` | Public | None |
+| Speech ASR | `POST` | `/api/v1/speech/asr` | Public | None |
 
 ## Android Contract Flows
 

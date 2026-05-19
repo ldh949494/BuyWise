@@ -94,3 +94,35 @@ def test_product_repository_creates_and_returns_all_products() -> None:
         "Phone Case",
         "Tablet",
     ]
+
+
+def test_product_repository_create_flushes_without_committing() -> None:
+    class FakeSession:
+        def __init__(self) -> None:
+            self.product = None
+            self.committed = False
+            self.flushed = False
+            self.refreshed = False
+
+        def add(self, product) -> None:
+            self.product = product
+
+        def flush(self) -> None:
+            self.flushed = True
+            self.product.id = 42
+
+        def refresh(self, product) -> None:
+            self.refreshed = product is self.product
+
+        def commit(self) -> None:
+            self.committed = True
+
+    db = FakeSession()
+    repo = ProductRepository(db)
+
+    created = repo.create_product({"name": "Tablet", "price": Decimal("2999.00")})
+
+    assert created.id == 42
+    assert db.flushed is True
+    assert db.refreshed is True
+    assert db.committed is False

@@ -77,7 +77,7 @@ async def test_generate_recommendation_handles_empty_products() -> None:
 
     reply = await client.generate_recommendation({"category": "台灯"}, [])
 
-    assert reply == "暂时没有找到完全匹配的商品，可以放宽预算或调整条件"
+    assert reply == "暂时没有找到完全匹配的商品，可以放宽预算或调整条件。"
 
 
 @pytest.mark.anyio

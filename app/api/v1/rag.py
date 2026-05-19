@@ -4,15 +4,12 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.dependencies import get_rag_service
 from app.schemas.rag import RagSearchRequest, RagSearchResponse
 from app.services.rag_service import RagService
 
 
 router = APIRouter(prefix="/rag")
-
-
-def get_rag_service() -> RagService:
-    return RagService()
 
 
 @router.post("/search", response_model=RagSearchResponse)

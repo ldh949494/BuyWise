@@ -5,6 +5,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
 from app.models.product import Product
@@ -22,6 +23,14 @@ class RAGPipeline:
         self.product_store = product_store or ChromaProductStore()
 
     async def search_products(
+        self,
+        need: Any,
+        db: Session,
+        top_k: int = 20,
+    ) -> list[Product]:
+        return await run_in_threadpool(self.search_products_sync, need, db, top_k)
+
+    def search_products_sync(
         self,
         need: Any,
         db: Session,

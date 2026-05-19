@@ -86,12 +86,6 @@ class ChatRepository:
         )
         return list(reversed(self.db.scalars(statement).all()))
 
-    def update_commit(self) -> None:
-        self.db.commit()
-
-    def update_rollback(self) -> None:
-        self.db.rollback()
-
     def generate_session_id(self) -> str:
         return uuid.uuid4().hex
 

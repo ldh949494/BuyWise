@@ -13,6 +13,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from starlette.responses import Response
 
+from app.core.exceptions import AppError
 from app.core.config import settings
 from app.core.auth_provider import AuthProvider, Principal, require_principal_dependency
 from app.core.error_provider import ErrorProvider

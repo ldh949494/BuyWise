@@ -4,15 +4,12 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.dependencies import get_chat_service
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.services.chat_service import ChatService
 
 
 router = APIRouter(prefix="/ai")
-
-
-def get_chat_service() -> ChatService:
-    return ChatService()
 
 
 @router.post("/chat", response_model=ChatResponse)

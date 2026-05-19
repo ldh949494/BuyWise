@@ -7,8 +7,8 @@ from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
 from app.core.config import settings
-from app.core.exceptions import AppError
 from app.core.providers import (
+    AppError,
     AuthProvider,
     ErrorProvider,
     JsonFormatter,
@@ -265,4 +265,3 @@ def test_error_provider_hides_unexpected_exception_details() -> None:
         "code": "internal_error",
         "extra": {"request_id": "req-999"},
     }
-

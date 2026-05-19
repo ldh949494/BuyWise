@@ -4,15 +4,12 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.dependencies import get_compare_service
 from app.schemas.compare import CompareRequest, CompareResponse
 from app.services.compare_service import CompareService
 
 
 router = APIRouter(prefix="/products")
-
-
-def get_compare_service() -> CompareService:
-    return CompareService()
 
 
 @router.post("/compare", response_model=CompareResponse)

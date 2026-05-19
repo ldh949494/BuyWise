@@ -2,15 +2,12 @@
 
 from fastapi import APIRouter, Depends, UploadFile
 
+from app.core.dependencies import get_upload_service
 from app.core.providers import Principal, require_principal
 from app.services.upload_service import UploadService
 
 
 router = APIRouter()
-
-
-def get_upload_service() -> UploadService:
-    return UploadService()
 
 
 @router.post("/upload")

@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from app.core.dependencies import get_speech_service
 from app.services.speech_service import SpeechService
 
 
@@ -11,10 +12,6 @@ class SpeechAsrRequest(BaseModel):
 
 
 router = APIRouter(prefix="/speech")
-
-
-def get_speech_service() -> SpeechService:
-    return SpeechService()
 
 
 @router.post("/asr")
