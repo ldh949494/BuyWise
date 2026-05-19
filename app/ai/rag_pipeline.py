@@ -5,9 +5,9 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from starlette.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
+from app.core.concurrency import run_blocking_io
 from app.models.product import Product
 from app.repositories.product_repo import ProductRepository
 from app.utils.logging import get_logger
@@ -28,7 +28,7 @@ class RAGPipeline:
         db: Session,
         top_k: int = 20,
     ) -> list[Product]:
-        return await run_in_threadpool(self.search_products_sync, need, db, top_k)
+        return await run_blocking_io(self.search_products_sync, need, db, top_k)
 
     def search_products_sync(
         self,

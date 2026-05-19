@@ -7,10 +7,10 @@ import re
 from decimal import Decimal
 from typing import Any
 
-from starlette.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
 from app.ai.llm_client import LLMClient
+from app.core.concurrency import run_blocking_io
 from app.repositories.product_repo import ProductRepository
 from app.schemas.compare import CompareItem, CompareResponse
 
@@ -25,7 +25,7 @@ class CompareService:
         user_need: str | None,
         db: Session,
     ) -> CompareResponse:
-        items = await run_in_threadpool(self._build_items, product_ids, user_need or "", db)
+        items = await run_blocking_io(self._build_items, product_ids, user_need or "", db)
         summary = await self.llm_client.generate_compare_summary(user_need or "", items)
         winner_id = items[0].product_id if items else None
         return CompareResponse(items=items, summary=summary, winner_id=winner_id)

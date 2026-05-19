@@ -1,6 +1,12 @@
 from pathlib import Path
 
-from scripts.validate_repo_lint import Diagnostic, ROOT
+import ast
+
+from scripts.validate_repo_lint import (
+    Diagnostic,
+    ROOT,
+    check_runtime_framework_imports,
+)
 
 
 FORBIDDEN_SERVICE_IMPORTS = (
@@ -8,6 +14,7 @@ FORBIDDEN_SERVICE_IMPORTS = (
     "import fastapi",
     "from starlette.exceptions",
     "from starlette.responses",
+    "from starlette.concurrency",
 )
 
 
@@ -40,3 +47,15 @@ def test_services_do_not_import_http_framework_types() -> None:
                 offenders.append(f"{rel_path}: imports {forbidden_import!r}")
 
     assert offenders == []
+
+
+def test_lint_rejects_runtime_framework_imports_in_services_and_ai() -> None:
+    diagnostics: list[Diagnostic] = []
+    source = "from starlette.concurrency import run_in_threadpool\n"
+    tree = ast.parse(source)
+
+    check_runtime_framework_imports(ROOT / "app" / "ai" / "example.py", tree, diagnostics)
+
+    assert len(diagnostics) == 1
+    assert "runtime framework module 'starlette.concurrency'" in diagnostics[0].error
+    assert "app.core.concurrency.run_blocking_io" in diagnostics[0].fix
