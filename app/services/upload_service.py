@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from io import BytesIO
 from pathlib import Path
 from typing import BinaryIO, Protocol
+from urllib.parse import urljoin
 from uuid import uuid4
 
 from app.core.config import settings
 from app.core.providers import AppError
+from app.integrations.cos_storage_client import ObjectStorageClient, TencentCosStorageClient
 from app.utils.logging import get_logger
 
 
@@ -40,15 +43,20 @@ class UploadService:
         *,
         max_bytes: int | None = None,
         allowed_content_types: tuple[str, ...] | None = None,
+        storage_client: ObjectStorageClient | None = None,
     ) -> None:
         self.upload_dir = Path(upload_dir or settings.upload_dir)
         self.max_bytes = max_bytes if max_bytes is not None else settings.upload_max_bytes
         self.allowed_content_types = allowed_content_types or settings.upload_allowed_content_types
+        self.storage_client = storage_client
 
     def save(self, file: UploadInput) -> dict[str, str]:
         suffix = self._validate_upload_metadata(file)
-        upload_root = self._upload_root()
         filename = self._build_storage_name(suffix)
+        if self._upload_provider() == "cos":
+            return self._save_to_cos(file, filename)
+
+        upload_root = self._upload_root()
         target = self._safe_target(upload_root, filename)
         written = self._write_file(file, target)
 
@@ -60,7 +68,25 @@ class UploadService:
                 "bytes": written,
             },
         )
-        return {"url": f"/uploads/{filename}", "filename": filename}
+        return {"url": self._local_url(filename), "filename": filename}
+
+    def _save_to_cos(self, file: UploadInput, filename: str) -> dict[str, str]:
+        body, written = self._read_upload_to_memory(file)
+        url = self._cos_storage_client().upload_fileobj(
+            key=filename,
+            fileobj=body,
+            content_type=(file.content_type or "").lower(),
+        )
+        logger.info(
+            "Upload saved",
+            extra={
+                "stored_filename": filename,
+                "content_type": file.content_type,
+                "bytes": written,
+                "provider": "cos",
+            },
+        )
+        return {"url": url, "filename": filename}
 
     def _write_file(self, file: UploadInput, target: Path) -> int:
         written = 0
@@ -76,6 +102,17 @@ class UploadService:
                 target.unlink()
             raise
         return written
+
+    def _read_upload_to_memory(self, file: UploadInput) -> tuple[BytesIO, int]:
+        body = BytesIO()
+        written = 0
+        while chunk := file.file.read(CHUNK_SIZE):
+            written += len(chunk)
+            if written > self.max_bytes:
+                raise self._too_large_error()
+            body.write(chunk)
+        body.seek(0)
+        return body, written
 
     def _too_large_error(self) -> AppError:
         return AppError(
@@ -118,6 +155,13 @@ class UploadService:
         upload_root.mkdir(parents=True, exist_ok=True)
         return upload_root
 
+    def _local_url(self, filename: str) -> str:
+        relative_url = f"/uploads/{filename}"
+        public_base_url = settings.upload_public_base_url.strip()
+        if not public_base_url:
+            return relative_url
+        return urljoin(public_base_url.rstrip("/") + "/", relative_url.lstrip("/"))
+
     def _build_storage_name(self, suffix: str) -> str:
         return f"{uuid4().hex}{suffix}"
 
@@ -133,6 +177,15 @@ class UploadService:
                 code="unsafe_upload_path",
             ) from exc
         return target
+
+    def _cos_storage_client(self) -> ObjectStorageClient:
+        return self.storage_client or TencentCosStorageClient()
+
+    def _upload_provider(self) -> str:
+        provider = settings.upload_provider.strip().lower()
+        if provider in {"local", "cos"}:
+            return provider
+        raise ValueError("UPLOAD_PROVIDER must be 'local' or 'cos'.")
 
     def validate_storage_filename(self, filename: str) -> str:
         path = Path(filename)

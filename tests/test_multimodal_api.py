@@ -13,6 +13,13 @@ AUTH_HEADER = {"Authorization": "Bearer upload-token"}
 
 def configure_upload_auth() -> None:
     settings.auth_api_keys = "uploader:upload-token:upload:write"
+    settings.upload_provider = "local"
+    settings.upload_public_base_url = ""
+
+
+def configure_mock_multimodal() -> None:
+    settings.vision_provider = "mock"
+    settings.speech_provider = "mock"
 
 
 class UnsafeUploadService(UploadService):
@@ -71,6 +78,64 @@ def test_upload_endpoint_accepts_audio_file() -> None:
     finally:
         if upload_dir.exists():
             rmtree(upload_dir)
+
+
+def test_upload_endpoint_can_return_public_local_url() -> None:
+    configure_upload_auth()
+    settings.upload_public_base_url = "https://api.example.com"
+    upload_dir = Path(".test_uploads")
+    if upload_dir.exists():
+        rmtree(upload_dir)
+
+    app = create_app()
+    app.dependency_overrides[get_upload_service] = lambda: UploadService(upload_dir=upload_dir)
+    client = TestClient(app)
+
+    try:
+        response = client.post(
+            "/api/v1/upload",
+            files={"file": ("demo.png", b"fake image bytes", "image/png")},
+            headers=AUTH_HEADER,
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["url"] == f"https://api.example.com/uploads/{payload['filename']}"
+    finally:
+        settings.upload_public_base_url = ""
+        if upload_dir.exists():
+            rmtree(upload_dir)
+
+
+def test_upload_endpoint_can_store_with_cos_client() -> None:
+    class FakeStorageClient:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def upload_fileobj(self, *, key, fileobj, content_type):
+            self.calls.append((key, fileobj.read(), content_type))
+            return f"https://cos.example.com/{key}"
+
+    configure_upload_auth()
+    settings.upload_provider = "cos"
+    storage_client = FakeStorageClient()
+    app = create_app()
+    app.dependency_overrides[get_upload_service] = lambda: UploadService(storage_client=storage_client)
+    client = TestClient(app)
+
+    try:
+        response = client.post(
+            "/api/v1/upload",
+            files={"file": ("demo.png", b"fake image bytes", "image/png")},
+            headers=AUTH_HEADER,
+        )
+    finally:
+        settings.upload_provider = "local"
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["url"] == f"https://cos.example.com/{payload['filename']}"
+    assert storage_client.calls == [(payload["filename"], b"fake image bytes", "image/png")]
 
 
 def test_upload_endpoint_rejects_unsupported_extension() -> None:
@@ -156,6 +221,7 @@ def test_upload_endpoint_rejects_unsafe_storage_path() -> None:
 
 
 def test_vision_recognize_endpoint_returns_mock_product_info() -> None:
+    configure_mock_multimodal()
     client = TestClient(create_app())
 
     response = client.post("/api/v1/vision/recognize", json={"image_url": "/uploads/demo.png"})
@@ -184,6 +250,7 @@ def test_upload_endpoint_requires_authentication() -> None:
 
 
 def test_speech_asr_endpoint_returns_mock_transcription() -> None:
+    configure_mock_multimodal()
     client = TestClient(create_app())
 
     response = client.post("/api/v1/speech/asr", json={"audio_url": "/uploads/demo.wav"})

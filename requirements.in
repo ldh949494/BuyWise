@@ -10,3 +10,5 @@ python-dotenv
 python-multipart
 openai
 prometheus-fastapi-instrumentator
+tencentcloud-sdk-python
+cos-python-sdk-v5
