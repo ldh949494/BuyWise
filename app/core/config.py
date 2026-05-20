@@ -55,12 +55,16 @@ class Settings(BaseSettings):
     cos_region: str = Field(default="", validation_alias="COS_REGION")
 
     vision_provider: str = Field(default="mock", validation_alias="VISION_PROVIDER")
+    vision_base_url: str = Field(default="", validation_alias="VISION_BASE_URL")
+    vision_api_key: str = Field(default="", validation_alias="VISION_API_KEY")
+    vision_model: str = Field(default="", validation_alias="VISION_MODEL")
     speech_provider: str = Field(default="mock", validation_alias="SPEECH_PROVIDER")
     tencent_asr_region: str = Field(default="ap-guangzhou", validation_alias="TENCENT_ASR_REGION")
     tencent_asr_engine_model_type: str = Field(
         default="16k_zh",
         validation_alias="TENCENT_ASR_ENGINE_MODEL_TYPE",
     )
+    tencent_asr_voice_format: str = Field(default="", validation_alias="TENCENT_ASR_VOICE_FORMAT")
     llm_provider: str = Field(default="mock", validation_alias="LLM_PROVIDER")
     auth_api_keys: str = Field(default="", validation_alias="AUTH_API_KEYS")
     request_max_bytes: int = Field(default=20 * 1024 * 1024, validation_alias="REQUEST_MAX_BYTES")
@@ -125,6 +129,18 @@ class Settings(BaseSettings):
             port=self.mysql_port,
             database=self.mysql_database,
         ).render_as_string(hide_password=False)
+
+    @property
+    def effective_vision_base_url(self) -> str:
+        return self.vision_base_url.strip() or self.llm_base_url
+
+    @property
+    def effective_vision_api_key(self) -> str:
+        return self.vision_api_key.strip() or self.llm_api_key
+
+    @property
+    def effective_vision_model(self) -> str:
+        return self.vision_model.strip() or self.llm_model
 
     def validate_production(self) -> None:
         if self.app_env != "prod":

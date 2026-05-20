@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from urllib.parse import urlparse
+
 from typing import Protocol
 
 from app.core.concurrency import run_blocking_io
@@ -49,6 +51,7 @@ class TencentSpeechClient:
         request.EngSerViceType = settings.tencent_asr_engine_model_type
         request.SourceType = 0
         request.Url = audio_url
+        request.VoiceFormat = resolve_tencent_voice_format(audio_url)
 
         response = client.SentenceRecognition(request)
         return response.Result or ""
@@ -60,3 +63,14 @@ class TencentSpeechClient:
                 status_code=500,
                 code="speech_provider_not_configured",
             )
+
+
+def resolve_tencent_voice_format(audio_url: str) -> str:
+    configured = settings.tencent_asr_voice_format.strip().lower()
+    if configured:
+        return configured
+
+    suffix = urlparse(audio_url).path.rsplit(".", 1)[-1].lower()
+    if suffix in {"wav", "mp3", "m4a", "aac", "pcm", "ogg", "silk"}:
+        return suffix
+    return "wav"
