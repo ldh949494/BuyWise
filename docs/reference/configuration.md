@@ -32,11 +32,15 @@ Alembic uses these same settings through `app.core.config.Settings.database_url`
 - `EMBEDDING_MODEL`
 - `LLM_PROVIDER`
 - `VISION_PROVIDER`
+- `VISION_BASE_URL`
+- `VISION_API_KEY`
+- `VISION_MODEL`
 - `SPEECH_PROVIDER`
 - `TENCENT_SECRET_ID`
 - `TENCENT_SECRET_KEY`
 - `TENCENT_ASR_REGION`
 - `TENCENT_ASR_ENGINE_MODEL_TYPE`
+- `TENCENT_ASR_VOICE_FORMAT`
 - `COS_BUCKET`
 - `COS_REGION`
 - `AUTH_API_KEYS`
@@ -53,9 +57,9 @@ Alembic uses these same settings through `app.core.config.Settings.database_url`
 
 `LLM_PROVIDER` accepts `mock`, `openai`, or `openai-compatible`. Non-mock providers use `LLM_BASE_URL`, `LLM_API_KEY`, and `LLM_MODEL` through the OpenAI-compatible client.
 
-`VISION_PROVIDER` accepts `mock`, `llm`, or `dashscope`. The non-mock vision providers use the OpenAI-compatible multimodal chat API configured by `LLM_BASE_URL`, `LLM_API_KEY`, and `LLM_MODEL`.
+`VISION_PROVIDER` accepts `mock`, `llm`, or `dashscope`. The non-mock vision providers use an OpenAI-compatible multimodal chat API. Set `VISION_BASE_URL`, `VISION_API_KEY`, and `VISION_MODEL` when the image model is different from the chat model; empty vision settings fall back to `LLM_BASE_URL`, `LLM_API_KEY`, and `LLM_MODEL`.
 
-`SPEECH_PROVIDER` accepts `mock` or `tencent`. Tencent ASR uses `TENCENT_SECRET_ID`, `TENCENT_SECRET_KEY`, `TENCENT_ASR_REGION`, and `TENCENT_ASR_ENGINE_MODEL_TYPE`.
+`SPEECH_PROVIDER` accepts `mock` or `tencent`. Tencent ASR uses `TENCENT_SECRET_ID`, `TENCENT_SECRET_KEY`, `TENCENT_ASR_REGION`, and `TENCENT_ASR_ENGINE_MODEL_TYPE`. `TENCENT_ASR_VOICE_FORMAT` can override the audio format sent to Tencent; if it is empty, the backend infers the format from the audio URL extension and falls back to `wav`.
 
 `UPLOAD_PROVIDER` accepts `local` or `cos`. Local uploads are saved under `UPLOAD_DIR`; COS uploads use `TENCENT_SECRET_ID`, `TENCENT_SECRET_KEY`, `COS_BUCKET`, and `COS_REGION`.
 

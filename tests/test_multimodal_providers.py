@@ -4,7 +4,7 @@ import pytest
 
 from app.core.config import settings
 from app.integrations.media_url import resolve_public_media_url
-from app.integrations.speech_client import MockSpeechClient, TencentSpeechClient
+from app.integrations.speech_client import MockSpeechClient, TencentSpeechClient, resolve_tencent_voice_format
 from app.integrations.vision_client import LlmVisionClient, MockVisionClient, parse_vision_json
 from app.services.speech_service import SpeechService
 from app.services.vision_service import VisionService
@@ -70,6 +70,7 @@ def test_llm_vision_client_sends_public_image_url_to_model() -> None:
         async def create(self, **kwargs):
             user_content = kwargs["messages"][1]["content"]
             assert user_content[1]["image_url"]["url"] == "https://api.example.com/uploads/demo.png"
+            assert kwargs["model"] == "qwen-vl-plus"
             message = type(
                 "Message",
                 (),
@@ -85,11 +86,14 @@ def test_llm_vision_client_sends_public_image_url_to_model() -> None:
         chat = FakeChat()
 
     previous = settings.upload_public_base_url
+    previous_model = settings.vision_model
     settings.upload_public_base_url = "https://api.example.com"
+    settings.vision_model = "qwen-vl-plus"
     try:
         result = asyncio.run(LlmVisionClient(client=FakeClient()).recognize("/uploads/demo.png"))
     finally:
         settings.upload_public_base_url = previous
+        settings.vision_model = previous_model
 
     assert result["category"] == "双肩包"
     assert result["query"] == "轻便 双肩包"
@@ -142,3 +146,23 @@ def test_tencent_speech_client_resolves_public_url_before_sdk_call(monkeypatch) 
 
     assert captured["audio_url"] == "https://api.example.com/uploads/demo.wav"
     assert result == "识别文本"
+
+
+def test_tencent_voice_format_uses_configured_override() -> None:
+    previous = settings.tencent_asr_voice_format
+    settings.tencent_asr_voice_format = "mp3"
+    try:
+        assert resolve_tencent_voice_format("https://cdn.example.com/audio.wav") == "mp3"
+    finally:
+        settings.tencent_asr_voice_format = previous
+
+
+def test_tencent_voice_format_infers_from_audio_url() -> None:
+    previous = settings.tencent_asr_voice_format
+    settings.tencent_asr_voice_format = ""
+    try:
+        assert resolve_tencent_voice_format("https://cdn.example.com/audio.wav?token=1") == "wav"
+        assert resolve_tencent_voice_format("https://cdn.example.com/audio.mp3") == "mp3"
+        assert resolve_tencent_voice_format("https://cdn.example.com/audio") == "wav"
+    finally:
+        settings.tencent_asr_voice_format = previous

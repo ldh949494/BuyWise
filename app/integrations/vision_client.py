@@ -29,7 +29,7 @@ class MockVisionClient:
 
 class LlmVisionClient:
     def __init__(self, client: Any | None = None, model: str | None = None) -> None:
-        self.model = model or settings.llm_model
+        self.model = model or settings.effective_vision_model
         self.client = client or self._create_client()
 
     async def recognize(self, image_url: str) -> dict[str, Any]:
@@ -66,11 +66,12 @@ class LlmVisionClient:
         except ImportError as exc:  # pragma: no cover - dependency is in requirements.
             raise RuntimeError("openai package is required for LLM vision provider") from exc
 
-        if not settings.llm_api_key:
-            raise RuntimeError("LLM_API_KEY is required for LLM vision provider")
+        api_key = settings.effective_vision_api_key
+        if not api_key:
+            raise RuntimeError("VISION_API_KEY or LLM_API_KEY is required for LLM vision provider")
         return AsyncOpenAI(
-            base_url=settings.llm_base_url,
-            api_key=settings.llm_api_key,
+            base_url=settings.effective_vision_base_url,
+            api_key=api_key,
         )
 
 

@@ -24,9 +24,13 @@ def test_settings_reads_new_env_names() -> None:
         "COS_BUCKET": "bucket",
         "COS_REGION": "ap-shanghai",
         "VISION_PROVIDER": "llm",
+        "VISION_BASE_URL": "https://vision.example.com/compatible-mode/v1",
+        "VISION_API_KEY": "vision-key-123",
+        "VISION_MODEL": "qwen-vl-plus",
         "SPEECH_PROVIDER": "tencent",
         "TENCENT_ASR_REGION": "ap-guangzhou",
         "TENCENT_ASR_ENGINE_MODEL_TYPE": "16k_zh",
+        "TENCENT_ASR_VOICE_FORMAT": "wav",
         "UPLOAD_PROVIDER": "cos",
         "UPLOAD_PUBLIC_BASE_URL": "https://cdn.example.com",
     }
@@ -61,9 +65,16 @@ def test_settings_reads_new_env_names() -> None:
     assert settings.cos_bucket == "bucket"
     assert settings.cos_region == "ap-shanghai"
     assert settings.vision_provider == "llm"
+    assert settings.vision_base_url == "https://vision.example.com/compatible-mode/v1"
+    assert settings.vision_api_key == "vision-key-123"
+    assert settings.vision_model == "qwen-vl-plus"
+    assert settings.effective_vision_base_url == "https://vision.example.com/compatible-mode/v1"
+    assert settings.effective_vision_api_key == "vision-key-123"
+    assert settings.effective_vision_model == "qwen-vl-plus"
     assert settings.speech_provider == "tencent"
     assert settings.tencent_asr_region == "ap-guangzhou"
     assert settings.tencent_asr_engine_model_type == "16k_zh"
+    assert settings.tencent_asr_voice_format == "wav"
     assert settings.upload_provider == "cos"
     assert settings.upload_public_base_url == "https://cdn.example.com"
 
@@ -90,6 +101,33 @@ def test_settings_database_url_uses_pymysql() -> None:
                 os.environ[key] = value
 
     assert settings.database_url == "mysql+pymysql://root:root@localhost:3306/buywise"
+
+
+def test_vision_settings_fall_back_to_llm_settings() -> None:
+    import os
+
+    env = {
+        "LLM_BASE_URL": "https://llm.example.com/v1",
+        "LLM_API_KEY": "llm-key",
+        "LLM_MODEL": "deepseek-chat",
+        "VISION_BASE_URL": "",
+        "VISION_API_KEY": "",
+        "VISION_MODEL": "",
+    }
+    previous = {key: os.environ.get(key) for key in env}
+    os.environ.update(env)
+    try:
+        settings = Settings(_env_file=None)
+    finally:
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+    assert settings.effective_vision_base_url == "https://llm.example.com/v1"
+    assert settings.effective_vision_api_key == "llm-key"
+    assert settings.effective_vision_model == "deepseek-chat"
 
 
 def test_settings_accepts_supported_app_env_values() -> None:
