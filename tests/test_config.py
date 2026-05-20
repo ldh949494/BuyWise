@@ -23,6 +23,12 @@ def test_settings_reads_new_env_names() -> None:
         "TENCENT_SECRET_KEY": "skey",
         "COS_BUCKET": "bucket",
         "COS_REGION": "ap-shanghai",
+        "VISION_PROVIDER": "llm",
+        "SPEECH_PROVIDER": "tencent",
+        "TENCENT_ASR_REGION": "ap-guangzhou",
+        "TENCENT_ASR_ENGINE_MODEL_TYPE": "16k_zh",
+        "UPLOAD_PROVIDER": "cos",
+        "UPLOAD_PUBLIC_BASE_URL": "https://cdn.example.com",
     }
     previous = {key: os.environ.get(key) for key in env}
     os.environ.update(env)
@@ -54,6 +60,12 @@ def test_settings_reads_new_env_names() -> None:
     assert settings.tencent_secret_key == "skey"
     assert settings.cos_bucket == "bucket"
     assert settings.cos_region == "ap-shanghai"
+    assert settings.vision_provider == "llm"
+    assert settings.speech_provider == "tencent"
+    assert settings.tencent_asr_region == "ap-guangzhou"
+    assert settings.tencent_asr_engine_model_type == "16k_zh"
+    assert settings.upload_provider == "cos"
+    assert settings.upload_public_base_url == "https://cdn.example.com"
 
 
 def test_settings_database_url_uses_pymysql() -> None:

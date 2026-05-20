@@ -1,5 +1,7 @@
 """Speech service."""
 
+from app.core.config import settings
+from app.integrations.speech_client import MockSpeechClient, SpeechClient, TencentSpeechClient
 from app.utils.logging import get_logger
 
 
@@ -7,9 +9,20 @@ logger = get_logger(__name__)
 
 
 class SpeechService:
-    """Mock speech service, replaceable with Tencent ASR later."""
+    """Speech-to-text service."""
+
+    def __init__(self, client: SpeechClient | None = None) -> None:
+        self.client = client or self._build_client()
 
     async def transcribe(self, audio_url: str) -> str:
-        _ = audio_url
-        logger.info("Speech transcription completed", extra={"provider": "mock"})
-        return "\u6211\u60f3\u4e70\u4e00\u4e2a\u5bbf\u820d\u7528\u7684\u673a\u68b0\u952e\u76d8\uff0c\u9884\u7b97\u4e09\u767e\u4ee5\u5185"
+        text = await self.client.transcribe(audio_url)
+        logger.info("Speech transcription completed", extra={"provider": settings.speech_provider})
+        return text
+
+    def _build_client(self) -> SpeechClient:
+        provider = settings.speech_provider.strip().lower()
+        if provider == "mock":
+            return MockSpeechClient()
+        if provider == "tencent":
+            return TencentSpeechClient()
+        raise ValueError("SPEECH_PROVIDER must be 'mock' or 'tencent'.")

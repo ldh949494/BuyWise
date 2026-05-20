@@ -31,13 +31,19 @@ Alembic uses these same settings through `app.core.config.Settings.database_url`
 - `LLM_MODEL`
 - `EMBEDDING_MODEL`
 - `LLM_PROVIDER`
+- `VISION_PROVIDER`
+- `SPEECH_PROVIDER`
 - `TENCENT_SECRET_ID`
 - `TENCENT_SECRET_KEY`
+- `TENCENT_ASR_REGION`
+- `TENCENT_ASR_ENGINE_MODEL_TYPE`
 - `COS_BUCKET`
 - `COS_REGION`
 - `AUTH_API_KEYS`
 - `REQUEST_MAX_BYTES`
+- `UPLOAD_PROVIDER`
 - `UPLOAD_DIR`
+- `UPLOAD_PUBLIC_BASE_URL`
 - `UPLOAD_MAX_BYTES`
 - `UPLOAD_ALLOWED_TYPES`
 - `CORS_ALLOWED_ORIGINS`
@@ -46,6 +52,14 @@ Alembic uses these same settings through `app.core.config.Settings.database_url`
 - `CORS_ALLOWED_HEADERS`
 
 `LLM_PROVIDER` accepts `mock`, `openai`, or `openai-compatible`. Non-mock providers use `LLM_BASE_URL`, `LLM_API_KEY`, and `LLM_MODEL` through the OpenAI-compatible client.
+
+`VISION_PROVIDER` accepts `mock`, `llm`, or `dashscope`. The non-mock vision providers use the OpenAI-compatible multimodal chat API configured by `LLM_BASE_URL`, `LLM_API_KEY`, and `LLM_MODEL`.
+
+`SPEECH_PROVIDER` accepts `mock` or `tencent`. Tencent ASR uses `TENCENT_SECRET_ID`, `TENCENT_SECRET_KEY`, `TENCENT_ASR_REGION`, and `TENCENT_ASR_ENGINE_MODEL_TYPE`.
+
+`UPLOAD_PROVIDER` accepts `local` or `cos`. Local uploads are saved under `UPLOAD_DIR`; COS uploads use `TENCENT_SECRET_ID`, `TENCENT_SECRET_KEY`, `COS_BUCKET`, and `COS_REGION`.
+
+`UPLOAD_PUBLIC_BASE_URL` is required when non-mock vision or speech providers receive relative upload paths such as `/uploads/demo.wav`; the backend joins the base URL with the relative path before sending it to external providers.
 
 ## Security
 

@@ -54,10 +54,19 @@ class Settings(BaseSettings):
     cos_bucket: str = Field(default="", validation_alias="COS_BUCKET")
     cos_region: str = Field(default="", validation_alias="COS_REGION")
 
+    vision_provider: str = Field(default="mock", validation_alias="VISION_PROVIDER")
+    speech_provider: str = Field(default="mock", validation_alias="SPEECH_PROVIDER")
+    tencent_asr_region: str = Field(default="ap-guangzhou", validation_alias="TENCENT_ASR_REGION")
+    tencent_asr_engine_model_type: str = Field(
+        default="16k_zh",
+        validation_alias="TENCENT_ASR_ENGINE_MODEL_TYPE",
+    )
     llm_provider: str = Field(default="mock", validation_alias="LLM_PROVIDER")
     auth_api_keys: str = Field(default="", validation_alias="AUTH_API_KEYS")
     request_max_bytes: int = Field(default=20 * 1024 * 1024, validation_alias="REQUEST_MAX_BYTES")
+    upload_provider: str = Field(default="local", validation_alias="UPLOAD_PROVIDER")
     upload_dir: str = Field(default="uploads", validation_alias="UPLOAD_DIR")
+    upload_public_base_url: str = Field(default="", validation_alias="UPLOAD_PUBLIC_BASE_URL")
     upload_max_bytes: int = Field(default=10 * 1024 * 1024, validation_alias="UPLOAD_MAX_BYTES")
     upload_allowed_types: str = Field(
         default="image/png,image/jpeg,image/webp,image/gif,audio/wav,audio/mpeg,audio/mp4,audio/ogg",

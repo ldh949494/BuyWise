@@ -1,5 +1,7 @@
 """Vision service."""
 
+from app.core.config import settings
+from app.integrations.vision_client import LlmVisionClient, MockVisionClient, VisionClient
 from app.utils.logging import get_logger
 
 
@@ -7,18 +9,27 @@ logger = get_logger(__name__)
 
 
 class VisionService:
-    """Mock vision service, replaceable with multimodal model calls later."""
+    """Vision recognition service."""
+
+    def __init__(self, client: VisionClient | None = None) -> None:
+        self.client = client or self._build_client()
 
     async def recognize(self, image_url: str) -> dict:
-        _ = image_url
-        category = "\u673a\u68b0\u952e\u76d8"
-        features = ["\u767d\u8272", "\u65e0\u7ebf", "\u7d27\u51d1\u5e03\u5c40"]
+        result = await self.client.recognize(image_url)
         logger.info(
             "Vision recognition completed",
-            extra={"category": category, "feature_count": len(features)},
+            extra={
+                "provider": settings.vision_provider,
+                "category": result.get("category"),
+                "feature_count": len(result.get("features") or []),
+            },
         )
-        return {
-            "category": category,
-            "features": features,
-            "query": " ".join([*features, category]),
-        }
+        return result
+
+    def _build_client(self) -> VisionClient:
+        provider = settings.vision_provider.strip().lower()
+        if provider == "mock":
+            return MockVisionClient()
+        if provider in {"llm", "dashscope"}:
+            return LlmVisionClient()
+        raise ValueError("VISION_PROVIDER must be 'mock', 'llm', or 'dashscope'.")
