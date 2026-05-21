@@ -1,21 +1,27 @@
-# System Overview
+# 系统概览
 
-BuyWise is a multimodal e-commerce shopping guide. The repository contains a FastAPI backend and a native Android client.
+BuyWise 是一个多模态电商导购项目，仓库包含 FastAPI 后端和原生 Android 客户端。
 
-## Main Components
+## 主要组件
 
-- Backend API: `app/main.py` creates the FastAPI app and mounts versioned routes from `app/api/router.py`.
-- API layer: `app/api/v1/` exposes health, products, compare, chat, RAG, upload, vision, and speech endpoints.
-- Service layer: `app/services/` owns business workflows and composes repositories, AI clients, and integrations.
-- Repository layer: `app/repositories/` owns database access with SQLAlchemy sessions.
-- Data model layer: `app/models/` defines SQLAlchemy models; `app/schemas/` defines Pydantic request and response models.
-- AI and retrieval: `app/ai/` and `app/vectorstore/` provide LLM, embedding, RAG, and a persistent ChromaDB product index.
-- Android client: `android-app/` contains a Kotlin Jetpack Compose app with MVVM-style state and repository-backed mock data.
+- 后端 API：`app/main.py` 创建 FastAPI 应用，并挂载 `app/api/router.py` 中的版本化路由。
+- API 层：`app/api/v1/` 暴露健康检查、商品、对比、聊天、RAG、上传、视觉和语音接口。
+- 服务层：`app/services/` 负责业务流程，组合 repository、AI 客户端和外部集成。
+- Repository 层：`app/repositories/` 负责 SQLAlchemy session 上的数据库访问。
+- 数据模型层：`app/models/` 定义 SQLAlchemy 模型，`app/schemas/` 定义 Pydantic 契约。
+- AI 和检索：`app/ai/` 与 `app/vectorstore/` 提供 LLM、embedding、RAG 和持久化 ChromaDB 商品索引。
+- Android 客户端：`android-app/` 是 Kotlin Jetpack Compose 应用，使用 MVVM 风格状态管理，并通过 OkHttp repository 对接后端合同流。
 
-## Dependency Direction
+## 当前端到端链路
 
-Routes depend on services. Services depend on repositories, integrations, and AI/vector components. Repositories depend on models and database sessions. Avoid importing API route modules from lower layers.
+AI 导购链路为：Android 输入需求 -> `/api/v1/ai/chat/stream` -> 后端抽取结构化需求 -> RAG 检索商品 -> 推荐排序 -> LLM 生成回复 -> SSE 分块返回 -> Android 展示回复和商品卡片。
 
-## Stability
+非流式 JSON 聊天接口 `/api/v1/ai/chat` 仍保留，用于测试、兼容和调试。
 
-This document describes stable module boundaries. Update it when packages move, major layers are introduced, or a layer takes ownership of new responsibilities.
+## 依赖方向
+
+路由依赖服务；服务依赖 repository、integration、AI 和 vector 组件；repository 依赖模型和数据库 session。低层模块不得导入 API 路由模块。
+
+## 稳定性
+
+本文档描述稳定模块边界。包结构移动、引入新层级或重大职责变化时必须同步更新。

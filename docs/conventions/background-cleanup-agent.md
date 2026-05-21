@@ -1,26 +1,26 @@
-# Background Cleanup Agent
+# 后台清理 Agent
 
-The background cleanup agent periodically creates small entropy cleanup pull requests.
+后台清理 agent 会定期创建小范围的熵债清理 PR。
 
-## Trigger
+## 触发
 
-- GitHub Actions workflow: `.github/workflows/entropy-cleanup-agent.yml`
-- Schedule: weekly
-- Manual trigger: `workflow_dispatch`
+- GitHub Actions workflow：`.github/workflows/entropy-cleanup-agent.yml`
+- 计划任务：每周一次
+- 手动触发：`workflow_dispatch`
 
-## Safety Rules
+## 安全规则
 
-- Clean up one selected entropy issue per run.
-- Do not refresh `docs/entropy/baseline.json`.
-- Do not auto-merge.
-- Create a normal PR with review labels.
-- Run repository validation before creating the PR.
-- Reject diffs above 500 changed lines.
+- 每次只清理一个选定的熵债问题。
+- 不刷新 `docs/entropy/baseline.json`。
+- 不自动合并。
+- 创建普通 PR，并附带 review label。
+- 创建 PR 前运行仓库验证。
+- 拒绝超过 500 行变更的 diff。
 
-## Allowed Scope
+## 允许范围
 
-The agent may only edit `app/`, `tests/`, `docs/`, `scripts/`, `AGENTS.md`, or `README.md`.
+该 agent 只能编辑 `app/`、`tests/`、`docs/`、`scripts/`、`AGENTS.md` 或 `README.md`。
 
-## Review
+## 审查
 
-Every generated PR includes a checklist for behavior preservation, scope, and validation.
+每个生成的 PR 都必须包含行为保持、范围控制和验证结果清单。

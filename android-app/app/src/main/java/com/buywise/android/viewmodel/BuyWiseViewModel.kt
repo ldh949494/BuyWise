@@ -6,13 +6,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.buywise.android.data.ChatStreamEvent
 import com.buywise.android.data.CompareState
 import com.buywise.android.data.GuideState
 import com.buywise.android.data.HomeState
 import com.buywise.android.data.Product
+import com.buywise.android.data.ProductDetailState
 import com.buywise.android.data.ShopRepository
 import com.buywise.android.data.VisionState
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.sse.EventSource
 
 class BuyWiseViewModel(
@@ -21,23 +26,102 @@ class BuyWiseViewModel(
     private val mainHandler = Handler(Looper.getMainLooper())
     private var guideStream: EventSource? = null
 
-    val homeState: HomeState = repository.homeState()
-    val compareState: CompareState = repository.compareState()
+    var homeState by mutableStateOf(repository.homeState())
+        private set
+
+    var compareState by mutableStateOf(repository.compareState())
+        private set
+
     val visionState: VisionState = repository.visionState()
 
     var guideState by mutableStateOf(repository.guideState(""))
         private set
+
+    var productDetailState by mutableStateOf(ProductDetailState())
+        private set
+
+    init {
+        loadHomeProducts()
+    }
+
+    fun loadHomeProducts() {
+        viewModelScope.launch {
+            homeState = homeState.copy(isLoading = true, errorMessage = null)
+            runCatching {
+                withContext(Dispatchers.IO) { repository.fetchProducts() }
+            }.onSuccess { products ->
+                homeState = homeState.copy(products = products, isLoading = false)
+                loadCompare(products.take(3).map { it.id })
+            }.onFailure { throwable ->
+                homeState = homeState.copy(
+                    products = emptyList(),
+                    isLoading = false,
+                    errorMessage = throwable.userMessage("商品列表加载失败"),
+                )
+                compareState = compareState.copy(
+                    products = emptyList(),
+                    rows = emptyList(),
+                    isLoading = false,
+                    errorMessage = "商品列表加载失败，暂时无法生成对比。",
+                )
+            }
+        }
+    }
+
+    fun loadCompare(productIds: List<String>) {
+        viewModelScope.launch {
+            if (productIds.size < 2) {
+                compareState = CompareState(
+                    products = emptyList(),
+                    rows = emptyList(),
+                    errorMessage = "至少需要 2 个商品才能对比。",
+                )
+                return@launch
+            }
+            compareState = compareState.copy(isLoading = true, errorMessage = null)
+            runCatching {
+                withContext(Dispatchers.IO) { repository.compareProducts(productIds) }
+            }.onSuccess { state ->
+                compareState = state.copy(isLoading = false)
+            }.onFailure { throwable ->
+                compareState = compareState.copy(
+                    isLoading = false,
+                    errorMessage = throwable.userMessage("商品对比加载失败"),
+                )
+            }
+        }
+    }
+
+    fun loadProductDetail(productId: String?) {
+        if (productId.isNullOrBlank()) {
+            productDetailState = ProductDetailState(errorMessage = "商品 ID 无效。")
+            return
+        }
+        productDetailState = ProductDetailState(product = cachedProduct(productId), isLoading = true)
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) { repository.fetchProductDetail(productId) }
+            }.onSuccess { product ->
+                productDetailState = ProductDetailState(product = product, isLoading = false)
+            }.onFailure { throwable ->
+                productDetailState = productDetailState.copy(
+                    isLoading = false,
+                    errorMessage = throwable.userMessage("商品详情加载失败"),
+                )
+            }
+        }
+    }
 
     fun updateGuideQuery(query: String) {
         guideState = guideState.copy(query = query)
     }
 
     fun submitGuideQuery() {
-        val query = guideState.query.ifBlank { "300 元以内，适合宿舍使用的低噪音机械键盘" }
+        val query = guideState.query.ifBlank { "300 元以内，适合宿舍写代码的低噪音机械键盘" }
         guideStream?.cancel()
         guideState = guideState.copy(
             query = query,
-            intentSummary = "Connecting to BuyWise...",
+            intentSummary = "正在连接 BuyWise 后端...",
             recommendations = emptyList(),
             partialReply = "",
             isStreaming = true,
@@ -53,13 +137,18 @@ class BuyWiseViewModel(
     }
 
     fun product(productId: String?): Product? =
-        guideState.recommendations.firstOrNull { it.product.id == productId }?.product
-            ?: repository.product(productId)
+        productDetailState.product?.takeIf { it.id == productId } ?: cachedProduct(productId)
 
     override fun onCleared() {
         guideStream?.cancel()
         super.onCleared()
     }
+
+    private fun cachedProduct(productId: String?): Product? =
+        homeState.products.firstOrNull { it.id == productId }
+            ?: guideState.recommendations.firstOrNull { it.product.id == productId }?.product
+            ?: compareState.products.firstOrNull { it.id == productId }
+            ?: visionState.result.similarProducts.firstOrNull { it.id == productId }
 
     private fun applyChatEvent(event: ChatStreamEvent) {
         guideState = when (event) {
@@ -80,4 +169,7 @@ class BuyWiseViewModel(
             )
         }
     }
+
+    private fun Throwable.userMessage(prefix: String): String =
+        message?.takeIf { it.isNotBlank() }?.let { "$prefix：$it" } ?: prefix
 }

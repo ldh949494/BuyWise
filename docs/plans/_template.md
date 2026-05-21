@@ -1,18 +1,18 @@
-# Plan: <Work Item>
+# 计划：<工作项>
 
-## Goal
+## 目标
 
-Describe the outcome and success criteria.
+描述结果和成功标准。
 
-## Tasks
+## 任务
 
-- [ ] Task 1
-- [ ] Task 2
+- [ ] 任务 1
+- [ ] 任务 2
 
-## Validation
+## 验证
 
-List tests, scripts, manual checks, and observability queries.
+列出测试、脚本、手动检查和可观测查询。
 
-## Completion Record
+## 完成记录
 
-Record what changed when the plan is completed, then move the file to `docs/plans/archive/`.
+计划完成后记录变更内容，并将文件移动到 `docs/plans/archive/`。

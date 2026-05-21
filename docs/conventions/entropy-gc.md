@@ -1,37 +1,37 @@
-# Entropy Garbage Collection
+# 熵债垃圾回收
 
-Entropy is accumulated drift: long functions, duplicated helpers, stale comments, ad-hoc error handling, and inconsistent naming.
+熵债是逐步累积的偏移，包括过长函数、重复 helper、过期注释、临时错误处理和命名不一致。
 
-## Validation
+## 验证
 
-Run deterministic entropy validation:
+运行确定性的熵债验证：
 
 ```powershell
 python .\scripts\validate_entropy.py
 ```
 
-Refresh the baseline only when existing debt is intentionally accepted:
+只有在有意接受现有债务时才刷新基线：
 
 ```powershell
 python .\scripts\validate_entropy.py --refresh-baseline
 ```
 
-## Garbage Collection Report
+## 垃圾回收报告
 
-Generate a read-only cleanup report:
+生成只读清理报告：
 
 ```powershell
 python .\scripts\entropy_gc.py
 ```
 
-Append AI guidance when GitHub Models is available:
+GitHub Models 可用时可追加 AI 建议：
 
 ```powershell
 python .\scripts\entropy_gc.py --with-ai
 ```
 
-Reports are written under `artifacts/entropy-gc/`, which is ignored by Git.
+报告写入 `artifacts/entropy-gc/`，该目录被 Git 忽略。
 
-## Operating Rule
+## 操作规则
 
-Do not automatically rewrite code from the GC report. Treat it as a queue of small, reviewable cleanup PRs.
+不要自动按 GC 报告重写代码。把报告视为一组小而可 review 的清理 PR 队列。

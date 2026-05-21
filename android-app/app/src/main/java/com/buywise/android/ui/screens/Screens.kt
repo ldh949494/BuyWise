@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -19,23 +18,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.CompareArrows
 import androidx.compose.material.icons.outlined.AutoAwesome
-import androidx.compose.material.icons.outlined.CameraAlt
-import androidx.compose.material.icons.outlined.ImageSearch
-import androidx.compose.material.icons.outlined.Inventory2
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,19 +35,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.buywise.android.data.CompareRow
-import com.buywise.android.data.CompareState
-import com.buywise.android.data.GuideState
 import com.buywise.android.data.HomeState
 import com.buywise.android.data.Product
-import com.buywise.android.data.VisionState
+import com.buywise.android.data.ProductDetailState
 import com.buywise.android.ui.BuyWiseTheme
 import com.buywise.android.ui.components.MetricPill
 import com.buywise.android.ui.components.ProductCard
 import com.buywise.android.ui.components.SectionTitle
 
 @Composable
-fun HomeScreen(state: HomeState, onProductClick: (String) -> Unit, onOpenGuide: () -> Unit) {
+fun HomeScreen(
+    state: HomeState,
+    onProductClick: (String) -> Unit,
+    onOpenGuide: () -> Unit,
+    onRetry: () -> Unit,
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(18.dp),
@@ -75,16 +68,33 @@ fun HomeScreen(state: HomeState, onProductClick: (String) -> Unit, onOpenGuide: 
                 MetricPill("后端地址", "10.0.2.2", modifier = Modifier.weight(1f))
             }
         }
+        if (state.isLoading) {
+            item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
+        }
+        state.errorMessage?.let { message ->
+            item {
+                ErrorPanel(message = message, actionLabel = "重试", onAction = onRetry)
+            }
+        }
         item {
-            SectionTitle("精选商品", "用价格、评分和场景标签快速筛选候选商品")
+            SectionTitle("精选商品", "来自 BuyWise 后端的商品列表")
+        }
+        if (!state.isLoading && state.products.isEmpty() && state.errorMessage == null) {
+            item { Text("暂无商品。", color = BuyWiseTheme.colors.muted) }
         }
         items(state.products) { product ->
             ProductCard(product = product, onClick = { onProductClick(product.id) })
         }
     }
 }
+
 @Composable
-fun ProductDetailScreen(product: Product?, onBack: () -> Unit) {
+fun ProductDetailScreen(
+    state: ProductDetailState,
+    fallbackProduct: Product?,
+    onBack: () -> Unit,
+) {
+    val product = state.product ?: fallbackProduct
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(18.dp),
@@ -100,6 +110,12 @@ fun ProductDetailScreen(product: Product?, onBack: () -> Unit) {
             ) {
                 Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
             }
+        }
+        if (state.isLoading) {
+            item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
+        }
+        state.errorMessage?.let { message ->
+            item { ErrorPanel(message = message) }
         }
         item {
             if (product == null) {
@@ -178,6 +194,25 @@ fun InfoPanel(icon: @Composable () -> Unit, title: String, body: String) {
         }
     }
 }
+
+@Composable
+fun ErrorPanel(message: String, actionLabel: String? = null, onAction: (() -> Unit)? = null) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.dangerSoft),
+        shape = RoundedCornerShape(8.dp),
+        border = CardDefaults.outlinedCardBorder(),
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(message, color = BuyWiseTheme.colors.danger, style = MaterialTheme.typography.bodyMedium)
+            if (actionLabel != null && onAction != null) {
+                Button(onClick = onAction) {
+                    Text(actionLabel)
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun ProductHeader(product: Product) {
     Card(
@@ -186,13 +221,16 @@ private fun ProductHeader(product: Product) {
         border = CardDefaults.outlinedCardBorder(),
     ) {
         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text(product.brand, color = BuyWiseTheme.colors.secondary, fontWeight = FontWeight.Bold)
+            Text(product.brand ?: "BuyWise", color = BuyWiseTheme.colors.secondary, fontWeight = FontWeight.Bold)
             Text(product.name, style = MaterialTheme.typography.headlineMedium, color = BuyWiseTheme.colors.ink)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                MetricPill("价格", "¥${product.price}", modifier = Modifier.weight(1f))
-                MetricPill("评分", "${product.score}", modifier = Modifier.weight(1f))
+                MetricPill("价格", product.price.displayPrice(), modifier = Modifier.weight(1f))
+                MetricPill("评分", product.rating.displayRating(), modifier = Modifier.weight(1f))
             }
             Text(product.headline, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
+            product.reviewSummary?.let {
+                Text(it, color = BuyWiseTheme.colors.ink, style = MaterialTheme.typography.bodyMedium)
+            }
         }
     }
 }
@@ -206,20 +244,30 @@ private fun DetailBlock(title: String, items: List<String>, tone: androidx.compo
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items.forEach { item ->
-                    Text(
-                        item,
-                        modifier = Modifier
-                            .background(tone, RoundedCornerShape(6.dp))
-                            .padding(horizontal = 10.dp, vertical = 7.dp),
-                        color = BuyWiseTheme.colors.ink,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+            if (items.isEmpty()) {
+                Text("暂无", color = BuyWiseTheme.colors.muted)
+            } else {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items.forEach { item ->
+                        Text(
+                            item,
+                            modifier = Modifier
+                                .background(tone, RoundedCornerShape(6.dp))
+                                .padding(horizontal = 10.dp, vertical = 7.dp),
+                            color = BuyWiseTheme.colors.ink,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
         }
     }
 }
 
+private fun Double?.displayPrice(): String = this?.let { "¥${formatNumber(it)}" } ?: "暂无价格"
+
+private fun Double?.displayRating(): String = this?.let { formatNumber(it) } ?: "暂无"
+
+private fun formatNumber(value: Double): String =
+    if (value % 1.0 == 0.0) value.toInt().toString() else "%.1f".format(value)

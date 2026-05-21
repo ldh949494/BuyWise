@@ -1,23 +1,23 @@
-# Design: Providers Mode
+# 设计：Provider 模式
 
 Status: Implemented
 
-## Background
+## 背景
 
-Agents can accidentally create multiple implementations for authentication, telemetry, logging, or error handling when these concerns are imported directly across feature modules.
+当认证、遥测、日志或错误处理在功能模块中被直接导入时，agent 容易意外创建多套实现。
 
-## Proposal
+## 方案
 
-Expose cross-cutting concerns through `app.core.providers`. Application code obtains providers by name, such as `get_provider("auth")`, instead of importing implementation modules directly.
+通过 `app.core.providers` 暴露横切能力。应用代码按名称获取 provider，例如 `get_provider("auth")`，而不是直接导入具体实现模块。
 
-## Impact
+## 影响
 
-The backend app factory uses logging, telemetry, and error providers. Provider validation is part of local validation through `scripts/auto_validate.ps1`.
+后端应用工厂使用 logging、telemetry 和 error provider。本地验证通过 `scripts/auto_validate.ps1` 执行 provider 校验。
 
-## Validation
+## 验证
 
-Run `python scripts/validate_providers.py`, `python scripts/validate_docs.py`, and the Python test suite.
+运行 `python scripts/validate_providers.py`、`python scripts/validate_docs.py` 和 Python 测试套件。
 
-## Last Checked
+## 最近检查
 
 2026-05-15

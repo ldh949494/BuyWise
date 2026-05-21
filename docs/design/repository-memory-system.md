@@ -1,23 +1,23 @@
-# Design: Repository Memory System
+# 设计：仓库记忆系统
 
 Status: Implemented
 
-## Background
+## 背景
 
-Agents need stable project context without loading a large instruction file. A compact map plus structured docs gives agents enough direction while keeping context usage low.
+Agent 需要稳定的项目上下文，但不应每次加载一个很大的说明文件。一个紧凑入口地图加结构化文档，可以在控制上下文消耗的同时提供足够方向。
 
-## Proposal
+## 方案
 
-Use `AGENTS.md` as the stable entry map. Store detailed architecture, conventions, plans, product specs, and references under `docs/`. Add validation so broken links, missing required docs, oversized map files, and invalid design statuses are caught by automation.
+使用 `AGENTS.md` 作为稳定入口地图。将详细架构、约定、计划、产品规格和参考资料放在 `docs/` 下。增加校验，自动发现断链、缺失必需文档、入口地图过大和设计文档状态非法等问题。
 
-## Impact
+## 影响
 
-Affected areas are repository documentation, validation automation, and GitHub Actions. Application runtime behavior is unchanged.
+影响范围包括仓库文档、验证自动化和 GitHub Actions。应用运行时行为不变。
 
-## Validation
+## 验证
 
-Run `python scripts/validate_docs.py` and the existing repository validation script. Run `python scripts/doc_gardening.py` manually when major structure or behavior changes.
+运行 `python scripts/validate_docs.py` 和现有仓库验证脚本。项目结构或主要行为变化时，手动运行 `python scripts/doc_gardening.py`。
 
-## Last Checked
+## 最近检查
 
 2026-05-15

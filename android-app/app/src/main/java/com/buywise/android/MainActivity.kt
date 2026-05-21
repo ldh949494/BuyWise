@@ -21,6 +21,7 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -114,6 +115,7 @@ private fun BuyWiseRoot(
                         state = viewModel.homeState,
                         onProductClick = { navController.navigate("detail/$it") },
                         onOpenGuide = { navController.navigate("guide") },
+                        onRetry = viewModel::loadHomeProducts,
                     )
                 }
                 composable("guide") {
@@ -137,8 +139,13 @@ private fun BuyWiseRoot(
                     )
                 }
                 composable("detail/{productId}") { backStackEntry ->
+                    val productId = backStackEntry.arguments?.getString("productId")
+                    LaunchedEffect(productId) {
+                        viewModel.loadProductDetail(productId)
+                    }
                     ProductDetailScreen(
-                        product = viewModel.product(backStackEntry.arguments?.getString("productId")),
+                        state = viewModel.productDetailState,
+                        fallbackProduct = viewModel.product(productId),
                         onBack = navController::popBackStack,
                     )
                 }

@@ -22,6 +22,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -44,9 +45,27 @@ fun CompareScreen(state: CompareState, onProductClick: (String) -> Unit) {
         contentPadding = PaddingValues(18.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item { SectionTitle("商品对比", "把候选商品的价格、评分和卖点放到同一张决策表里") }
+        item { SectionTitle("商品对比", "自动对比首页前 2-3 个后端商品。") }
+        if (state.isLoading) {
+            item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
+        }
+        state.errorMessage?.let { message ->
+            item { ErrorPanel(message = message) }
+        }
+        state.summary?.let { summary ->
+            item {
+                InfoPanel(
+                    icon = { Icon(Icons.AutoMirrored.Outlined.CompareArrows, contentDescription = null) },
+                    title = "对比结论",
+                    body = summary,
+                )
+            }
+        }
         item { CompareTable(rows = state.rows) }
-        item { SectionTitle("候选商品", "点击商品查看完整优缺点") }
+        item { SectionTitle("候选商品", "点击商品查看后端详情。") }
+        if (!state.isLoading && state.products.isEmpty()) {
+            item { Text("暂无可对比商品。", color = BuyWiseTheme.colors.muted) }
+        }
         items(state.products) { product ->
             ProductCard(product = product, onClick = { onProductClick(product.id) })
         }
@@ -60,16 +79,16 @@ fun VisionScreen(state: VisionState, onProductClick: (String) -> Unit) {
         contentPadding = PaddingValues(18.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item { SectionTitle("图像识别", "保留原生上传入口，并展示 mock 识别结果") }
+        item { SectionTitle("图像识别", "本页保留本地演示，未纳入本轮前后端联调。") }
         item { UploadPanel() }
         item {
             InfoPanel(
                 icon = { Icon(Icons.Outlined.Inventory2, contentDescription = null) },
                 title = state.result.title,
-                body = "置信度 ${state.result.confidence}% - ${state.result.labels.joinToString(" / ")}",
+                body = "${state.result.labels.joinToString(" / ")}",
             )
         }
-        item { SectionTitle("相似商品", "根据识别标签推荐可继续比较的商品") }
+        item { SectionTitle("本地演示商品", "这些内容不代表后端识别结果。") }
         items(state.result.similarProducts) { product ->
             ProductCard(product = product, onClick = { onProductClick(product.id) })
         }
@@ -91,17 +110,21 @@ private fun CompareTable(rows: List<CompareRow>) {
                 Icon(Icons.AutoMirrored.Outlined.CompareArrows, contentDescription = null, tint = BuyWiseTheme.colors.primary)
                 Text("对比维度", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
             }
-            rows.forEachIndexed { index, row ->
-                if (index > 0) {
-                    HorizontalDivider(color = BuyWiseTheme.colors.border)
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(row.title, fontWeight = FontWeight.Bold, color = BuyWiseTheme.colors.ink)
-                    Text(
-                        row.values.joinToString("  |  "),
-                        color = BuyWiseTheme.colors.muted,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+            if (rows.isEmpty()) {
+                Text("等待后端对比结果。", color = BuyWiseTheme.colors.muted)
+            } else {
+                rows.forEachIndexed { index, row ->
+                    if (index > 0) {
+                        HorizontalDivider(color = BuyWiseTheme.colors.border)
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(row.title, fontWeight = FontWeight.Bold, color = BuyWiseTheme.colors.ink)
+                        Text(
+                            row.values.joinToString("  |  "),
+                            color = BuyWiseTheme.colors.muted,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
                 }
             }
         }
@@ -123,14 +146,14 @@ private fun UploadPanel() {
             }
             Text("上传商品图片", style = MaterialTheme.typography.titleLarge, color = BuyWiseTheme.colors.ink)
             Text(
-                "后续会接入真实多模态识别服务，当前展示固定识别结果。",
+                "视觉上传、识别和语音链路暂不属于本轮联调范围。",
                 color = BuyWiseTheme.colors.muted,
                 style = MaterialTheme.typography.bodyMedium,
             )
             FilledTonalButton(onClick = {}) {
                 Icon(Icons.Outlined.ImageSearch, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("查看 mock 识别结果")
+                Text("查看本地演示")
             }
         }
     }

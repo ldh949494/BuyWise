@@ -1,13 +1,13 @@
-# File Size
+# 文件大小
 
-Source files should stay below 300 lines.
+源码文件应保持在 300 行以内。
 
-## Fix Pattern
+## 修复模式
 
-- Move route orchestration into a service.
-- Move persistence code into a repository.
-- Move pure helpers into `app/utils/`.
-- Split large Android screens into reusable components under `ui/components/`.
-- Keep tests focused; extract repeated fixtures or builders.
+- 将 route 编排移动到 service。
+- 将持久化代码移动到 repository。
+- 将纯 helper 移动到 `app/utils/`。
+- 将大型 Android 页面拆分为 `ui/components/` 或更小的 screen 文件。
+- 测试保持聚焦；重复 fixture 或 builder 应抽取复用。
 
-The custom repository linter reports oversized files with a direct fix instruction.
+自定义仓库 linter 会报告超大文件，并给出直接修复建议。

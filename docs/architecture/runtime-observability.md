@@ -1,25 +1,48 @@
-# Runtime And Observability
+# 运行时与可观测性
 
-BuyWise supports local Docker runtime, isolated PR environments, browser validation, and an optional observability stack.
+BuyWise 后端可以直接用 Uvicorn 运行，也可以通过 Docker Compose 启动后端、MySQL 和可观测组件。
 
-## Docker Runtime
+## 本地运行
 
-- Base compose file: `docker-compose.yml`
-- Optional observability overlay: `docker-compose.observability.yml`
-- Backend service listens on container port `8000`.
-- MySQL service listens on container port `3306`.
-- Host ports are controlled by `BACKEND_PORT` and `MYSQL_PORT`.
+常用后端启动命令：
 
-## Isolated PR Environments
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
+```
 
-Use `scripts/start_pr_env.ps1` and `scripts/stop_pr_env.ps1` to run separate worktrees and compose projects. Each project name gets independent containers, networks, and named volumes.
+Docker 入口：
 
-## Browser Validation
+```powershell
+docker compose up --build
+```
 
-Use `scripts/browser_check.py` to validate `/api/v1/health`, open `/docs`, capture screenshots, and save a DOM snapshot through Playwright/CDP.
+## PR 环境
 
-## Observability
+`scripts/start_pr_env.ps1` 会创建或复用隔离 worktree，并使用独立 Compose project name 启动后端和 MySQL。`scripts/stop_pr_env.ps1` 用于停止环境，可选择删除 volume 和 worktree。
 
-The observability overlay adds Prometheus, Loki, Promtail, and Grafana. Promtail reads Docker logs and labels them with compose project and service metadata.
+## 可观测组件
 
-Backend requests use `X-Request-ID` for correlation. The API echoes an incoming non-empty value or generates one, includes it in structured JSON logs, and adds it to error responses under `extra.request_id`. `LOG_LEVEL` controls backend verbosity.
+`docker-compose.observability.yml` 提供 Prometheus、Loki、Promtail 和 Grafana。带可观测能力启动 PR 环境：
+
+```powershell
+.\scripts\start_pr_env.ps1 -Name pr-123 -BackendPort 8123 -MysqlPort 3323 -Observability
+```
+
+默认端口：
+
+- 后端：`http://127.0.0.1:8123`
+- Prometheus：`http://127.0.0.1:9090`
+- Loki：`http://127.0.0.1:3100`
+- Grafana：`http://127.0.0.1:3000`
+
+## 日志和错误
+
+后端通过 provider 配置结构化日志和全局错误处理。请求中的 `X-Request-ID` 会进入响应和日志，方便前后端联合排查。
+
+## 验证
+
+提交前运行：
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1 -SkipDependencyInstall -SkipAndroidBuild
+```

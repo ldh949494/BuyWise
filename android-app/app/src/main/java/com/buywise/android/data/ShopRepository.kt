@@ -1,5 +1,7 @@
 package com.buywise.android.data
 
+import com.buywise.android.BuildConfig
+import java.io.IOException
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -19,110 +21,94 @@ sealed interface ChatStreamEvent {
     data class Error(val message: String) : ChatStreamEvent
 }
 
-class ShopRepository {
+class ShopRepository(
+    private val baseUrl: String = BuildConfig.BUYWISE_API_BASE_URL.trimEnd('/'),
+) {
     private val httpClient = OkHttpClient()
     private val eventSourceFactory = EventSources.createFactory(httpClient)
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
-    private val baseUrl = "http://10.0.2.2:8000"
 
-    private val products = listOf(
+    private val demoProducts = listOf(
         Product(
-            id = "mouse-lite",
-            name = "AeroMouse S",
-            brand = "Pulse",
-            category = "游戏鼠标",
-            price = 299,
-            score = 95,
-            headline = "49g 轻量机身，适合 FPS 玩家和宿舍桌面使用。",
-            tags = listOf("49g", "8K 回报率", "无线"),
-            advantages = listOf("握持轻巧", "延迟低", "预算友好"),
-            cautions = listOf("大手用户建议先试握"),
-        ),
-        Product(
-            id = "keyboard-75",
-            name = "RainKey 75",
-            brand = "WOBKEY",
+            id = "vision-keyboard",
+            name = "本地演示机械键盘",
+            brand = "BuyWise Demo",
             category = "机械键盘",
-            price = 699,
-            score = 92,
-            headline = "75% 配列搭配 Gasket 结构，兼顾桌面空间和输入手感。",
-            tags = listOf("75%", "Gasket", "多模连接"),
-            advantages = listOf("敲击声音克制", "手感稳定", "适合办公和写代码"),
-            cautions = listOf("预算紧张时可考虑低配版本"),
-        ),
-        Product(
-            id = "headset-wireless",
-            name = "Cloud Air III",
-            brand = "HyperSound",
-            category = "蓝牙耳机",
-            price = 799,
-            score = 89,
-            headline = "主动降噪和轻量佩戴，适合通勤、学习和长时间会议。",
-            tags = listOf("主动降噪", "无线", "长续航"),
-            advantages = listOf("降噪表现稳定", "佩戴压力小", "通话清晰"),
-            cautions = listOf("高音量下续航会缩短"),
-        ),
-        Product(
-            id = "monitor-240",
-            name = "Focus 27Q240",
-            brand = "ViewCore",
-            category = "显示器",
-            price = 2499,
-            score = 88,
-            headline = "2K 240Hz Fast IPS 面板，面向电竞和创作混合场景。",
-            tags = listOf("2K", "240Hz", "Fast IPS"),
-            advantages = listOf("刷新率高", "画面响应快", "接口齐全"),
-            cautions = listOf("需要预留较高桌面预算"),
+            price = 299.0,
+            rating = 4.7,
+            recommendationScore = null,
+            headline = "视觉页当前保留本地演示数据，未纳入本轮前后端联调。",
+            tags = listOf("本地演示", "机械键盘", "低噪音"),
+            advantages = listOf("用于展示识图页面布局"),
+            cautions = listOf("不代表后端识别结果"),
         ),
     )
 
     fun homeState(): HomeState = HomeState(
         heroTitle = "更快找到适合你的商品",
-        heroSubtitle = "用预算、场景和偏好生成导购建议，先通过 mock 数据跑通移动端体验。",
-        products = products,
+        heroSubtitle = "连接 BuyWise 后端，按预算、场景和偏好生成导购建议。",
+        products = emptyList(),
     )
 
-    fun guideState(query: String): GuideState {
-        val normalized = query.ifBlank { "300 元以内，适合 FPS 的轻量无线鼠标" }
-        return GuideState(
-            query = query,
-            intentSummary = "围绕“$normalized”生成的 mock 需求画像：预算、使用场景和偏好已提取。",
-            recommendations = products.take(3).mapIndexed { index, product ->
-                Recommendation(
-                    product = product,
-                    reason = when (index) {
-                        0 -> "最贴近预算和核心场景，优先推荐作为首选。"
-                        1 -> "功能更均衡，适合作为预算上浮后的备选。"
-                        else -> "适合相近使用场景，可作为横向比较参考。"
-                    },
-                )
-            },
-        )
-    }
+    fun guideState(query: String): GuideState = GuideState(
+        query = query,
+        intentSummary = "输入预算、使用场景和偏好后，BuyWise 会从后端生成推荐。",
+        recommendations = emptyList(),
+    )
 
-    fun compareState(): CompareState {
-        val compared = products.take(3)
-        return CompareState(
-            products = compared,
-            rows = listOf(
-                CompareRow("价格", compared.map { "¥${it.price}" }),
-                CompareRow("评分", compared.map { "${it.score}" }),
-                CompareRow("品类", compared.map { it.category }),
-                CompareRow("卖点", compared.map { it.tags.take(2).joinToString(" / ") }),
-            ),
-        )
-    }
+    fun compareState(): CompareState = CompareState(products = emptyList(), rows = emptyList())
 
     fun visionState(): VisionState = VisionState(
         result = VisionResult(
-            title = "识别结果：疑似紧凑机械键盘",
-            confidence = 92,
-            labels = listOf("机械键盘", "无线", "紧凑布局"),
-            similarProducts = products.drop(1),
+            title = "本地演示：视觉识别未纳入本轮联调",
+            confidence = 0,
+            labels = listOf("本地演示"),
+            similarProducts = demoProducts,
         ),
     )
 
-    fun product(productId: String?): Product? = products.firstOrNull { it.id == productId }
+    @Throws(IOException::class)
+    fun fetchProducts(page: Int = 1, pageSize: Int = 20): List<Product> {
+        val json = getJson("$baseUrl/api/v1/products?page=$page&page_size=$pageSize")
+        val items = json.optJSONArray("items") ?: JSONArray()
+        return (0 until items.length()).mapNotNull { index ->
+            items.optJSONObject(index)?.let(::parseProductRead)
+        }
+    }
+
+    @Throws(IOException::class)
+    fun fetchProductDetail(productId: String): Product {
+        return parseProductRead(getJson("$baseUrl/api/v1/products/$productId"))
+    }
+
+    @Throws(IOException::class)
+    fun compareProducts(productIds: List<String>, userNeed: String? = null): CompareState {
+        if (productIds.size < 2) {
+            return CompareState(
+                products = emptyList(),
+                rows = emptyList(),
+                errorMessage = "至少需要 2 个商品才能对比。",
+            )
+        }
+        val ids = JSONArray()
+        productIds.mapNotNull { it.toIntOrNull() }.forEach(ids::put)
+        val payload = JSONObject()
+            .put("product_ids", ids)
+            .put("user_need", userNeed ?: "对比这些商品的价格、评分、优点和注意事项")
+            .toString()
+            .toRequestBody(jsonMediaType)
+        val json = postJson("$baseUrl/api/v1/products/compare", payload)
+        val items = json.optJSONArray("items") ?: JSONArray()
+        val products = (0 until items.length()).mapNotNull { index ->
+            items.optJSONObject(index)?.let(::parseCompareItem)
+        }
+        return CompareState(
+            products = products,
+            rows = buildCompareRows(products),
+            summary = json.optStringOrNull("summary"),
+            winnerId = json.optIntOrNull("winner_id")?.toString(),
+        )
+    }
 
     fun streamGuide(
         query: String,
@@ -146,53 +132,136 @@ class ShopRepository {
                 }
 
                 override fun onFailure(eventSource: EventSource, t: Throwable?, response: okhttp3.Response?) {
-                    onEvent(ChatStreamEvent.Error(t?.message ?: "Backend stream failed"))
+                    onEvent(ChatStreamEvent.Error(t?.message ?: "后端导购流连接失败"))
                 }
             },
         )
+    }
+
+    private fun getJson(url: String): JSONObject {
+        val request = Request.Builder().url(url).get().build()
+        return executeJson(request)
+    }
+
+    private fun postJson(url: String, body: okhttp3.RequestBody): JSONObject {
+        val request = Request.Builder().url(url).post(body).build()
+        return executeJson(request)
+    }
+
+    private fun executeJson(request: Request): JSONObject {
+        httpClient.newCall(request).execute().use { response ->
+            val body = response.body?.string().orEmpty()
+            if (!response.isSuccessful) {
+                throw IOException("HTTP ${response.code}: ${body.ifBlank { response.message }}")
+            }
+            return JSONObject(body)
+        }
     }
 
     private fun parseStreamEvent(type: String?, data: String): ChatStreamEvent {
         val json = JSONObject(data)
         return when (type) {
             "meta" -> ChatStreamEvent.Meta(json.optString("session_id"))
-            "status" -> ChatStreamEvent.Status(json.optString("stage", json.optString("message")))
+            "status" -> ChatStreamEvent.Status(json.optString("message", json.optString("stage")))
             "token" -> ChatStreamEvent.Token(json.optString("text"))
             "products" -> parseProductsEvent(json)
             "done" -> ChatStreamEvent.Done(json.optString("reply"))
-            "error" -> ChatStreamEvent.Error(json.optString("message", "Backend stream failed"))
+            "error" -> ChatStreamEvent.Error(json.optString("message", "后端导购流失败"))
             else -> ChatStreamEvent.Status(type ?: "message")
         }
     }
 
     private fun parseProductsEvent(json: JSONObject): ChatStreamEvent.Products {
         val structuredNeed = json.optJSONObject("structured_need")
-        val category = structuredNeed?.optString("category").orEmpty()
         val intent = structuredNeed?.optString("intent").orEmpty()
-        val products = json.optJSONArray("items") ?: JSONArray()
-        val recommendations = (0 until products.length()).mapNotNull { index ->
-            val item = products.optJSONObject(index) ?: return@mapNotNull null
-            val tags = item.optJSONArray("tags").toStringList()
-            val reason = item.optString("reason").ifBlank { item.optString("name") }
+        val category = structuredNeed?.optString("category").orEmpty()
+        val items = json.optJSONArray("items") ?: JSONArray()
+        val recommendations = (0 until items.length()).mapNotNull { index ->
+            val item = items.optJSONObject(index) ?: return@mapNotNull null
+            val reason = item.optStringOrNull("reason")
+                ?: item.optStringOrNull("description")
+                ?: item.optString("name")
             Recommendation(
-                product = Product(
-                    id = item.optInt("id").toString(),
-                    name = item.optString("name"),
-                    brand = "BuyWise",
-                    category = category.ifBlank { "AI" },
-                    price = item.optDouble("price", 0.0).toInt(),
-                    score = item.optDouble("score", 0.0).toInt(),
-                    headline = reason,
-                    tags = tags,
-                    advantages = listOfNotBlank(reason),
-                    cautions = item.optJSONArray("conflicts").toStringList(),
-                ),
+                product = parseProductCard(item, category, reason),
                 reason = reason,
             )
         }
         return ChatStreamEvent.Products(
-            intentSummary = intent.ifBlank { "AI guide" },
+            intentSummary = intent.ifBlank { "后端已返回推荐商品" },
             recommendations = recommendations,
+        )
+    }
+
+    private fun parseProductRead(json: JSONObject): Product {
+        val description = json.optStringOrNull("description")
+        val reviewSummary = json.optStringOrNull("review_summary")
+        val scenes = json.optJSONArray("suitable_scene").toStringList()
+        return Product(
+            id = json.optInt("id").toString(),
+            name = json.optString("name", "未命名商品"),
+            brand = json.optStringOrNull("brand") ?: json.optStringOrNull("platform"),
+            category = json.optStringOrNull("category"),
+            price = json.optDoubleOrNull("price"),
+            rating = json.optDoubleOrNull("rating"),
+            recommendationScore = null,
+            headline = description ?: reviewSummary ?: "暂无商品简介",
+            tags = json.optJSONArray("tags").toStringList().ifEmpty { scenes },
+            advantages = listOfNotBlank(reviewSummary) + scenes.map { "适合$it" },
+            cautions = listOfNotBlank(json.optStringOrNull("stock_status")?.let { "库存状态：$it" }),
+            imageUrl = json.optStringOrNull("image_url"),
+            productUrl = json.optStringOrNull("product_url"),
+            stockStatus = json.optStringOrNull("stock_status"),
+            reviewSummary = reviewSummary,
+        )
+    }
+
+    private fun parseProductCard(json: JSONObject, category: String, reason: String): Product {
+        val conflicts = json.optJSONArray("conflicts").toStringList()
+        return Product(
+            id = json.optInt("id").toString(),
+            name = json.optString("name", "未命名商品"),
+            brand = "BuyWise",
+            category = category.ifBlank { "推荐商品" },
+            price = json.optDoubleOrNull("price"),
+            rating = json.optDoubleOrNull("rating"),
+            recommendationScore = json.optDoubleOrNull("score"),
+            headline = reason,
+            tags = json.optJSONArray("tags").toStringList(),
+            advantages = listOfNotBlank(reason),
+            cautions = conflicts,
+            imageUrl = json.optStringOrNull("image_url"),
+        )
+    }
+
+    private fun parseCompareItem(json: JSONObject): Product {
+        val pros = json.optJSONArray("pros").toStringList()
+        val cons = json.optJSONArray("cons").toStringList()
+        return Product(
+            id = (json.optIntOrNull("product_id") ?: json.optInt("id")).toString(),
+            name = json.optString("name", "未命名商品"),
+            brand = "BuyWise",
+            category = "对比商品",
+            price = json.optDoubleOrNull("price"),
+            rating = json.optDoubleOrNull("rating"),
+            recommendationScore = json.optDoubleOrNull("score"),
+            headline = pros.firstOrNull() ?: "后端已返回对比结果",
+            tags = pros.ifEmpty { listOf("对比结果") },
+            advantages = pros,
+            cautions = cons,
+            imageUrl = json.optStringOrNull("image_url"),
+        )
+    }
+
+    private fun buildCompareRows(products: List<Product>): List<CompareRow> {
+        if (products.isEmpty()) {
+            return emptyList()
+        }
+        return listOf(
+            CompareRow("价格", products.map { it.price.displayPrice() }),
+            CompareRow("评分", products.map { it.rating.displayRating() }),
+            CompareRow("推荐分", products.map { it.recommendationScore.displayScore() }),
+            CompareRow("优点", products.map { it.advantages.take(2).joinToString(" / ").ifBlank { "暂无" } }),
+            CompareRow("注意事项", products.map { it.cautions.take(2).joinToString(" / ").ifBlank { "暂无" } }),
         )
     }
 
@@ -203,6 +272,24 @@ class ShopRepository {
         return (0 until length()).mapNotNull { index -> optString(index).takeIf { it.isNotBlank() } }
     }
 
-    private fun listOfNotBlank(value: String): List<String> =
-        if (value.isBlank()) emptyList() else listOf(value)
+    private fun listOfNotBlank(value: String?): List<String> =
+        if (value.isNullOrBlank()) emptyList() else listOf(value)
+
+    private fun JSONObject.optStringOrNull(name: String): String? =
+        if (has(name) && !isNull(name)) optString(name).takeIf { it.isNotBlank() } else null
+
+    private fun JSONObject.optDoubleOrNull(name: String): Double? =
+        if (has(name) && !isNull(name)) optDouble(name) else null
+
+    private fun JSONObject.optIntOrNull(name: String): Int? =
+        if (has(name) && !isNull(name)) optInt(name) else null
+
+    private fun Double?.displayPrice(): String = this?.let { "¥${formatNumber(it)}" } ?: "暂无"
+
+    private fun Double?.displayRating(): String = this?.let { formatNumber(it) } ?: "暂无"
+
+    private fun Double?.displayScore(): String = this?.let { formatNumber(it) } ?: "暂无"
+
+    private fun formatNumber(value: Double): String =
+        if (value % 1.0 == 0.0) value.toInt().toString() else "%.1f".format(value)
 }
