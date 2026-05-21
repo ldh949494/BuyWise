@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -93,6 +94,11 @@ class ChatService:
                 products=[],
                 extra={"session_id": session_id},
             )
+
+    def generate_chat_stream(self, request: ChatRequest, db: Session) -> AsyncIterator[dict[str, Any]]:
+        from app.services.chat_stream_service import ChatStreamRunner
+
+        return ChatStreamRunner(self).generate_events(request, db)
 
     async def _build_user_text(self, request: ChatRequest) -> str:
         text = request.message or ""

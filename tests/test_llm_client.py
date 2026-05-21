@@ -34,6 +34,21 @@ async def test_chat_returns_last_user_message_mock_reply() -> None:
 
 
 @pytest.mark.anyio
+async def test_mock_chat_stream_returns_chunks() -> None:
+    client = LLMClient(provider_name="mock")
+
+    chunks = [
+        chunk
+        async for chunk in client.stream_chat(
+            [{"role": "user", "content": "推荐一个键盘"}]
+        )
+    ]
+
+    assert chunks
+    assert "".join(chunks) == "Mock shopping guidance for: 推荐一个键盘"
+
+
+@pytest.mark.anyio
 async def test_generate_recommendation_uses_only_given_products() -> None:
     client = LLMClient(provider_name="mock")
     need = StructuredNeed(

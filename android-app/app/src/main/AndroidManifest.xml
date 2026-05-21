@@ -5,6 +5,7 @@
     <application
         android:allowBackup="true"
         android:label="BuyWise"
+        android:usesCleartextTraffic="true"
         android:supportsRtl="true"
         android:theme="@style/Theme.BuyWise">
         <activity

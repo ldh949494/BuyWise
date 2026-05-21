@@ -40,6 +40,10 @@ data class GuideState(
     val query: String,
     val intentSummary: String,
     val recommendations: List<Recommendation>,
+    val partialReply: String = "",
+    val isStreaming: Boolean = false,
+    val errorMessage: String? = null,
+    val sessionId: String? = null,
 )
 
 data class CompareState(

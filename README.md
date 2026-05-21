@@ -208,6 +208,7 @@ tests/            后端测试
 - `POST /api/v1/products`
 - `POST /api/v1/products/compare`
 - `POST /api/v1/ai/chat`
+- `POST /api/v1/ai/chat/stream`
 - `POST /api/v1/rag/search`
 - `POST /api/v1/upload`
 - `POST /api/v1/vision/recognize`
