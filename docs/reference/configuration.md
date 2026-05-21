@@ -1,8 +1,8 @@
-# Configuration Reference
+# 配置参考
 
-Environment examples live in `.env.dev.example`, `.env.test.example`, and `.env.prod.example`.
+环境变量示例文件位于 `.env.dev.example`、`.env.test.example` 和 `.env.prod.example`。
 
-## Application
+## 应用
 
 - `APP_NAME`
 - `APP_ENV`
@@ -11,7 +11,7 @@ Environment examples live in `.env.dev.example`, `.env.test.example`, and `.env.
 - `API_V1_PREFIX`
 - `LOG_LEVEL`
 
-## Database
+## 数据库
 
 - `MYSQL_HOST`
 - `MYSQL_PORT`
@@ -20,9 +20,9 @@ Environment examples live in `.env.dev.example`, `.env.test.example`, and `.env.
 - `MYSQL_DATABASE`
 - `SQLALCHEMY_ECHO`
 
-Alembic uses these same settings through `app.core.config.Settings.database_url`.
+Alembic 通过 `app.core.config.Settings.database_url` 使用同一组数据库配置。
 
-## AI And Storage
+## AI 与存储
 
 - `CHROMA_PERSIST_DIR`
 - `CHROMA_PRODUCT_COLLECTION`
@@ -54,26 +54,29 @@ Alembic uses these same settings through `app.core.config.Settings.database_url`
 - `CORS_ALLOW_CREDENTIALS`
 - `CORS_ALLOWED_METHODS`
 - `CORS_ALLOWED_HEADERS`
+- `ANDROID_API_BASE_URL`
 
-`LLM_PROVIDER` accepts `mock`, `openai`, or `openai-compatible`. Non-mock providers use `LLM_BASE_URL`, `LLM_API_KEY`, and `LLM_MODEL` through the OpenAI-compatible client.
+`LLM_PROVIDER` 支持 `mock`、`openai` 或 `openai-compatible`。非 mock provider 通过 OpenAI-compatible client 使用 `LLM_BASE_URL`、`LLM_API_KEY` 和 `LLM_MODEL`。
 
-`VISION_PROVIDER` accepts `mock`, `llm`, or `dashscope`. The non-mock vision providers use an OpenAI-compatible multimodal chat API. Set `VISION_BASE_URL`, `VISION_API_KEY`, and `VISION_MODEL` when the image model is different from the chat model; empty vision settings fall back to `LLM_BASE_URL`, `LLM_API_KEY`, and `LLM_MODEL`.
+`VISION_PROVIDER` 支持 `mock`、`llm` 或 `dashscope`。非 mock 视觉 provider 使用 OpenAI-compatible 多模态聊天 API。如果视觉模型不同于聊天模型，设置 `VISION_BASE_URL`、`VISION_API_KEY` 和 `VISION_MODEL`；为空时回退到 `LLM_BASE_URL`、`LLM_API_KEY` 和 `LLM_MODEL`。
 
-`SPEECH_PROVIDER` accepts `mock` or `tencent`. Tencent ASR uses `TENCENT_SECRET_ID`, `TENCENT_SECRET_KEY`, `TENCENT_ASR_REGION`, and `TENCENT_ASR_ENGINE_MODEL_TYPE`. `TENCENT_ASR_VOICE_FORMAT` can override the audio format sent to Tencent; if it is empty, the backend infers the format from the audio URL extension and falls back to `wav`.
+`SPEECH_PROVIDER` 支持 `mock` 或 `tencent`。腾讯 ASR 使用 `TENCENT_SECRET_ID`、`TENCENT_SECRET_KEY`、`TENCENT_ASR_REGION` 和 `TENCENT_ASR_ENGINE_MODEL_TYPE`。`TENCENT_ASR_VOICE_FORMAT` 可覆盖发送给腾讯的音频格式；为空时后端从音频 URL 扩展名推断，并默认回退到 `wav`。
 
-`UPLOAD_PROVIDER` accepts `local` or `cos`. Local uploads are saved under `UPLOAD_DIR`; COS uploads use `TENCENT_SECRET_ID`, `TENCENT_SECRET_KEY`, `COS_BUCKET`, and `COS_REGION`.
+`UPLOAD_PROVIDER` 支持 `local` 或 `cos`。本地上传保存到 `UPLOAD_DIR`；COS 上传使用 `TENCENT_SECRET_ID`、`TENCENT_SECRET_KEY`、`COS_BUCKET` 和 `COS_REGION`。
 
-`UPLOAD_PUBLIC_BASE_URL` is required when non-mock vision or speech providers receive relative upload paths such as `/uploads/demo.wav`; the backend joins the base URL with the relative path before sending it to external providers.
+当非 mock 视觉或语音 provider 接收 `/uploads/demo.wav` 这类相对上传路径时，必须配置 `UPLOAD_PUBLIC_BASE_URL`；后端会将 base URL 与相对路径拼接后发送给外部 provider。
 
-## Security
+`ANDROID_API_BASE_URL` 用于 Android Gradle 构建配置，默认是 `http://10.0.2.2:8000`。
 
-`AUTH_API_KEYS` is a semicolon-separated list of API keys in `subject:token:scope1,scope2` format. The first protected scopes are `upload:write` for `/api/v1/upload` and `products:write` for `POST /api/v1/products`.
+## 安全
 
-`REQUEST_MAX_BYTES` limits the HTTP request body size before endpoint handling. `UPLOAD_MAX_BYTES` remains the per-file upload limit enforced by the upload service.
+`AUTH_API_KEYS` 是用分号分隔的 API key 列表，格式为 `subject:token:scope1,scope2`。当前受保护 scope 包括 `/api/v1/upload` 使用的 `upload:write`，以及 `POST /api/v1/products` 使用的 `products:write`。
 
-Production configuration validation runs during app creation when `APP_ENV=prod`. Production must disable debug mode, configure non-placeholder API keys and secrets, and use explicit CORS origins. Do not combine wildcard CORS origins with credentials.
+`REQUEST_MAX_BYTES` 限制 endpoint 处理前的 HTTP 请求体大小。`UPLOAD_MAX_BYTES` 是上传服务执行的单文件大小限制。
 
-## Local Runtime Overrides
+当 `APP_ENV=prod` 时，应用创建阶段会执行生产配置校验。生产环境必须关闭 debug，配置非占位 API key 和 secret，并使用显式 CORS origin。启用 credentials 时不得使用通配 CORS origin。
+
+## 本地运行覆盖项
 
 - `BACKEND_PORT`
 - `PROMETHEUS_PORT`

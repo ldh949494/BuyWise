@@ -1,23 +1,23 @@
-# Design: <Feature Name>
+# 设计：<功能名称>
 
 Status: Draft
 
-## Background
+## 背景
 
-Describe the user problem, product need, and current behavior.
+描述用户问题、产品需求和当前行为。
 
-## Proposal
+## 方案
 
-Describe the intended behavior and the modules that own it.
+描述目标行为，以及由哪些模块负责。
 
-## Impact
+## 影响
 
-List the affected API routes, services, repositories, models, Android screens, scripts, or docs.
+列出受影响的 API 路由、service、repository、model、Android 页面、脚本或文档。
 
-## Validation
+## 验证
 
-Describe the tests, manual checks, and observability signals that prove this design is implemented.
+描述证明该设计已实现的测试、手动检查和可观测信号。
 
-## Last Checked
+## 最近检查
 
 YYYY-MM-DD

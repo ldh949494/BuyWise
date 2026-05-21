@@ -42,7 +42,7 @@ fun GuideScreen(
         contentPadding = PaddingValues(18.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item { SectionTitle("AI 导购", "输入预算、使用场景和偏好，生成候选商品建议") }
+        item { SectionTitle("AI 导购", "输入预算、使用场景和偏好，由后端实时生成推荐。") }
         item {
             Card(
                 colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
@@ -65,7 +65,7 @@ fun GuideScreen(
                     ) {
                         Icon(Icons.Outlined.AutoAwesome, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(if (state.isStreaming) "Streaming..." else "生成推荐")
+                        Text(if (state.isStreaming) "生成中..." else "生成推荐")
                     }
                 }
             }
@@ -78,7 +78,10 @@ fun GuideScreen(
                 body = state.intentSummary,
             )
         }
-        item { SectionTitle("推荐结果", "优先展示更贴近预算和场景的商品") }
+        item { SectionTitle("推荐结果", "优先展示更贴近预算和场景的商品。") }
+        if (!state.isStreaming && state.recommendations.isEmpty()) {
+            item { Text("提交需求后显示后端推荐。", color = BuyWiseTheme.colors.muted) }
+        }
         items(state.recommendations) { recommendation ->
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 ProductCard(product = recommendation.product, onClick = { onProductClick(recommendation.product.id) })
@@ -108,11 +111,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.guideStreamItems(stat
     }
     if (state.errorMessage != null) {
         item {
-            InfoPanel(
-                icon = { Icon(Icons.Outlined.AutoAwesome, contentDescription = null) },
-                title = "Stream error",
-                body = state.errorMessage,
-            )
+            ErrorPanel(message = state.errorMessage)
         }
     }
 }

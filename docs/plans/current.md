@@ -1,17 +1,17 @@
-# Current Plan
+# 当前计划
 
-## Goal
+## 目标
 
-Keep the repository memory system accurate while BuyWise evolves.
+随着 BuyWise 演进，保持仓库记忆系统准确。
 
-## Active Tasks
+## 活跃任务
 
-- [ ] Update architecture docs when backend, Android, runtime, or observability boundaries change.
-- [ ] Update reference docs when public endpoints, environment variables, or scripts change.
-- [ ] Run `python scripts/validate_docs.py` for documentation changes.
-- [ ] Run `python scripts/doc_gardening.py` after major structural changes.
+- [ ] 后端、Android、运行时或可观测边界变化时，更新架构文档。
+- [ ] 公共端点、环境变量或脚本变化时，更新参考文档。
+- [ ] 修改文档后运行 `python scripts/validate_docs.py`。
+- [ ] 重大结构变化后运行 `python scripts/doc_gardening.py`。
 
-## Validation
+## 验证
 
 - `python scripts/validate_docs.py`
 - `powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1 -SkipDependencyInstall -SkipAndroidBuild`

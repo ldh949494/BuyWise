@@ -1,15 +1,15 @@
-# Naming
+# 命名
 
 ## Python
 
-- Files use `snake_case.py`.
-- Functions, methods, arguments, and local variables use `snake_case`.
-- Module constants use `CONSTANT_CASE`.
-- Classes use `PascalCase`.
+- 文件使用 `snake_case.py`。
+- 函数、方法、参数和局部变量使用 `snake_case`。
+- 模块常量使用 `CONSTANT_CASE`。
+- 类使用 `PascalCase`。
 
 ## Kotlin
 
-- Source files use `PascalCase.kt`.
-- Keep the primary class, screen, or component name aligned with the filename when practical.
+- 源文件使用 `PascalCase.kt`。
+- 可行时，让主类、页面或组件名与文件名保持一致。
 
-The custom repository linter includes direct rename guidance in each naming error.
+自定义仓库 linter 会在命名错误中给出直接重命名建议。

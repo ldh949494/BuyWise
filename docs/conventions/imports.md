@@ -1,15 +1,15 @@
-# Import Boundaries
+# 导入边界
 
-Layered imports keep implementation choices from leaking across the codebase.
+分层导入可以避免实现细节在代码库中泄漏。
 
-## Backend Rules
+## 后端规则
 
-- API modules call services and use schemas/core dependencies.
-- Services orchestrate repositories, integrations, AI, vector stores, schemas, and utilities.
-- Repositories use models and core database helpers.
-- Models do not import API, service, or repository modules.
-- Schemas may import shared schemas, but not services, repositories, models, or API modules.
+- API 模块调用 service，并使用 schema/core dependency。
+- Service 编排 repository、integration、AI、vector store、schema 和 utility。
+- Repository 使用 model 和 core database helper。
+- Model 不导入 API、service 或 repository 模块。
+- Schema 可以导入共享 schema，但不得导入 service、repository、model 或 API 模块。
 
-## Fix Pattern
+## 修复模式
 
-When a lint error says a layer imports a forbidden layer, move that dependency behind the nearest allowed owner. For example, if an API route imports a repository, create or extend a service method and inject that service into the route.
+当 lint 报告某层导入了禁止层时，把依赖移动到最近的允许 owner 后面。例如 API route 导入 repository 时，应创建或扩展 service 方法，并在 route 中注入该 service。

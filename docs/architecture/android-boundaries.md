@@ -1,21 +1,23 @@
-# Android Boundaries
+# Android 边界
 
-The Android client lives under `android-app/` and is a native Kotlin application.
+Android 客户端位于 `android-app/`，是原生 Kotlin 应用。
 
-## Current Shape
+## 当前形态
 
-- Build system: Gradle Kotlin DSL.
-- UI: Jetpack Compose and Material 3.
-- Architecture style: MVVM with a ViewModel and repository-backed mock data.
-- Main package: `android-app/app/src/main/java/com/buywise/android/`.
+- 构建系统：Gradle Kotlin DSL。
+- UI：Jetpack Compose 和 Material 3。
+- 架构风格：MVVM；`ViewModel` 协调状态，`data/` 下的 repository 通过 OkHttp 对接 Android 合同流。
+- 主包路径：`android-app/app/src/main/java/com/buywise/android/`。
 
-## Boundary Notes
+## 边界说明
 
-- UI screens should stay in `ui/screens/`.
-- Shared UI pieces should stay in `ui/components/`.
-- State and user actions should be coordinated from `viewmodel/`.
-- Data models and repository behavior should stay in `data/`.
+- 页面放在 `ui/screens/`。
+- 复用组件放在 `ui/components/`。
+- 页面状态和用户动作由 `viewmodel/` 协调。
+- 数据模型和 repository 行为放在 `data/`。
 
-## Backend Connection
+## 后端连接
 
-The emulator backend URL convention is `http://10.0.2.2:8000`. Keep Android client changes compatible with the backend API documented in `docs/reference/api.md`.
+模拟器访问宿主机后端时使用 `http://10.0.2.2:8000`，该地址通过 Android `BuildConfig.BUYWISE_API_BASE_URL` 配置。Android 变更必须兼容 `docs/reference/api.md` 中记录的后端 API。
+
+当前 Android 集成覆盖商品浏览、商品详情、商品对比和 AI 导购流式输出。识图、上传和语音页面仍是本地演示，等待后续实现端到端媒体链路。

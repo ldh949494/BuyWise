@@ -1,8 +1,8 @@
-# Frontend Support Guide
+# 前端接入支持指南
 
 本文档面向 BuyWise 前端接入当前 FastAPI 后端框架，覆盖环境、接口契约、鉴权、错误处理和联调注意事项。
 
-## Backend Baseline
+## 后端基线
 
 - 默认服务地址：`http://localhost:8000`
 - 默认 API 前缀：`/api/v1`
@@ -19,12 +19,12 @@
 
 如果 Web 前端使用其他端口，需要后端同步加入 CORS 白名单。
 
-## Request Conventions
+## 请求约定
 
 - JSON 请求使用 `Content-Type: application/json`。
 - 文件上传使用 `multipart/form-data`，字段名固定为 `file`。
 - 建议所有请求带 `X-Request-ID`，便于联调日志定位。
-- 当前公开浏览、对比、AI chat、RAG、视觉识别、语音识别接口不要求登录。
+- 当前公开浏览、对比、AI 导购、RAG、视觉识别、语音识别接口不要求登录。
 - `POST /api/v1/upload` 和 `POST /api/v1/products` 需要 Bearer Token。
 
 鉴权头格式：
@@ -33,7 +33,7 @@
 Authorization: Bearer <token>
 ```
 
-## Error Shape
+## 错误结构
 
 后端统一错误响应格式：
 
@@ -56,7 +56,7 @@ Authorization: Bearer <token>
 
 常见状态码：
 
-| Status | Code | 场景 |
+| 状态码 | 错误码 | 场景 |
 | --- | --- | --- |
 | `400` | `invalid_upload_filename` / `unsafe_upload_path` | 上传文件名非法或路径不安全 |
 | `401` | `unauthorized` | 缺少或无效 Bearer Token |
@@ -67,22 +67,22 @@ Authorization: Bearer <token>
 | `422` | `validation_error` | 请求参数或 JSON 结构不符合 schema |
 | `500` | `internal_error` | 未预期服务端错误 |
 
-## Endpoint Summary
+## 端点汇总
 
-| Flow | Method | Path | Auth | Frontend 用途 |
+| 流程 | 方法 | 路径 | 鉴权 | 前端用途 |
 | --- | --- | --- | --- | --- |
-| Health | `GET` | `/api/v1/health` | Public | 启动页、联调探活 |
-| Product browse | `GET` | `/api/v1/products` | Public | 商品列表、搜索、筛选 |
-| Product detail | `GET` | `/api/v1/products/{product_id}` | Public | 商品详情页 |
-| Product create | `POST` | `/api/v1/products` | `products:write` | 后台录入或测试数据创建 |
-| Product compare | `POST` | `/api/v1/products/compare` | Public | 商品对比页 |
-| AI guide | `POST` | `/api/v1/ai/chat` | Public | AI 导购会话 |
-| RAG search | `POST` | `/api/v1/rag/search` | Public | 检索调试或推荐候选 |
-| Upload | `POST` | `/api/v1/upload` | `upload:write` | 图片、音频上传 |
-| Vision recognize | `POST` | `/api/v1/vision/recognize` | Public | 图片识别后生成搜索 query |
-| Speech ASR | `POST` | `/api/v1/speech/asr` | Public | 语音转文字后进入导购 |
+| 健康检查 | `GET` | `/api/v1/health` | 公开 | 启动页、联调探活 |
+| 商品浏览 | `GET` | `/api/v1/products` | 公开 | 商品列表、搜索、筛选 |
+| 商品详情 | `GET` | `/api/v1/products/{product_id}` | 公开 | 商品详情页 |
+| 商品创建 | `POST` | `/api/v1/products` | `products:write` | 后台录入或测试数据创建 |
+| 商品对比 | `POST` | `/api/v1/products/compare` | 公开 | 商品对比页 |
+| AI 导购 | `POST` | `/api/v1/ai/chat` | 公开 | AI 导购会话 |
+| RAG 搜索 | `POST` | `/api/v1/rag/search` | 公开 | 检索调试或推荐候选 |
+| 上传 | `POST` | `/api/v1/upload` | `upload:write` | 图片、音频上传 |
+| 视觉识别 | `POST` | `/api/v1/vision/recognize` | 公开 | 图片识别后生成搜索 query |
+| 语音识别 | `POST` | `/api/v1/speech/asr` | 公开 | 语音转文字后进入导购 |
 
-## Product Browse
+## 商品浏览
 
 ```http
 GET /api/v1/products?category=机械键盘&keyword=静音&page=1&page_size=20
@@ -90,14 +90,14 @@ GET /api/v1/products?category=机械键盘&keyword=静音&page=1&page_size=20
 
 Query 参数：
 
-| Name | Type | Required | Notes |
+| 名称 | 类型 | 是否必填 | 说明 |
 | --- | --- | --- | --- |
-| `category` | string | No | 类目筛选 |
-| `keyword` | string | No | 关键词搜索 |
-| `price_min` | number | No | 最低价，必须 `>= 0` |
-| `price_max` | number | No | 最高价，必须 `>= 0` |
-| `page` | integer | No | 默认 `1`，必须 `>= 1` |
-| `page_size` | integer | No | 默认 `20`，范围 `1..100` |
+| `category` | string | 否 | 类目筛选 |
+| `keyword` | string | 否 | 关键词搜索 |
+| `price_min` | number | 否 | 最低价，必须 `>= 0` |
+| `price_max` | number | 否 | 最高价，必须 `>= 0` |
+| `page` | integer | 否 | 默认 `1`，必须 `>= 1` |
+| `page_size` | integer | 否 | 默认 `20`，范围 `1..100` |
 
 响应：
 
@@ -141,7 +141,7 @@ Query 参数：
 - `price`、`rating`、`stock_status` 都是可空字段，需要兜底。
 - `specs` 可能是对象、数组或空值，详情页应做动态渲染。
 
-## Product Detail
+## 商品详情
 
 ```http
 GET /api/v1/products/1001
@@ -149,7 +149,7 @@ GET /api/v1/products/1001
 
 响应结构与 `ProductRead` 一致。商品不存在时返回 `404`。
 
-## Product Compare
+## 商品对比
 
 ```http
 POST /api/v1/products/compare
@@ -191,7 +191,7 @@ Content-Type: application/json
 - 对比项的 `id` 和 `product_id` 当前通常一致，但渲染跳转商品详情时优先使用 `product_id`，为空时回退到 `id`。
 - `pros`、`cons` 为空时隐藏对应区域。
 
-## AI Guide Chat
+## AI 导购聊天
 
 ```http
 POST /api/v1/ai/chat
@@ -252,7 +252,7 @@ Content-Type: application/json
 - `structured_need.missing_fields` 可用于展示缺失条件，如预算、用途、偏好。
 - `products` 可作为聊天消息中的商品卡片。
 
-## Upload
+## 上传
 
 ```http
 POST /api/v1/upload
@@ -264,7 +264,7 @@ file=<binary>
 
 支持类型：
 
-| Content-Type | Extensions |
+| 内容类型 | 扩展名 |
 | --- | --- |
 | `image/png` | `.png` |
 | `image/jpeg` | `.jpg`, `.jpeg` |
@@ -289,7 +289,7 @@ file=<binary>
 注意：`UPLOAD_PROVIDER=local` 且未配置 `UPLOAD_PUBLIC_BASE_URL` 时返回后端相对 URL；启用 `UPLOAD_PUBLIC_BASE_URL` 或 `UPLOAD_PROVIDER=cos` 时返回外部可访问 URL。
 当后端启用非 mock 视觉或语音 provider 时，应让上传接口返回可被外部模型或腾讯 ASR 访问的 URL。
 
-## Vision Recognize
+## 视觉识别
 
 ```http
 POST /api/v1/vision/recognize
@@ -312,7 +312,7 @@ Content-Type: application/json
 
 前端可将 `query` 自动填入搜索框，或转发给 `/api/v1/ai/chat` 继续导购。
 
-## Speech ASR
+## 语音识别
 
 ```http
 POST /api/v1/speech/asr
@@ -333,7 +333,7 @@ Content-Type: application/json
 
 前端可将 `text` 放入输入框供用户确认，或直接发送给 `/api/v1/ai/chat`。
 
-## RAG Search
+## RAG 搜索
 
 ```http
 POST /api/v1/rag/search
@@ -360,16 +360,16 @@ Content-Type: application/json
 
 `items` 当前是开放字典数组，前端不要假设强类型字段稳定；生产页面优先使用 `/products`、`/products/compare` 和 `/ai/chat`。
 
-## Frontend Integration Priorities
+## 前端接入优先级
 
 建议优先接入以下主链路：
 
 1. 商品列表和详情：`GET /products`、`GET /products/{id}`。
 2. 商品对比：`POST /products/compare`。
 3. AI 导购：`POST /ai/chat`，渲染 `reply`、`structured_need`、`products`。
-4. 多模态输入：上传后调用 `vision/recognize` 或 `speech/asr`，再进入搜索或 AI chat。
+4. 多模态输入：上传后调用 `vision/recognize` 或 `speech/asr`，再进入搜索或 AI 导购。
 
-## Local Validation
+## 本地验证
 
 后端可用以下命令启动和验证：
 
@@ -383,6 +383,6 @@ powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1 -SkipDe
 - `GET /api/v1/health` 返回 `{"status":"ok","service":"buywise-backend"}`。
 - 商品列表能处理空列表和分页。
 - 商品详情能处理 `404`。
-- AI chat 能保持 `session_id`。
+- AI 导购能保持 `session_id`。
 - 上传能正确处理 `401`、`413`、`415`。
 - 错误提示中记录 `extra.request_id`。

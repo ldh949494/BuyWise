@@ -1,21 +1,21 @@
-# Golden Principles
+# 黄金原则
 
-Subjective code taste must be translated into mechanical rules that CI can enforce.
+主观代码品味必须转化为 CI 可执行的机械规则。
 
-## Mechanical Rules
+## 机械规则
 
-- Keep Python functions at or below 30 lines.
-- Reuse existing helpers instead of copying implementations.
-- Public service and repository functions should start with an action verb.
-- Broad exception handlers must report through `ErrorProvider` or re-raise.
-- TODO, FIXME, and HACK comments must include `owner:` or `issue:`.
+- Python 函数不超过 30 行。
+- 复用已有 helper，不复制实现。
+- 公开 service 和 repository 函数应以动作动词开头。
+- 宽泛异常处理必须通过 `ErrorProvider` 上报，或补充上下文后重新抛出。
+- `TODO`、`FIXME`、`HACK` 注释必须包含 `owner:` 或 `issue:`。
 
-## Fix Patterns
+## 修复模式
 
-- Split long orchestration into smaller private helpers.
-- Move shared pure helpers to `app/utils/` or the owning service/repository.
-- Keep API routes thin and put business behavior in services.
-- Use `get_provider("errors")` or `get_error_provider()` for broad error handling.
-- Convert stale comments into `docs/plans/current.md` tasks when they are real work.
+- 将过长编排拆成更小的私有 helper。
+- 将共享纯 helper 移到 `app/utils/` 或拥有该行为的 service/repository。
+- API 路由保持轻量，业务行为放在 service。
+- 宽泛错误处理使用 `get_provider("errors")` 或 `get_error_provider()`。
+- 真实工作项中的过期注释应转换为 `docs/plans/current.md` 任务。
 
-The entropy validator reports each violation with `ERROR`, `FIX`, and `SEE` lines so an agent can act without loading extra context.
+熵债验证器会用 `ERROR`、`FIX` 和 `SEE` 输出每个问题，方便 agent 无需加载额外上下文即可处理。

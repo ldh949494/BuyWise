@@ -1,32 +1,31 @@
-# Backend Boundaries
+# 后端边界
 
-The backend is a FastAPI application organized by boundary rather than by endpoint file alone.
+后端是 FastAPI 应用，入口在 `app/main.py`。公共 API 默认挂载在 `/api/v1` 下。
 
-## Entry Points
+## 分层
 
-- App factory: `app/main.py`
-- Router registry: `app/api/router.py`
-- Runtime configuration: `app/core/config.py`
-- Database session setup: `app/core/database.py`
-- Database migrations: `alembic/` with the command wrapper in `app/scripts/migrate_database.py`
+- `app/api/v1/`：路由层，只负责 HTTP 契约、依赖注入和状态码。
+- `app/services/`：业务用例和编排，例如聊天、推荐、对比、上传、语音和视觉流程。
+- `app/repositories/`：数据库查询和持久化辅助。
+- `app/models/`：SQLAlchemy ORM 模型。
+- `app/schemas/`：Pydantic 请求和响应模型。
+- `app/ai/`：LLM、embedding、RAG prompt 和 agent 相关封装。
+- `app/vectorstore/`：ChromaDB 商品向量索引封装。
+- `app/integrations/`：外部服务客户端，例如 COS、视觉模型、语音识别。
+- `app/core/`：配置、数据库、provider、日志、错误和请求上下文。
 
-## Layer Responsibilities
+## 依赖方向
 
-- `app/api/v1/`: HTTP concerns, dependency wiring, request validation, response model selection.
-- `app/services/`: use-case logic, orchestration, fallback behavior, AI/retrieval composition.
-- `app/repositories/`: persistence access and query behavior.
-- `app/models/`: SQLAlchemy persistence models and the source metadata for Alembic autogeneration.
-- `app/schemas/`: Pydantic API contracts and service DTOs.
-- `app/integrations/`: external vendor clients such as multimodal, object storage, and ASR integrations.
+路由调用服务；服务组合 repository、AI、vector store 和 integrations；repository 只依赖模型和数据库 session。低层模块不得反向导入 API 路由。
 
-## API Versioning
+## 事务边界
 
-All public HTTP routes should be registered below `settings.api_v1_prefix`, which defaults to `/api/v1`.
+Repository 可以查询、`add`、`flush`、`refresh`，但不负责 `commit()` 或 `rollback()`。服务和脚本入口负责完整用例的事务提交与回滚。
 
-## Metrics And Logs
+## 横切能力
 
-The app exposes Prometheus metrics at `/metrics` when `prometheus-fastapi-instrumentator` is installed. Application logs are JSON formatted through `app/core/logging.py`.
+认证、日志、遥测、错误处理和请求上下文必须通过 `app.core.providers` 访问。变更这些能力后运行 `python scripts/validate_providers.py`。
 
-## Cross-Cutting Providers
+## 稳定性
 
-Authentication, telemetry, logging, and error handling are accessed through `app/core/providers.py`. Feature modules should not import cross-cutting implementations directly.
+新增后端能力时优先放进已有层级。只有当现有边界无法表达职责时才新增包，并同步更新本文档。

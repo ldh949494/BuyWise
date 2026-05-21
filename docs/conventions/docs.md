@@ -1,30 +1,32 @@
-# Documentation Conventions
+# 文档约定
 
-## Progressive Disclosure
+## 渐进披露
 
-- Keep `AGENTS.md` short and link to deeper docs.
-- Put stable architecture in `docs/architecture/`.
-- Put feature decisions in `docs/design/`.
-- Put coding and testing conventions in `docs/conventions/`.
-- Put active work in `docs/plans/current.md`.
-- Put generated or reference-like material in `docs/reference/`.
+- `AGENTS.md` 保持短小，只作为入口地图链接到更深文档。
+- 稳定架构放在 `docs/architecture/`。
+- 功能决策放在 `docs/design/`。
+- 编码和测试约定放在 `docs/conventions/`。
+- 当前工作放在 `docs/plans/current.md`。
+- 生成物或参考资料放在 `docs/reference/`。
 
-## Status Fields
+## 状态字段
 
-Design docs must include exactly one status line with one of these values:
+设计文档必须包含且只包含一个状态行，值必须是以下之一：
 
 - `Status: Draft`
 - `Status: Approved`
 - `Status: Implemented`
 - `Status: Deprecated`
 
-## Maintenance
+该状态行需要保持英文格式，因为 `scripts/validate_docs.py` 会校验它。
 
-When code structure changes, update the closest relevant doc in the same change. If unsure, run `python scripts/doc_gardening.py` and review its report.
+## 维护
 
-## Encoding
+代码结构变化时，在同一变更中更新最接近的相关文档。不确定时运行 `python scripts/doc_gardening.py`，再人工审阅报告。
 
-- Store text files as UTF-8.
-- Do not commit GBK/ANSI text or mojibake such as UTF-8 Chinese decoded as Latin-1/CP1252.
-- Run repository scripts through the checked-in PowerShell entrypoints; they source `scripts/set_utf8.ps1` so Python and console output use UTF-8.
-- `scripts/validate_repo_lint.py` rejects text files that are not valid UTF-8 or contain common mojibake markers.
+## 编码
+
+- 文本文件保存为 UTF-8。
+- 不提交 GBK/ANSI 文本，也不提交 UTF-8 中文被错误解码后的乱码。
+- 通过仓库内 PowerShell 入口运行脚本；它们会加载 `scripts/set_utf8.ps1`，确保 Python 和控制台输出使用 UTF-8。
+- `scripts/validate_repo_lint.py` 会拒绝非 UTF-8 文本文件和常见乱码标记。

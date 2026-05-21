@@ -3,14 +3,19 @@ package com.buywise.android.data
 data class Product(
     val id: String,
     val name: String,
-    val brand: String,
-    val category: String,
-    val price: Int,
-    val score: Int,
+    val brand: String?,
+    val category: String?,
+    val price: Double?,
+    val rating: Double?,
+    val recommendationScore: Double? = null,
     val headline: String,
     val tags: List<String>,
     val advantages: List<String>,
     val cautions: List<String>,
+    val imageUrl: String? = null,
+    val productUrl: String? = null,
+    val stockStatus: String? = null,
+    val reviewSummary: String? = null,
 )
 
 data class Recommendation(
@@ -34,6 +39,8 @@ data class HomeState(
     val heroTitle: String,
     val heroSubtitle: String,
     val products: List<Product>,
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null,
 )
 
 data class GuideState(
@@ -49,8 +56,18 @@ data class GuideState(
 data class CompareState(
     val products: List<Product>,
     val rows: List<CompareRow>,
+    val summary: String? = null,
+    val winnerId: String? = null,
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null,
 )
 
 data class VisionState(
     val result: VisionResult,
+)
+
+data class ProductDetailState(
+    val product: Product? = null,
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null,
 )

@@ -1,17 +1,18 @@
-# BuyWise MVP Product Spec
+# BuyWise MVP 产品规格
 
-BuyWise helps shoppers compare products and receive AI-assisted shopping guidance.
+BuyWise 帮助用户比较商品，并获得 AI 辅助购物建议。
 
-## Current Capabilities
+## 当前能力
 
-- Health endpoint for backend readiness.
-- Product listing, detail, and creation API foundations.
-- Product comparison workflow.
-- Chat and recommendation service foundations.
-- RAG search foundations over product data and vector storage.
-- Reserved upload, vision, and speech endpoints.
-- Native Android mock client with home, AI guide, compare, vision placeholder, and product detail screens.
+- 后端健康检查接口。
+- 商品列表、详情和创建 API 基础。
+- 商品对比流程。
+- 聊天和推荐服务基础。
+- 基于商品数据和向量存储的 RAG 搜索基础。
+- 上传、视觉和语音接口预留。
+- 原生 Android 客户端，包含首页、AI 导购、对比、识图占位和商品详情页面。
+- Android AI 导购可通过后端 SSE 接口流式展示回复和商品卡片。
 
-## Acceptance Direction
+## 验收方向
 
-Backend changes should keep API contracts testable through FastAPI tests. Android changes should preserve the core shopping workflows and emulator backend URL convention.
+后端变更应通过 FastAPI 测试保持 API 契约可测。Android 变更应保留核心购物流程，并兼容模拟器访问本机后端的 `http://10.0.2.2:8000` 约定。

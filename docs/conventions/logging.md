@@ -1,6 +1,6 @@
-# Logging
+# 日志
 
-Runtime code must use structured logging through the Provider entrypoint.
+运行时代码必须通过 Provider 入口使用结构化日志。
 
 ## Python
 
@@ -11,14 +11,14 @@ logger = get_provider("logging").get_logger(__name__)
 logger.info("Product search completed", extra={"category": category})
 ```
 
-Backend JSON logs include the active request ID when a request is in progress. Use the `X-Request-ID` response header to correlate client-visible errors with logs.
+后端 JSON 日志会在请求进行中包含当前 request ID。使用 `X-Request-ID` 响应头将客户端可见错误与日志关联。
 
-Do not log full request bodies, AI prompts, uploaded file contents, credentials, or user private text. Common sensitive fields such as passwords, tokens, secrets, API keys, and authorization headers are redacted by the backend formatter.
+不要记录完整请求体、AI prompt、上传文件内容、凭据或用户隐私文本。密码、token、secret、API key、authorization header 等常见敏感字段会被后端 formatter 脱敏。
 
-Avoid Python `LogRecord` reserved names in `extra`; use domain-specific names such as `stored_filename` instead of `filename`.
+避免在 `extra` 中使用 Python `LogRecord` 保留名；使用领域名，例如用 `stored_filename` 代替 `filename`。
 
-`print()` is allowed in command-line scripts, tests, and app scripts, but not in runtime application modules.
+命令行脚本、测试和 app script 可以使用 `print()`；运行时应用模块不得使用。
 
 ## Kotlin
 
-Do not add `console.log`, `System.out.println`, or direct `Log.d` style calls. Route logging through the app logging provider when a Kotlin provider is introduced.
+不要添加 `console.log`、`System.out.println` 或直接 `Log.d`。后续引入 Kotlin logging provider 后，应通过应用日志 provider 输出。
