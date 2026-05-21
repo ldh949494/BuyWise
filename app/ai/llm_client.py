@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from typing import Any, Protocol
 
 from app.core.config import settings
@@ -9,6 +10,9 @@ from app.core.config import settings
 
 class LLMProvider(Protocol):
     async def chat(self, messages: list[dict[str, str]]) -> str:
+        ...
+
+    async def stream_chat(self, messages: list[dict[str, str]]) -> AsyncIterator[str]:
         ...
 
 
@@ -21,6 +25,12 @@ class MockLLMProvider:
         ]
         content = user_messages[-1] if user_messages else ""
         return f"Mock shopping guidance for: {content}"
+
+    async def stream_chat(self, messages: list[dict[str, str]]) -> AsyncIterator[str]:
+        content = await self.chat(messages)
+        chunk_size = 8
+        for index in range(0, len(content), chunk_size):
+            yield content[index : index + chunk_size]
 
 
 class OpenAICompatibleProvider:
@@ -43,6 +53,20 @@ class OpenAICompatibleProvider:
         )
         content = response.choices[0].message.content
         return content or ""
+
+    async def stream_chat(self, messages: list[dict[str, str]]) -> AsyncIterator[str]:
+        stream = await self.client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            temperature=0.2,
+            stream=True,
+        )
+        async for chunk in stream:
+            if not chunk.choices:
+                continue
+            content = chunk.choices[0].delta.content
+            if content:
+                yield content
 
     def _create_client(self, *, base_url: str | None, api_key: str | None) -> Any:
         try:
@@ -74,24 +98,40 @@ class LLMClient:
         ]
         return await self.provider.chat(normalized)
 
+    async def stream_chat(self, messages: list[dict]) -> AsyncIterator[str]:
+        normalized = [
+            {"role": str(message.get("role", "user")), "content": str(message.get("content", ""))}
+            for message in messages
+        ]
+        async for chunk in self.provider.stream_chat(normalized):
+            yield chunk
+
     async def generate_recommendation(self, need: Any, products: list[Any]) -> str:
         if not products:
             return "暂时没有找到完全匹配的商品，可以放宽预算或调整条件。"
-        return await self.chat(
-            [
-                {
-                    "role": "system",
-                    "content": (
-                        "You are BuyWise, a shopping guide. Write a concise Chinese "
-                        "recommendation based only on the provided products."
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": self._recommendation_prompt(need, products),
-                },
-            ]
-        )
+        return await self.chat(self.recommendation_messages(need, products))
+
+    async def stream_recommendation(self, need: Any, products: list[Any]) -> AsyncIterator[str]:
+        if not products:
+            yield "暂时没有找到完全匹配的商品，可以放宽预算或调整条件。"
+            return
+        async for chunk in self.stream_chat(self.recommendation_messages(need, products)):
+            yield chunk
+
+    def recommendation_messages(self, need: Any, products: list[Any]) -> list[dict[str, str]]:
+        return [
+            {
+                "role": "system",
+                "content": (
+                    "You are BuyWise, a shopping guide. Write a concise Chinese "
+                    "recommendation based only on the provided products."
+                ),
+            },
+            {
+                "role": "user",
+                "content": self._recommendation_prompt(need, products),
+            },
+        ]
 
     async def generate_clarify_question(self, need: Any) -> str:
         missing_fields = self._coerce_list(self._get_value(need, "missing_fields"))
@@ -106,6 +146,12 @@ class LLMClient:
         }
         missing = "、".join(labels.get(field, field) for field in missing_fields)
         return f"为了更准确推荐，请补充：{missing}。"
+
+    async def stream_clarify_question(self, need: Any) -> AsyncIterator[str]:
+        question = await self.generate_clarify_question(need)
+        chunk_size = 8
+        for index in range(0, len(question), chunk_size):
+            yield question[index : index + chunk_size]
 
     async def generate_compare_summary(self, user_need: Any, products: list[Any]) -> str:
         if not products:

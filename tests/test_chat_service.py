@@ -79,8 +79,14 @@ class FakeLLMClient:
     async def generate_clarify_question(self, need):
         return "请补充预算和使用场景。"
 
+    async def stream_clarify_question(self, need):
+        yield await self.generate_clarify_question(need)
+
     async def generate_recommendation(self, need, products):
         return "推荐：" + "、".join(product.name for product in products)
+
+    async def stream_recommendation(self, need, products):
+        yield await self.generate_recommendation(need, products)
 
 
 def make_product(name="K87 静音红轴机械键盘"):
@@ -146,6 +152,39 @@ async def test_handle_chat_runs_multimodal_recommendation_flow() -> None:
     assert response.products[0].name == "K87 静音红轴机械键盘"
     assert "语音补充：300 元以内" in intent_service.calls[0]["text"]
     assert intent_service.calls[0]["image_info"] == {"category": "机械键盘", "features": ["低噪音"]}
+
+
+@pytest.mark.anyio
+async def test_generate_chat_stream_emits_products_tokens_and_done() -> None:
+    need = StructuredNeed(
+        intent="商品推荐",
+        category="机械键盘",
+        budget_max=300,
+        scenario="宿舍",
+        preferences=["低噪音"],
+    )
+    service = ChatService(
+        intent_service=FakeIntentService(need),
+        rag_pipeline=FakeRAGPipeline([make_product()]),
+        recommend_service=FakeRecommendService(),
+        llm_client=FakeLLMClient(),
+    )
+
+    events = [
+        event
+        async for event in service.generate_chat_stream(
+            ChatRequest(session_id="stream-session", message="推荐键盘"),
+            db=object(),
+        )
+    ]
+
+    event_names = [event["event"] for event in events]
+    assert event_names[:2] == ["meta", "status"]
+    assert "products" in event_names
+    assert "token" in event_names
+    assert event_names[-1] == "done"
+    assert events[0]["data"]["session_id"] == "stream-session"
+    assert events[-1]["data"]["reply"]
 
 
 @pytest.mark.anyio

@@ -8,6 +8,7 @@ The backend registers public routes under `/api/v1` by default.
 - Products: `/api/v1/products`
 - Product compare: `/api/v1/products/compare`
 - AI chat: `/api/v1/ai/chat`
+- AI chat stream: `/api/v1/ai/chat/stream`
 - RAG search: `/api/v1/rag/search`
 - Upload: `/api/v1/upload`
 - Vision: `/api/v1/vision/recognize`
@@ -21,6 +22,7 @@ Run the backend and open `/docs` for the OpenAPI UI. Browser validation can capt
 
 - Product responses include optional extended commerce fields: `sku`, `product_url`, `image_urls`, `stock_status`, `review_summary`, and `price_history`.
 - Chat responses include `extra.session_id` for the persisted chat session.
+- Chat stream responses use Server-Sent Events with `meta`, `status`, `token`, `products`, `done`, and `error` events.
 - Chat product cards include explanation fields: `budget_match`, `scenario_match`, `conflicts`, and `alternatives`.
 
 ## Authentication Notes
@@ -38,6 +40,7 @@ Run the backend and open `/docs` for the OpenAPI UI. Browser validation can capt
 | Product create | `POST` | `/api/v1/products` | Bearer token | `products:write` |
 | Product compare | `POST` | `/api/v1/products/compare` | Public | None |
 | AI guide | `POST` | `/api/v1/ai/chat` | Public | None |
+| AI guide stream | `POST` | `/api/v1/ai/chat/stream` | Public | None |
 | RAG search | `POST` | `/api/v1/rag/search` | Public | None |
 | Upload | `POST` | `/api/v1/upload` | Bearer token | `upload:write` |
 | Vision recognize | `POST` | `/api/v1/vision/recognize` | Public | None |
@@ -49,7 +52,7 @@ The native Android client should depend on these three backend flows first:
 
 - Product browse: `GET /api/v1/products` for category, keyword, price, and pagination filters; `GET /api/v1/products/{product_id}` for detail.
 - Product compare: `POST /api/v1/products/compare` with `product_ids` and optional `user_need`.
-- AI guide: `POST /api/v1/ai/chat` with `session_id` and `message`, optionally `image_url` and `audio_url`.
+- AI guide: `POST /api/v1/ai/chat` for JSON responses, or `POST /api/v1/ai/chat/stream` for SSE token streaming, with `session_id` and `message`, optionally `image_url` and `audio_url`.
 
 `app.scripts.seed_products.seed_android_contract_products` provides deterministic product data for these flows. `tests/test_android_contract_api.py` locks the response shapes used by Android so future real AI provider work can change ranking and prose without removing required fields.
 
