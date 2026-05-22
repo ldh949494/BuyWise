@@ -105,14 +105,14 @@ class ChatService:
     async def _build_user_text(self, request: ChatRequest) -> str:
         text = request.message or ""
         if request.audio_url:
-            audio_text = await self.speech_service.transcribe(request.audio_url)
+            audio_text = await self.speech_service.extract_transcript(request.audio_url)
             text = self._join_text(text, audio_text)
         return text
 
     async def _build_image_info(self, request: ChatRequest) -> dict | None:
         if not request.image_url:
             return None
-        return await self.vision_service.recognize(request.image_url)
+        return await self.vision_service.extract_image_info(request.image_url)
 
     def _load_history_context(self, chat_repo: Any, session_id: str) -> dict[str, Any]:
         prior_messages = chat_repo.list_messages(session_id)

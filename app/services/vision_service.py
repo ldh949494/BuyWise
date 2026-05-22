@@ -14,7 +14,7 @@ class VisionService:
     def __init__(self, client: VisionClient | None = None) -> None:
         self.client = client or self._build_client()
 
-    async def recognize(self, image_url: str) -> dict:
+    async def extract_image_info(self, image_url: str) -> dict:
         result = await self.client.recognize(image_url)
         logger.info(
             "Vision recognition completed",

@@ -19,4 +19,4 @@ async def transcribe_audio(
     request: SpeechAsrRequest,
     service: SpeechService = Depends(get_speech_service),
 ) -> dict[str, str]:
-    return {"text": await service.transcribe(request.audio_url)}
+    return {"text": await service.extract_transcript(request.audio_url)}

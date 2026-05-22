@@ -25,12 +25,12 @@ API_MESSAGE = (
 
 
 class FakeSpeechService:
-    async def transcribe(self, audio_url: str) -> str:
+    async def extract_transcript(self, audio_url: str) -> str:
         return "语音补充：300 元以内"
 
 
 class FakeVisionService:
-    async def recognize(self, image_url: str) -> dict:
+    async def extract_image_info(self, image_url: str) -> dict:
         return {"category": "机械键盘", "features": ["低噪音"]}
 
 

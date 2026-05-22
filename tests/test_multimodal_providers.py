@@ -22,7 +22,7 @@ def test_vision_service_uses_injected_client() -> None:
 
     service = VisionService(client=FakeVisionClient())
 
-    result = asyncio.run(service.recognize("https://cdn.example.com/demo.png"))
+    result = asyncio.run(service.extract_image_info("https://cdn.example.com/demo.png"))
 
     assert result["category"] == "台灯"
     assert result["features"] == ["护眼"]
@@ -36,7 +36,7 @@ def test_speech_service_uses_injected_client() -> None:
 
     service = SpeechService(client=FakeSpeechClient())
 
-    result = asyncio.run(service.transcribe("https://cdn.example.com/demo.wav"))
+    result = asyncio.run(service.extract_transcript("https://cdn.example.com/demo.wav"))
 
     assert result == "想买护眼台灯"
 

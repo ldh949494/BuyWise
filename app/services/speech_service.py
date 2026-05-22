@@ -14,7 +14,7 @@ class SpeechService:
     def __init__(self, client: SpeechClient | None = None) -> None:
         self.client = client or self._build_client()
 
-    async def transcribe(self, audio_url: str) -> str:
+    async def extract_transcript(self, audio_url: str) -> str:
         text = await self.client.transcribe(audio_url)
         logger.info("Speech transcription completed", extra={"provider": settings.speech_provider})
         return text

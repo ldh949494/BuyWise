@@ -3,22 +3,6 @@
   "description": "Existing entropy debt. CI fails only on new issues not listed here.",
   "issues": [
     {
-      "key": "duplicate-function|app/services/compare_service.py|4136368f3750",
-      "rule": "duplicate-function",
-      "path": "app/services/compare_service.py",
-      "line": 139,
-      "symbol": "4136368f3750",
-      "detail": "Duplicate function implementation detected across 2 functions: app/services/compare_service.py:139:_coerce_list, app/services/recommend_service.py:114:_coerce_list."
-    },
-    {
-      "key": "duplicate-function|app/services/compare_service.py|8ee64e658d3f",
-      "rule": "duplicate-function",
-      "path": "app/services/compare_service.py",
-      "line": 162,
-      "symbol": "8ee64e658d3f",
-      "detail": "Duplicate function implementation detected across 2 functions: app/services/compare_service.py:162:_try_parse_json, app/services/recommend_service.py:129:_try_parse_json."
-    },
-    {
       "key": "duplicate-function|scripts/ai_update_readme.py|e4f7b79fb857",
       "rule": "duplicate-function",
       "path": "scripts/ai_update_readme.py",
@@ -33,38 +17,6 @@
       "line": 28,
       "symbol": "25f69bc0ef64",
       "detail": "Duplicate function implementation detected across 3 functions: scripts/ai_update_readme.py:28:run_with_input, scripts/doc_gardening.py:43:run_with_input, scripts/entropy_gc.py:22:run_with_input."
-    },
-    {
-      "key": "function-length|app/repositories/product_repo.py|list_products",
-      "rule": "function-length",
-      "path": "app/repositories/product_repo.py",
-      "line": 25,
-      "symbol": "list_products",
-      "detail": "Function exceeds 30 lines limit; found 39."
-    },
-    {
-      "key": "function-length|app/services/compare_service.py|_build_item",
-      "rule": "function-length",
-      "path": "app/services/compare_service.py",
-      "line": 48,
-      "symbol": "_build_item",
-      "detail": "Function exceeds 30 lines limit; found 71."
-    },
-    {
-      "key": "function-length|app/services/intent_service.py|_extract_intent",
-      "rule": "function-length",
-      "path": "app/services/intent_service.py",
-      "line": 146,
-      "symbol": "_extract_intent",
-      "detail": "Function exceeds 30 lines limit; found 41."
-    },
-    {
-      "key": "function-length|app/services/recommend_service.py|_rank_product",
-      "rule": "function-length",
-      "path": "app/services/recommend_service.py",
-      "line": 19,
-      "symbol": "_rank_product",
-      "detail": "Function exceeds 30 lines limit; found 76."
     },
     {
       "key": "function-length|scripts/ai_update_readme.py|update_readme_with_ai",
@@ -121,30 +73,6 @@
       "line": 188,
       "symbol": "check_import_layers",
       "detail": "Function exceeds 30 lines limit; found 36."
-    },
-    {
-      "key": "public-function-verb|app/services/speech_service.py|transcribe",
-      "rule": "public-function-verb",
-      "path": "app/services/speech_service.py",
-      "line": 17,
-      "symbol": "transcribe",
-      "detail": "Public services function 'transcribe' does not start with an approved verb."
-    },
-    {
-      "key": "public-function-verb|app/services/upload_service.py|save",
-      "rule": "public-function-verb",
-      "path": "app/services/upload_service.py",
-      "line": 53,
-      "symbol": "save",
-      "detail": "Public services function 'save' does not start with an approved verb."
-    },
-    {
-      "key": "public-function-verb|app/services/vision_service.py|recognize",
-      "rule": "public-function-verb",
-      "path": "app/services/vision_service.py",
-      "line": 17,
-      "symbol": "recognize",
-      "detail": "Public services function 'recognize' does not start with an approved verb."
     }
   ]
 }
