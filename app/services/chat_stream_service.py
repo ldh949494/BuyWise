@@ -109,8 +109,7 @@ class ChatStreamRunner:
         yield self._event("done", {"reply": reply})
 
     async def _rank_products(self, need: Any, db: Session) -> list[Any]:
-        products = await self.chat_service.rag_pipeline.search_products(need, db)
-        return self.chat_service.recommend_service.rank(products, need)[:5]
+        return await self.chat_service._rank_recommendations(need, db)
 
     def _save_assistant(
         self,

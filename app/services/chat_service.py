@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 from app.ai.llm_client import LLMClient
 from app.ai.rag_pipeline import RAGPipeline
 from app.repositories.chat_repo import ChatRepository
+from app.repositories.price_repo import PriceHistoryRepository
+from app.repositories.review_repo import ReviewRepository
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.services.intent_service import IntentService
 from app.services.recommend_service import RecommendService
@@ -159,9 +161,7 @@ class ChatService:
         need: Any,
         db: Session,
     ) -> ChatResponse:
-        products = await self.rag_pipeline.search_products(need, db)
-        ranked_products = self.recommend_service.rank(products, need)
-        top_products = ranked_products[:5]
+        top_products = await self._rank_recommendations(need, db)
         reply = await self.llm_client.generate_recommendation(need, top_products)
 
         chat_repo.create_message(
@@ -227,3 +227,18 @@ class ChatService:
                     if need.get(key) not in (None, [], "")
                 }
         return {}
+
+    async def _rank_recommendations(self, need: Any, db: Session) -> list[Any]:
+        products = await self.rag_pipeline.search_products(need, db)
+        self._attach_quality_signals(products, db)
+        return self.recommend_service.rank(products, need)[:5]
+
+    def _attach_quality_signals(self, products: list[Any], db: Session) -> None:
+        if not hasattr(db, "execute"):
+            return
+        product_ids = [product.id for product in products]
+        price_averages = PriceHistoryRepository(db).get_average_by_product_ids(product_ids)
+        review_counts = ReviewRepository(db).get_sentiment_counts_by_product_ids(product_ids)
+        for product in products:
+            product.price_history_average = price_averages.get(product.id)
+            product.review_sentiment_counts = review_counts.get(product.id, {})

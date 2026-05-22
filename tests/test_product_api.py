@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 import pytest
+from fastapi import Depends
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -8,6 +9,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base, get_db
 from app.core.config import settings
+from app.core.dependencies import get_product_service
 from app.main import create_app
 from app.models import Product
 from app.schemas.product import ProductCreate
@@ -97,6 +99,37 @@ def test_create_product_returns_created_product() -> None:
     assert response.json()["name"] == "Tablet"
 
 
+def test_update_product_requires_auth_and_returns_updated_product() -> None:
+    settings.auth_api_keys = "tester:test-token:products:write"
+    client = make_client()
+
+    response = client.patch(
+        "/api/v1/products/1",
+        json={"price": 1899.0, "tags": ["mobile", "deal"]},
+        headers=AUTH_HEADER,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["id"] == 1
+    assert payload["price"] == 1899.0
+    assert payload["tags"] == ["mobile", "deal"]
+
+
+def test_delete_product_soft_discontinues_and_filters_from_public_reads() -> None:
+    settings.auth_api_keys = "tester:test-token:products:write"
+    client = make_client()
+
+    delete_response = client.delete("/api/v1/products/1", headers=AUTH_HEADER)
+    list_response = client.get("/api/v1/products")
+    detail_response = client.get("/api/v1/products/1")
+
+    assert delete_response.status_code == 200
+    assert delete_response.json()["stock_status"] == "discontinued"
+    assert [item["id"] for item in list_response.json()["items"]] == [2]
+    assert detail_response.status_code == 404
+
+
 def test_create_product_requires_authentication() -> None:
     settings.auth_api_keys = "tester:test-token:products:write"
     client = make_client()
@@ -108,6 +141,28 @@ def test_create_product_requires_authentication() -> None:
 
     assert response.status_code == 401
     assert response.json()["code"] == "unauthorized"
+
+
+def test_product_write_does_not_rollback_when_index_upsert_fails() -> None:
+    settings.auth_api_keys = "tester:test-token:products:write"
+    client = make_client()
+
+    def failing_product_service(db=Depends(get_db)):
+        def fail_index(product_ids):
+            raise RuntimeError("index unavailable")
+
+        return ProductService(db, index_updater=fail_index)
+
+    client.app.dependency_overrides[get_product_service] = failing_product_service
+
+    response = client.post(
+        "/api/v1/products",
+        json={"name": "Tablet", "category": "computer", "price": 2999.0},
+        headers=AUTH_HEADER,
+    )
+
+    assert response.status_code == 201
+    assert response.json()["name"] == "Tablet"
 
 
 def test_product_service_rolls_back_when_create_fails(monkeypatch) -> None:

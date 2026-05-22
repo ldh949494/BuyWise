@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query, status
 
 from app.core.dependencies import get_product_service
 from app.core.providers import Principal, require_principal
-from app.schemas.product import ProductCreate, ProductListResponse, ProductRead
+from app.schemas.product import ProductCreate, ProductListResponse, ProductRead, ProductUpdate
 from app.services.product_service import ProductService
 
 
@@ -48,3 +48,24 @@ def create_product(
 ) -> ProductRead:
     _ = principal
     return service.create_product(product_data)
+
+
+@router.patch("/{product_id}", response_model=ProductRead)
+def update_product(
+    product_id: int,
+    product_data: ProductUpdate,
+    service: ProductService = Depends(get_product_service),
+    principal: Principal = Depends(require_principal(("products:write",))),
+) -> ProductRead:
+    _ = principal
+    return service.update_product(product_id, product_data)
+
+
+@router.delete("/{product_id}", response_model=ProductRead)
+def delete_product(
+    product_id: int,
+    service: ProductService = Depends(get_product_service),
+    principal: Principal = Depends(require_principal(("products:write",))),
+) -> ProductRead:
+    _ = principal
+    return service.delete_product(product_id)

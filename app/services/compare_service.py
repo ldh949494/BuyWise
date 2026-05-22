@@ -11,7 +11,9 @@ from sqlalchemy.orm import Session
 
 from app.ai.llm_client import LLMClient
 from app.core.concurrency import run_blocking_io
+from app.repositories.price_repo import PriceHistoryRepository
 from app.repositories.product_repo import ProductRepository
+from app.repositories.review_repo import ReviewRepository
 from app.schemas.compare import CompareItem, CompareResponse
 
 
@@ -38,14 +40,31 @@ class CompareService:
     ) -> list[CompareItem]:
         products = ProductRepository(db).get_by_ids(product_ids)
         ordered_products = self._order_by_requested_ids(products, product_ids)
-        items = [self._build_item(product, user_need) for product in ordered_products]
+        ids = [product.id for product in ordered_products]
+        price_averages = PriceHistoryRepository(db).get_average_by_product_ids(ids)
+        review_counts = ReviewRepository(db).get_sentiment_counts_by_product_ids(ids)
+        items = [
+            self._build_item(
+                product,
+                user_need,
+                price_averages.get(product.id),
+                review_counts.get(product.id, {}),
+            )
+            for product in ordered_products
+        ]
         return sorted(items, key=lambda item: item.score or 0, reverse=True)
 
     def _order_by_requested_ids(self, products: list[Any], product_ids: list[int]) -> list[Any]:
         products_by_id = {product.id: product for product in products}
         return [products_by_id[product_id] for product_id in product_ids if product_id in products_by_id]
 
-    def _build_item(self, product: Any, user_need: str) -> CompareItem:
+    def _build_item(
+        self,
+        product: Any,
+        user_need: str,
+        average_price: float | None = None,
+        review_counts: dict[str, int] | None = None,
+    ) -> CompareItem:
         pros = []
         cons = []
         score = 0.0
@@ -104,6 +123,9 @@ class CompareService:
         if product.stock is not None and product.stock > 0:
             score += 5
 
+        quality_score = self._score_quality_signals(product, average_price, review_counts or {}, pros, cons)
+        score += quality_score
+
         return CompareItem(
             id=product.id,
             product_id=product.id,
@@ -116,6 +138,32 @@ class CompareService:
             cons=cons,
             specs=specs,
         )
+
+    def _score_quality_signals(
+        self,
+        product: Any,
+        average_price: float | None,
+        review_counts: dict[str, int],
+        pros: list[str],
+        cons: list[str],
+    ) -> float:
+        score = 0.0
+        if product.price is not None and average_price is not None:
+            if Decimal(str(product.price)) < Decimal(str(average_price)):
+                pros.append("近期价格更低")
+                score += 4
+            else:
+                cons.append("价格优势不明显")
+
+        positive = int(review_counts.get("positive", 0) + review_counts.get("正向", 0))
+        negative = int(review_counts.get("negative", 0) + review_counts.get("负向", 0))
+        if positive > negative and positive > 0:
+            pros.append("用户反馈较好")
+            score += 4
+        elif negative > positive:
+            cons.append("存在负面反馈")
+            score -= 4
+        return score
 
     def _extract_budget(self, text: str) -> float | None:
         match = re.search(r"(\d+(?:\.\d+)?)\s*(?:\u5143|\u5757)?\s*(?:\u4ee5\u5185|\u4ee5\u4e0b|\u4e4b\u5185)", text)

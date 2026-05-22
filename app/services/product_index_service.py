@@ -30,7 +30,11 @@ def build_vector_index(
 
     with session_factory() as db:
         repo = ProductRepository(db)
-        products = repo.get_by_ids(product_ids) if product_ids else repo.get_all()
+        products = (
+            repo.get_by_ids(product_ids, include_inactive=True)
+            if product_ids
+            else repo.get_all(include_inactive=True)
+        )
         docs = [_build_product_doc(product) for product in products]
 
     for batch in _iter_batches(docs, batch_size):
@@ -61,7 +65,7 @@ def validate_vector_index_health(
     product_store = store or ChromaProductStore()
     indexed_ids = set(product_store.indexed_product_ids())
     with session_factory() as db:
-        db_ids = {product.id for product in ProductRepository(db).get_all()}
+        db_ids = {product.id for product in ProductRepository(db).get_all(include_inactive=True)}
 
     expected_ids = set(expected_product_ids or db_ids)
     missing_in_index = sorted(expected_ids - indexed_ids)

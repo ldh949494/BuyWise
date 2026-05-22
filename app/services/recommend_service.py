@@ -35,7 +35,16 @@ class RecommendService:
         avoid_score = self._score_avoid(avoid, searchable_values, conflicts)
         stock_score = self._score_stock(product, reasons, conflicts)
         reputation_score = self._score_reputation(product)
-        score = budget_score + scenario_score + preference_score + avoid_score + stock_score + reputation_score
+        quality_score = self._score_quality_signals(product, reasons, conflicts)
+        score = (
+            budget_score
+            + scenario_score
+            + preference_score
+            + avoid_score
+            + stock_score
+            + reputation_score
+            + quality_score
+        )
         rating = self._to_float(self._get_value(product, "rating"))
 
         return ProductCard(
@@ -134,6 +143,28 @@ class RecommendService:
         sales = self._to_float(self._get_value(product, "sales"))
         if sales is not None:
             score += min(max(sales, 0), 1000) / 1000 * 10
+        return score
+
+    def _score_quality_signals(self, product: Any, reasons: list[str], conflicts: list[str]) -> float:
+        score = 0.0
+        price = self._get_value(product, "price")
+        average_price = self._get_value(product, "price_history_average")
+        if price is not None and average_price is not None:
+            if Decimal(str(price)) < Decimal(str(average_price)):
+                score += 4
+                reasons.append("近期价格有优势")
+            else:
+                conflicts.append("价格优势不明显")
+
+        sentiments = self._get_value(product, "review_sentiment_counts") or {}
+        positive = int(sentiments.get("positive", 0) + sentiments.get("正向", 0))
+        negative = int(sentiments.get("negative", 0) + sentiments.get("负向", 0))
+        if positive > negative and positive > 0:
+            score += 4
+            reasons.append("用户反馈较好")
+        elif negative > positive:
+            score -= 4
+            conflicts.append("存在负面反馈")
         return score
 
     def _searchable_values(self, product: Any, tags: list[str], scenes: list[str]) -> list[str]:

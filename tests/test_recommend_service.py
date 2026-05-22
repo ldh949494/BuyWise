@@ -119,3 +119,18 @@ def test_rank_uses_reputation_as_tiebreaker_without_reason_noise() -> None:
 
     assert [card.name for card in cards] == ["Higher", "Lower"]
     assert "评分" not in cards[0].reason
+
+
+def test_rank_uses_price_history_and_review_signals_in_reasons() -> None:
+    service = RecommendService()
+    need = {"budget_max": 400, "preferences": ["低噪音"]}
+    product = make_product(
+        price=Decimal("299.00"),
+        price_history_average=350.0,
+        review_sentiment_counts={"positive": 3, "negative": 1},
+    )
+
+    cards = service.rank([product], need)
+
+    assert "近期价格有优势" in cards[0].reason
+    assert "用户反馈较好" in cards[0].reason
