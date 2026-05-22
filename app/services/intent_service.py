@@ -144,46 +144,30 @@ class IntentService:
         return dedupe_strings(preferences)
 
     def _extract_intent(self, text: str) -> str:
-        if any(
-            keyword in text
-            for keyword in [
-                "\u5bf9\u6bd4",
-                "\u6bd4\u8f83",
-                "\u54ea\u4e2a\u597d",
-                "\u54ea\u6b3e\u597d",
-            ]
-        ):
+        if self._is_compare_intent(text):
             return "\u5546\u54c1\u5bf9\u6bd4"
-        if any(
-            keyword in text
-            for keyword in [
-                "\u5e73\u66ff",
-                "\u66ff\u4ee3",
-                "\u7c7b\u4f3c\u6b3e",
-            ]
-        ):
+        if self._is_alternative_intent(text):
             return "\u627e\u5e73\u66ff"
-        if any(
-            keyword in text
-            for keyword in [
-                "\u503c\u4e0d\u503c",
-                "\u5212\u7b97",
-                "\u4ef7\u683c",
-                "\u8d35\u4e0d\u8d35",
-            ]
-        ):
+        if self._is_price_judgement_intent(text):
             return "\u4ef7\u683c\u5224\u65ad"
-        if any(
-            keyword in text
-            for keyword in [
-                "\u53c2\u6570",
-                "\u89c4\u683c",
-                "\u600e\u4e48\u9009",
-                "\u914d\u7f6e",
-            ]
-        ):
+        if self._is_parameter_intent(text):
             return "\u53c2\u6570\u54a8\u8be2"
         return "\u5546\u54c1\u63a8\u8350"
+
+    def _is_compare_intent(self, text: str) -> bool:
+        return self._contains_keyword(text, ["\u5bf9\u6bd4", "\u6bd4\u8f83", "\u54ea\u4e2a\u597d", "\u54ea\u6b3e\u597d"])
+
+    def _is_alternative_intent(self, text: str) -> bool:
+        return self._contains_keyword(text, ["\u5e73\u66ff", "\u66ff\u4ee3", "\u7c7b\u4f3c\u6b3e"])
+
+    def _is_price_judgement_intent(self, text: str) -> bool:
+        return self._contains_keyword(text, ["\u503c\u4e0d\u503c", "\u5212\u7b97", "\u4ef7\u683c", "\u8d35\u4e0d\u8d35"])
+
+    def _is_parameter_intent(self, text: str) -> bool:
+        return self._contains_keyword(text, ["\u53c2\u6570", "\u89c4\u683c", "\u600e\u4e48\u9009", "\u914d\u7f6e"])
+
+    def _contains_keyword(self, text: str, keywords: list[str]) -> bool:
+        return any(keyword in text for keyword in keywords)
 
     def _extract_category(self, text: str) -> str | None:
         for category, keywords in self.CATEGORY_KEYWORDS.items():

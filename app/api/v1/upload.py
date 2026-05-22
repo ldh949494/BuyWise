@@ -17,4 +17,4 @@ def upload_file(
     principal: Principal = Depends(require_principal(("upload:write",))),
 ) -> dict[str, str]:
     _ = principal
-    return service.save(file)
+    return service.create_upload(file)

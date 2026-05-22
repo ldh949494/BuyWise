@@ -19,4 +19,4 @@ async def recognize_image(
     request: VisionRecognizeRequest,
     service: VisionService = Depends(get_vision_service),
 ) -> dict:
-    return await service.recognize(request.image_url)
+    return await service.extract_image_info(request.image_url)

@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import json
 from decimal import Decimal
 from typing import Any
 
 from app.schemas.chat import ProductCard
+from app.utils.list_values import coerce_string_list
 
 MAX_PREFERENCE_HITS = 3
 
@@ -19,46 +19,59 @@ class RecommendService:
         return cards
 
     def _rank_product(self, product: Any, need: Any) -> ProductCard:
-        tags = self._coerce_list(self._get_value(product, "tags"))
-        scenes = self._coerce_list(self._get_value(product, "suitable_scene"))
-        preferences = self._coerce_list(self._get_value(need, "preferences"))
-        avoid = self._coerce_list(self._get_value(need, "avoid"))
-
+        context = self._ranking_context(product, need)
         reasons = []
         conflicts = []
-        price = self._get_value(product, "price")
-        searchable_values = self._searchable_values(product, tags, scenes)
-
         budget_score, budget_match = self._score_budget(product, need, reasons, conflicts)
-        scenario_score, scenario_match = self._score_scenario(need, scenes, reasons)
-        preference_score = self._score_preferences(preferences, searchable_values, reasons)
-        avoid_score = self._score_avoid(avoid, searchable_values, conflicts)
-        stock_score = self._score_stock(product, reasons, conflicts)
-        reputation_score = self._score_reputation(product)
-        quality_score = self._score_quality_signals(product, reasons, conflicts)
-        score = (
-            budget_score
-            + scenario_score
-            + preference_score
-            + avoid_score
-            + stock_score
-            + reputation_score
-            + quality_score
-        )
+        scenario_score, scenario_match = self._score_scenario(need, context["scenes"], reasons)
+        score = self._score_product(product, context, budget_score, scenario_score, reasons, conflicts)
         rating = self._to_float(self._get_value(product, "rating"))
 
         return ProductCard(
             id=self._get_value(product, "id"),
             name=self._get_value(product, "name"),
-            price=float(price) if price is not None else 0.0,
+            price=float(context["price"]) if context["price"] is not None else 0.0,
             image_url=self._get_value(product, "image_url"),
             rating=rating,
             score=round(max(score, 0.0), 2),
-            tags=tags,
+            tags=context["tags"],
             reason="；".join(reasons) if reasons else None,
             budget_match=budget_match,
             scenario_match=scenario_match,
             conflicts=conflicts,
+        )
+
+    def _ranking_context(self, product: Any, need: Any) -> dict[str, Any]:
+        tags = coerce_string_list(self._get_value(product, "tags"))
+        scenes = coerce_string_list(self._get_value(product, "suitable_scene"))
+        return {
+            "tags": tags,
+            "scenes": scenes,
+            "preferences": coerce_string_list(self._get_value(need, "preferences")),
+            "avoid": coerce_string_list(self._get_value(need, "avoid")),
+            "price": self._get_value(product, "price"),
+            "searchable_values": self._searchable_values(product, tags, scenes),
+        }
+
+    def _score_product(
+        self,
+        product: Any,
+        context: dict[str, Any],
+        budget_score: float,
+        scenario_score: float,
+        reasons: list[str],
+        conflicts: list[str],
+    ) -> float:
+        return sum(
+            [
+                budget_score,
+                scenario_score,
+                self._score_preferences(context["preferences"], context["searchable_values"], reasons),
+                self._score_avoid(context["avoid"], context["searchable_values"], conflicts),
+                self._score_stock(product, reasons, conflicts),
+                self._score_reputation(product),
+                self._score_quality_signals(product, reasons, conflicts),
+            ]
         )
 
     def _score_budget(
@@ -196,26 +209,8 @@ class RecommendService:
             return source.get(key)
         return getattr(source, key, None)
 
-    def _coerce_list(self, value: Any) -> list[str]:
-        if value is None:
-            return []
-        if isinstance(value, str):
-            parsed = self._try_parse_json(value)
-            if isinstance(parsed, list):
-                return [str(item) for item in parsed if item]
-            return [part.strip() for part in value.split(",") if part.strip()]
-        if isinstance(value, list):
-            return [str(item) for item in value if item]
-        return [str(value)]
-
     def _contains_any(self, values: list[str], keywords: list[str]) -> bool:
         return any(keyword and keyword in value for value in values for keyword in keywords)
-
-    def _try_parse_json(self, value: str) -> Any:
-        try:
-            return json.loads(value)
-        except json.JSONDecodeError:
-            return None
 
     def _to_float(self, value: Any) -> float | None:
         if value is None:

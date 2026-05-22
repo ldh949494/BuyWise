@@ -43,7 +43,22 @@ class ProductRepository:
     ) -> tuple[list[Product], int]:
         statement = select(Product)
         count_statement = select(func.count()).select_from(Product)
+        filters = self._list_filters(category, keyword, price_min, price_max, include_inactive)
+        statement, count_statement = self._apply_filters(statement, count_statement, filters)
+        statement = self._paginate(statement, page, page_size)
 
+        total = self.db.scalar(count_statement) or 0
+        items = list(self.db.scalars(statement).all())
+        return items, total
+
+    def _list_filters(
+        self,
+        category: str | None,
+        keyword: str | None,
+        price_min: float | None,
+        price_max: float | None,
+        include_inactive: bool,
+    ) -> list:
         filters = []
         if not include_inactive:
             filters.append(self._active_filter())
@@ -62,17 +77,17 @@ class ProductRepository:
             filters.append(Product.price >= price_min)
         if price_max is not None:
             filters.append(Product.price <= price_max)
+        return filters
 
+    def _apply_filters(self, statement, count_statement, filters: list):
         if filters:
             statement = statement.where(*filters)
             count_statement = count_statement.where(*filters)
+        return statement, count_statement
 
+    def _paginate(self, statement, page: int, page_size: int):
         offset = (page - 1) * page_size
-        statement = statement.order_by(Product.id).offset(offset).limit(page_size)
-
-        total = self.db.scalar(count_statement) or 0
-        items = list(self.db.scalars(statement).all())
-        return items, total
+        return statement.order_by(Product.id).offset(offset).limit(page_size)
 
     def create_product(self, product_data: dict) -> Product:
         product = Product(**product_data)

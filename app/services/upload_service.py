@@ -50,7 +50,7 @@ class UploadService:
         self.allowed_content_types = allowed_content_types or settings.upload_allowed_content_types
         self.storage_client = storage_client
 
-    def save(self, file: UploadInput) -> dict[str, str]:
+    def create_upload(self, file: UploadInput) -> dict[str, str]:
         suffix = self._validate_upload_metadata(file)
         filename = self._build_storage_name(suffix)
         if self._upload_provider() == "cos":
