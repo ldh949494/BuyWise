@@ -6,6 +6,8 @@ import re
 from typing import Any
 
 from app.schemas.chat import StructuredNeed
+from app.services.intent_llm import LlmIntentExtractor
+from app.utils.list_values import dedupe_strings
 
 
 class IntentService:
@@ -63,6 +65,9 @@ class IntentService:
         ),
     ]
 
+    def __init__(self, llm_client: Any | None = None) -> None:
+        self.llm_client = llm_client
+
     async def extract(
         self,
         text: str,
@@ -73,10 +78,40 @@ class IntentService:
         image_info = image_info or {}
         history_context = history_context or {}
 
-        # Future hook: call an LLM JSON extractor here, then merge/validate
-        # against the rule-based result below.
-        _ = self._build_llm_prompt(normalized_text, image_info, history_context)
+        rule_need = self._extract_by_rules(normalized_text, image_info, history_context)
+        if self.llm_client is None:
+            return rule_need
 
+        extractor = LlmIntentExtractor(self.llm_client, self._missing_fields)
+        llm_need = await extractor.extract(normalized_text, image_info, history_context)
+        return llm_need or rule_need
+
+    def _extract_by_rules(
+        self,
+        normalized_text: str,
+        image_info: dict,
+        history_context: dict,
+    ) -> StructuredNeed:
+        values = self._rule_values(normalized_text, image_info, history_context)
+        missing_fields = self._missing_fields(
+            intent=values["intent"],
+            category=values["category"],
+            budget_max=values["budget_max"],
+            scenario=values["scenario"],
+            preferences=values["preferences"],
+        )
+        return StructuredNeed(
+            **values,
+            need_clarify=bool(missing_fields),
+            missing_fields=missing_fields,
+        )
+
+    def _rule_values(
+        self,
+        normalized_text: str,
+        image_info: dict,
+        history_context: dict,
+    ) -> dict[str, Any]:
         intent = self._extract_intent(normalized_text)
         category = (
             self._extract_category(normalized_text)
@@ -88,28 +123,25 @@ class IntentService:
             budget_max = history_context.get("budget_max")
 
         scenario = self._extract_scenario(normalized_text) or history_context.get("scenario")
+        preferences = self._rule_preferences(normalized_text, image_info, history_context)
+        return {
+            "intent": intent,
+            "category": category,
+            "budget_max": budget_max,
+            "scenario": scenario,
+            "preferences": preferences,
+        }
+
+    def _rule_preferences(
+        self,
+        normalized_text: str,
+        image_info: dict,
+        history_context: dict,
+    ) -> list[str]:
         preferences = self._extract_preferences(normalized_text)
         preferences.extend(self._coerce_list(image_info.get("features")))
         preferences.extend(self._coerce_list(history_context.get("preferences")))
-        preferences = self._dedupe(preferences)
-
-        missing_fields = self._missing_fields(
-            intent=intent,
-            category=category,
-            budget_max=budget_max,
-            scenario=scenario,
-            preferences=preferences,
-        )
-
-        return StructuredNeed(
-            intent=intent,
-            category=category,
-            budget_max=budget_max,
-            scenario=scenario,
-            preferences=preferences,
-            need_clarify=bool(missing_fields),
-            missing_fields=missing_fields,
-        )
+        return dedupe_strings(preferences)
 
     def _extract_intent(self, text: str) -> str:
         if any(
@@ -216,29 +248,9 @@ class IntentService:
         if value is None:
             return []
         if isinstance(value, str):
-            return [value]
+            return [value] if value.strip() else []
         if isinstance(value, list):
-            return [str(item) for item in value if item]
-        return [str(value)]
+            return [str(item).strip() for item in value if str(item).strip()]
+        return [str(value).strip()] if str(value).strip() else []
 
-    def _dedupe(self, values: list[str]) -> list[str]:
-        result = []
-        seen = set()
-        for value in values:
-            if value not in seen:
-                result.append(value)
-                seen.add(value)
-        return result
 
-    def _build_llm_prompt(
-        self,
-        text: str,
-        image_info: dict,
-        history_context: dict,
-    ) -> str:
-        return (
-            "Extract shopping intent as JSON with fields: intent, category, "
-            "budget_max, scenario, preferences, avoid, need_clarify, "
-            f"missing_fields. text={text!r}, image_info={image_info!r}, "
-            f"history_context={history_context!r}"
-        )

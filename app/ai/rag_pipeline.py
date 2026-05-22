@@ -55,7 +55,9 @@ class RAGPipeline:
         top_k: int,
     ) -> list[Product]:
         if search_results:
-            return self._candidates_from_vector_results(repo, search_results)
+            candidates = self._candidates_from_vector_results(repo, search_results)
+            if candidates:
+                return candidates
         return self._fallback_candidates(repo, need, top_k)
 
     def _candidates_from_vector_results(

@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
 from app.models.product import Product
+from app.scripts.demo_products import DEMO_SHOWCASE_PRODUCTS
 
 ANDROID_CONTRACT_PRODUCTS: list[dict[str, Any]] = [
     {
@@ -130,8 +131,18 @@ ANDROID_CONTRACT_PRODUCTS: list[dict[str, Any]] = [
 def seed_android_contract_products(db: Session) -> list[Product]:
     """Insert or update deterministic products used by Android API contract tests."""
 
+    return upsert_products(db, ANDROID_CONTRACT_PRODUCTS)
+
+
+def seed_demo_products(db: Session) -> list[Product]:
+    """Insert or update products curated for live demo conversations."""
+
+    return upsert_products(db, [*ANDROID_CONTRACT_PRODUCTS, *DEMO_SHOWCASE_PRODUCTS])
+
+
+def upsert_products(db: Session, products_data: list[dict[str, Any]]) -> list[Product]:
     seeded_products: list[Product] = []
-    for product_data in ANDROID_CONTRACT_PRODUCTS:
+    for product_data in products_data:
         product = db.get(Product, product_data["id"])
         if product is None:
             product = Product(**product_data)
@@ -147,19 +158,36 @@ def seed_android_contract_products(db: Session) -> list[Product]:
     return seeded_products
 
 
-def seed_products(session_factory: Callable[[], Session] = SessionLocal) -> dict[str, int]:
+def seed_products(
+    session_factory: Callable[[], Session] = SessionLocal,
+    profile: str = "android-contract",
+) -> dict[str, int]:
     with session_factory() as db:
         existing_ids = set(db.scalars(select(Product.id)).all())
-        products = seed_android_contract_products(db)
+        products = _seed_profile(db, profile)
         inserted = sum(1 for product in products if product.id not in existing_ids)
         return {"inserted": inserted, "updated": len(products) - inserted}
 
 
+def _seed_profile(db: Session, profile: str) -> list[Product]:
+    if profile == "android-contract":
+        return seed_android_contract_products(db)
+    if profile == "demo":
+        return seed_demo_products(db)
+    raise ValueError("profile must be 'android-contract' or 'demo'.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Seed deterministic BuyWise product data.")
-    parser.parse_args()
+    parser.add_argument(
+        "--profile",
+        choices=["android-contract", "demo"],
+        default="android-contract",
+        help="Seed profile to apply. Use demo for live demonstration data.",
+    )
+    args = parser.parse_args()
 
-    result = seed_products()
+    result = seed_products(profile=args.profile)
     print(f"Inserted {result['inserted']} products, updated {result['updated']} products.")
 
 

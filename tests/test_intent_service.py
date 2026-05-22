@@ -4,6 +4,19 @@ from app.schemas.chat import StructuredNeed
 from app.services.intent_service import IntentService
 
 
+class FakeLLMClient:
+    def __init__(self, content: str | None = None, should_fail: bool = False) -> None:
+        self.content = content or ""
+        self.should_fail = should_fail
+        self.messages = []
+
+    async def chat(self, messages):
+        self.messages.append(messages)
+        if self.should_fail:
+            raise RuntimeError("llm unavailable")
+        return self.content
+
+
 @pytest.mark.anyio
 async def test_extract_recommendation_need_from_text() -> None:
     service = IntentService()
@@ -71,4 +84,75 @@ async def test_extract_merges_image_info_and_history_context() -> None:
     assert need.budget_max == 500
     assert need.scenario == "通勤"
     assert need.preferences == ["轻便", "大容量"]
+    assert need.need_clarify is False
+
+
+@pytest.mark.anyio
+async def test_extract_prefers_llm_structured_need_when_available() -> None:
+    llm = FakeLLMClient(
+        """
+        {
+          "intent": "商品推荐",
+          "category": "蓝牙耳机",
+          "budget_max": 800,
+          "scenario": "通勤",
+          "preferences": ["降噪", "轻便"],
+          "avoid": ["入耳压迫"],
+          "need_clarify": false,
+          "missing_fields": []
+        }
+        """
+    )
+    service = IntentService(llm_client=llm)
+
+    need = await service.extract("我想买个上班路上用的耳机，价格别太高")
+
+    assert need.intent == "商品推荐"
+    assert need.category == "蓝牙耳机"
+    assert need.budget_max == 800
+    assert need.scenario == "通勤"
+    assert need.preferences == ["降噪", "轻便"]
+    assert need.avoid == ["入耳压迫"]
+    assert need.need_clarify is False
+    assert llm.messages
+
+
+@pytest.mark.anyio
+async def test_extract_normalizes_llm_intent_and_ignores_non_core_missing_fields() -> None:
+    llm = FakeLLMClient(
+        """
+        {
+          "intent": "推荐",
+          "category": "键盘",
+          "budget_max": 300,
+          "scenario": "宿舍写代码",
+          "preferences": ["静音", "蓝牙", "性价比高"],
+          "need_clarify": true,
+          "missing_fields": ["轴体类型", "连接方式", "背光需求"]
+        }
+        """
+    )
+    service = IntentService(llm_client=llm)
+
+    need = await service.extract("帮我推荐一个300以内适合宿舍写代码的低噪音无线机械键盘")
+
+    assert need.intent == "商品推荐"
+    assert need.category == "机械键盘"
+    assert need.scenario == "宿舍"
+    assert need.preferences == ["低噪音", "无线", "性价比"]
+    assert need.need_clarify is False
+    assert need.missing_fields == []
+
+
+@pytest.mark.anyio
+async def test_extract_falls_back_to_rules_when_llm_fails() -> None:
+    service = IntentService(llm_client=FakeLLMClient(should_fail=True))
+
+    need = await service.extract("帮我推荐一个300以内适合宿舍写代码的低噪音机械键盘")
+
+    assert need.intent == "商品推荐"
+    assert need.category == "机械键盘"
+    assert need.budget_max == 300
+    assert need.scenario == "宿舍"
+    assert need.preferences == ["低噪音"]
     assert need.need_clarify is False
