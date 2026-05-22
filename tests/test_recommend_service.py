@@ -48,8 +48,17 @@ def test_rank_returns_product_cards_sorted_by_score_with_reasons() -> None:
     assert all(isinstance(card, ProductCard) for card in cards)
     assert [card.name for card in cards] == ["Best", "Over Budget"]
     assert cards[0].score > cards[1].score
-    assert cards[0].score == 94.4
-    assert cards[0].reason == "价格符合预算；适合宿舍场景；符合低噪音偏好；符合无线偏好；符合性价比偏好；库存充足"
+    assert cards[0].budget_match is True
+    assert cards[0].scenario_match is True
+    assert "价格符合预算" in cards[0].reason
+    assert "适合宿舍场景" in cards[0].reason
+    assert "符合低噪音偏好" in cards[0].reason
+    assert "符合无线偏好" in cards[0].reason
+    assert "符合性价比偏好" in cards[0].reason
+    assert "库存充足" in cards[0].reason
+    assert "宿舍场景匹配不明确" not in (cards[1].reason or "")
+    assert "超出预算" in cards[1].conflicts
+    assert "库存不足" in cards[1].conflicts
 
 
 def test_rank_handles_json_string_tags_scenes_and_none_values() -> None:
@@ -73,8 +82,12 @@ def test_rank_handles_json_string_tags_scenes_and_none_values() -> None:
     cards = service.rank([product], need)
 
     assert cards[0].tags == ["轻便", "大容量"]
-    assert cards[0].score == 55
-    assert cards[0].reason == "价格符合预算；适合通勤场景；符合轻便偏好；符合大容量偏好"
+    assert cards[0].budget_match is True
+    assert cards[0].scenario_match is True
+    assert "价格符合预算" in cards[0].reason
+    assert "适合通勤场景" in cards[0].reason
+    assert "符合轻便偏好" in cards[0].reason
+    assert "符合大容量偏好" in cards[0].reason
 
 
 def test_rank_caps_preference_score_at_30_points() -> None:
@@ -94,3 +107,15 @@ def test_rank_caps_preference_score_at_30_points() -> None:
 
     assert cards[0].score == 30
     assert "符合颜值高偏好" not in cards[0].reason
+
+
+def test_rank_uses_reputation_as_tiebreaker_without_reason_noise() -> None:
+    service = RecommendService()
+    need = {"budget_max": 400, "scenario": "宿舍", "preferences": ["低噪音"]}
+    lower_reputation = make_product(id=1, name="Lower", rating=Decimal("4.1"), sales=100)
+    higher_reputation = make_product(id=2, name="Higher", rating=Decimal("4.9"), sales=900)
+
+    cards = service.rank([lower_reputation, higher_reputation], need)
+
+    assert [card.name for card in cards] == ["Higher", "Lower"]
+    assert "评分" not in cards[0].reason

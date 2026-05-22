@@ -52,6 +52,32 @@ def update_product_index(
     )
 
 
+def validate_vector_index_health(
+    session_factory: Callable[[], Session] = SessionLocal,
+    store: ChromaProductStore | None = None,
+    expected_product_ids: list[int] | None = None,
+    profile: str | None = None,
+) -> dict[str, object]:
+    product_store = store or ChromaProductStore()
+    indexed_ids = set(product_store.indexed_product_ids())
+    with session_factory() as db:
+        db_ids = {product.id for product in ProductRepository(db).get_all()}
+
+    expected_ids = set(expected_product_ids or db_ids)
+    missing_in_index = sorted(expected_ids - indexed_ids)
+    stale_in_index = sorted(indexed_ids - db_ids)
+    return {
+        "ok": not missing_in_index and not stale_in_index,
+        "profile": profile,
+        "collection_count": product_store.count(),
+        "db_product_count": len(db_ids),
+        "expected_product_count": len(expected_ids),
+        "indexed_product_ids": sorted(indexed_ids),
+        "missing_in_index": missing_in_index,
+        "stale_in_index": stale_in_index,
+    }
+
+
 def _build_product_doc(product) -> dict:
     return {
         "id": f"product_{product.id}",

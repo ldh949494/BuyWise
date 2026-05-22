@@ -10,7 +10,6 @@
 - [ ] 公共端点、环境变量或脚本变化时，更新参考文档。
 - [ ] 修改文档后运行 `python scripts/validate_docs.py`。
 - [ ] 重大结构变化后运行 `python scripts/doc_gardening.py`。
-- [x] 演示闭环成功后，单独刷新并清理 `docs/entropy/baseline.json`，不要混入当前演示闭环改动。
 - [ ] 演示前按 `docs/plans/demo-checklist.md` 逐项确认 Android 主路径和 Swagger 备用路径。
 
 ## 验证

@@ -8,6 +8,8 @@ from sqlalchemy.pool import StaticPool
 from app.core.database import Base, get_db
 from app.main import create_app
 from app.models import Product
+from app.schemas.rag import RagSearchRequest
+from app.services.rag_service import RagService
 
 
 KEYBOARD_CATEGORY = "\u673a\u68b0\u952e\u76d8"
@@ -95,3 +97,32 @@ def test_rag_search_route_is_registered() -> None:
     paths = {route.path for route in app.routes}
 
     assert "/api/v1/rag/search" in paths
+
+
+def test_rag_service_filters_stale_vector_product_ids() -> None:
+    client = make_client()
+    db_override = next(iter(client.app.dependency_overrides.values()))
+    db = next(db_override())
+
+    class FakeStore:
+        def search(self, query: str, top_k: int = 5):
+            return [
+                {"id": "product_999", "metadata": {"product_id": 999, "name": "Stale"}, "score": 0.9},
+                {
+                    "id": "product_1",
+                    "metadata": {
+                        "product_id": 1,
+                        "name": KEYBOARD_NAME,
+                        "category": KEYBOARD_CATEGORY,
+                        "price": 269,
+                    },
+                    "score": 0.8,
+                },
+            ]
+
+    response = RagService(product_store=FakeStore()).search(
+        RagSearchRequest(query="静音键盘", filters={"category": KEYBOARD_CATEGORY}, top_k=5),
+        db,
+    )
+
+    assert [item["product_id"] for item in response.items] == [1]

@@ -8,6 +8,8 @@ from typing import Any
 
 from app.schemas.chat import ProductCard
 
+MAX_PREFERENCE_HITS = 3
+
 
 class RecommendService:
     def rank(self, products: list[Any], need: Any) -> list[ProductCard]:
@@ -22,62 +24,19 @@ class RecommendService:
         preferences = self._coerce_list(self._get_value(need, "preferences"))
         avoid = self._coerce_list(self._get_value(need, "avoid"))
 
-        score = 0.0
         reasons = []
         conflicts = []
-
-        budget_match = None
-        budget_max = self._get_value(need, "budget_max")
         price = self._get_value(product, "price")
-        if budget_max is not None and price is not None:
-            budget_match = Decimal(str(price)) <= Decimal(str(budget_max))
-            if budget_match:
-                score += 20
-                reasons.append("价格符合预算")
-            else:
-                conflicts.append("超出预算")
+        searchable_values = self._searchable_values(product, tags, scenes)
 
-        scenario_match = None
-        scenario = self._get_value(need, "scenario")
-        if scenario:
-            scenario_match = scenario in scenes or any(scenario in scene for scene in scenes)
-            if scenario_match:
-                score += 15
-                reasons.append(f"适合{scenario}场景")
-            else:
-                conflicts.append(f"{scenario}场景匹配不明确")
-
-        preference_hits = 0
-        searchable_values = tags + scenes + [str(self._get_value(product, "description") or "")]
-        for preference in preferences:
-            if preference_hits >= 3:
-                break
-            if self._contains_any(searchable_values, [preference]):
-                score += 10
-                preference_hits += 1
-                reasons.append(f"符合{preference}偏好")
-
-        for avoid_item in avoid:
-            if self._contains_any(searchable_values, [avoid_item]):
-                score -= 10
-                conflicts.append(f"命中避雷项：{avoid_item}")
-
+        budget_score, budget_match = self._score_budget(product, need, reasons, conflicts)
+        scenario_score, scenario_match = self._score_scenario(need, scenes, reasons)
+        preference_score = self._score_preferences(preferences, searchable_values, reasons)
+        avoid_score = self._score_avoid(avoid, searchable_values, conflicts)
+        stock_score = self._score_stock(product, reasons, conflicts)
+        reputation_score = self._score_reputation(product)
+        score = budget_score + scenario_score + preference_score + avoid_score + stock_score + reputation_score
         rating = self._to_float(self._get_value(product, "rating"))
-        if rating is not None:
-            score += min(max(rating, 0), 5) / 5 * 15
-
-        sales = self._to_float(self._get_value(product, "sales"))
-        if sales is not None:
-            score += min(max(sales, 0), 1000) / 1000 * 10
-
-        stock = self._get_value(product, "stock")
-        stock_status = self._get_value(product, "stock_status")
-        if stock_status == "out_of_stock" or (stock is not None and stock <= 0):
-            conflicts.append("库存不足")
-            score -= 20
-        elif stock is not None and stock > 0:
-            score += 5
-            reasons.append("库存充足")
 
         return ProductCard(
             id=self._get_value(product, "id"),
@@ -92,6 +51,101 @@ class RecommendService:
             scenario_match=scenario_match,
             conflicts=conflicts,
         )
+
+    def _score_budget(
+        self,
+        product: Any,
+        need: Any,
+        reasons: list[str],
+        conflicts: list[str],
+    ) -> tuple[float, bool | None]:
+        budget_max = self._get_value(need, "budget_max")
+        price = self._get_value(product, "price")
+        if budget_max is None or price is None:
+            return 0.0, None
+        budget_match = Decimal(str(price)) <= Decimal(str(budget_max))
+        if budget_match:
+            reasons.append("价格符合预算")
+            return 20.0, True
+        conflicts.append("超出预算")
+        return -5.0, False
+
+    def _score_scenario(
+        self,
+        need: Any,
+        scenes: list[str],
+        reasons: list[str],
+    ) -> tuple[float, bool | None]:
+        scenario = self._get_value(need, "scenario")
+        if not scenario:
+            return 0.0, None
+        scenario_match = scenario in scenes or any(scenario in scene for scene in scenes)
+        if not scenario_match:
+            return 0.0, False
+        reasons.append(f"适合{scenario}场景")
+        return 15.0, True
+
+    def _score_preferences(
+        self,
+        preferences: list[str],
+        searchable_values: list[str],
+        reasons: list[str],
+    ) -> float:
+        preference_hits = 0
+        score = 0.0
+        for preference in preferences:
+            if preference_hits >= MAX_PREFERENCE_HITS:
+                break
+            if self._contains_any(searchable_values, [preference]):
+                score += 10
+                preference_hits += 1
+                reasons.append(f"符合{preference}偏好")
+        return score
+
+    def _score_avoid(
+        self,
+        avoid: list[str],
+        searchable_values: list[str],
+        conflicts: list[str],
+    ) -> float:
+        score = 0.0
+        for avoid_item in avoid:
+            if self._contains_any(searchable_values, [avoid_item]):
+                score -= 10
+                conflicts.append(f"命中避雷项：{avoid_item}")
+        return score
+
+    def _score_stock(self, product: Any, reasons: list[str], conflicts: list[str]) -> float:
+        stock = self._get_value(product, "stock")
+        stock_status = self._get_value(product, "stock_status")
+        if stock_status == "out_of_stock" or (stock is not None and stock <= 0):
+            conflicts.append("库存不足")
+            return -20.0
+        if stock is not None and stock > 0:
+            reasons.append("库存充足")
+            return 5.0
+        return 0.0
+
+    def _score_reputation(self, product: Any) -> float:
+        score = 0.0
+        rating = self._to_float(self._get_value(product, "rating"))
+        if rating is not None:
+            score += min(max(rating, 0), 5) / 5 * 15
+        sales = self._to_float(self._get_value(product, "sales"))
+        if sales is not None:
+            score += min(max(sales, 0), 1000) / 1000 * 10
+        return score
+
+    def _searchable_values(self, product: Any, tags: list[str], scenes: list[str]) -> list[str]:
+        values = tags + scenes
+        for key in ["description", "review_summary"]:
+            values.append(str(self._get_value(product, key) or ""))
+        specs = self._get_value(product, "specs")
+        if isinstance(specs, dict):
+            values.extend(str(value) for value in specs.values() if value)
+        elif specs:
+            values.append(str(specs))
+        return values
 
     def _attach_alternatives(self, cards: list[ProductCard]) -> None:
         for card in cards:
