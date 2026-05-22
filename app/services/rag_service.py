@@ -21,7 +21,7 @@ class RagService:
         self.product_store = product_store or ChromaProductStore()
 
     def search(self, request: RagSearchRequest, db: Session) -> RagSearchResponse:
-        vector_items = self._search_vector_store(request)
+        vector_items = self._valid_vector_items(request, db)
         if vector_items:
             items = vector_items[: request.top_k]
             logger.info(
@@ -40,6 +40,19 @@ class RagService:
             items=fallback_items,
             total=len(fallback_items),
         )
+
+    def _valid_vector_items(self, request: RagSearchRequest, db: Session) -> list[dict[str, Any]]:
+        vector_items = self._search_vector_store(request)
+        if not vector_items:
+            return []
+        repo = ProductRepository(db)
+        product_ids = [int(item["product_id"]) for item in vector_items]
+        valid_ids = {product.id for product in repo.get_by_ids(product_ids)}
+        return [
+            item
+            for item in vector_items
+            if int(item["product_id"]) in valid_ids and self._matches_filters(item, request)
+        ]
 
     def _search_vector_store(self, request: RagSearchRequest) -> list[dict[str, Any]]:
         results = self.product_store.search(request.query, top_k=request.top_k)
@@ -84,6 +97,21 @@ class RagService:
             }
             for product in products
         ]
+
+    def _matches_filters(self, item: dict[str, Any], request: RagSearchRequest) -> bool:
+        filters = request.filters or {}
+        category = filters.get("category")
+        price_max = filters.get("price_max")
+        if category and item.get("category") != category:
+            return False
+        if price_max is not None and self._exceeds_price(item.get("price"), price_max):
+            return False
+        return True
+
+    def _exceeds_price(self, price: Any, price_max: Any) -> bool:
+        if price is None:
+            return False
+        return Decimal(str(price)) > Decimal(str(price_max))
 
     def _to_float(self, value: object) -> float | None:
         if value is None:

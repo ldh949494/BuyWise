@@ -72,6 +72,41 @@ Android 应用使用 `BuildConfig.BUYWISE_API_BASE_URL`，默认值是 `http://1
 
 后端不可用时，本次集成不自动回退到 mock 数据；UI 应展示错误和重试入口。识图、上传和语音仍是本地演示，不属于当前 Android 集成范围。
 
+## Swagger 备用演示
+
+Android 作为主演示路径，Swagger 和 API 请求作为现场兜底路径。准备步骤：
+
+完整顺序见 `docs/plans/demo-checklist.md`。
+
+```powershell
+.\.venv\Scripts\python.exe -m app.scripts.migrate_database
+.\.venv\Scripts\python.exe -m app.scripts.seed_products --profile demo
+.\.venv\Scripts\python.exe -m app.scripts.build_vector_index
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
+```
+
+打开 `http://127.0.0.1:8000/docs`，按顺序展示：
+
+- `GET /api/v1/health`
+- `GET /api/v1/products?page=1&page_size=5`
+- `POST /api/v1/products/compare`
+- `POST /api/v1/ai/chat`
+
+推荐聊天请求体：
+
+```json
+{
+  "session_id": "demo-swagger-session",
+  "message": "帮我推荐一个300以内适合宿舍写代码的低噪音无线机械键盘，最好性价比高"
+}
+```
+
+也可以直接运行 API 备用检查：
+
+```powershell
+.\.venv\Scripts\python.exe .\scripts\demo_api_check.py --base-url http://127.0.0.1:8000
+```
+
 ## RAG 质量闭环
 
 RAG 检索质量通过 `data/rag_eval/shopping_needs.jsonl` 跟踪。运行 `python -m app.scripts.evaluate_rag` 可查看 `recall@k`、`top1_accuracy`、`mrr@k` 和当前失败案例。`tests/test_rag_eval.py` 对固定评测集提供轻量回归门禁。

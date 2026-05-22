@@ -59,10 +59,10 @@ class ChatService:
     ) -> None:
         self.speech_service = speech_service or SpeechService()
         self.vision_service = vision_service or VisionService()
-        self.intent_service = intent_service or IntentService()
+        self.llm_client = llm_client or LLMClient()
+        self.intent_service = intent_service or IntentService(llm_client=self.llm_client)
         self.rag_pipeline = rag_pipeline or RAGPipeline()
         self.recommend_service = recommend_service or RecommendService()
-        self.llm_client = llm_client or LLMClient()
 
     async def handle_chat(self, request: ChatRequest, db: Session) -> ChatResponse:
         chat_repo = self._chat_repo(request, db)
