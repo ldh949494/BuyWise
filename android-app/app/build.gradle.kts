@@ -17,6 +17,10 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         buildConfigField("String", "BUYWISE_API_BASE_URL", "\"http://10.0.2.2:8000\"")
+        val uploadToken = providers.gradleProperty("BUYWISE_UPLOAD_TOKEN")
+            .orElse(providers.environmentVariable("BUYWISE_UPLOAD_TOKEN"))
+            .orElse("upload-token")
+        buildConfigField("String", "BUYWISE_UPLOAD_TOKEN", "\"${uploadToken.get()}\"")
     }
 
     buildFeatures {

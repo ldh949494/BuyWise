@@ -64,6 +64,10 @@ data class CompareState(
 
 data class VisionState(
     val result: VisionResult,
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null,
+    val recognizedQuery: String? = null,
+    val speechText: String? = null,
 )
 
 data class ProductDetailState(

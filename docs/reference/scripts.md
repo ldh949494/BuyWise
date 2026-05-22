@@ -37,6 +37,7 @@
 - `scripts/set_utf8.ps1`：将 PowerShell 和 Python 进程编码设置为 UTF-8。如果终端查看 seed 数据时出现乱码，先点加载它：`. .\scripts\set_utf8.ps1`。
 - `app.scripts.build_vector_index`：重建或增量 upsert 持久化 ChromaDB 商品索引。`--mode rebuild` 会重置完整 collection，`--mode upsert` 会全量 upsert 但不重置，`--mode upsert --product-id <id>` 只更新指定商品。
 - `app.scripts.check_vector_index`：输出商品向量索引健康 JSON，包括 collection count、DB 商品数、缺失索引 ID 和陈旧索引 ID。可传入 `--profile android-contract` 或 `--profile demo` 校验固定 seed 商品 ID。
+- `app.scripts.cleanup_uploads`：清理本地 `UPLOAD_DIR` 下超过 TTL 的上传文件。示例：`python -m app.scripts.cleanup_uploads --max-age-hours 24 --dry-run`。仅清理允许扩展名的普通文件；COS 上传的生命周期应在 bucket 上配置。
 - `app.scripts.evaluate_rag`：运行小型 RAG 购物需求评测集，并输出 `recall@k`、`top1_accuracy`、`mrr@k` 和失败案例。使用 `python -m app.scripts.evaluate_rag`；传入 `--profile android-contract|demo` 可选择 Android 合同或演示评测集，传入 `--output-json <path>` 可保存报告。
 - `scripts/init_db.py`：数据库初始化辅助脚本，执行 Alembic 迁移。
 - `scripts/ai_update_readme.py`：GitHub Actions 使用的 AI 辅助 README 更新脚本。

@@ -159,3 +159,43 @@ def test_settings_keeps_legacy_chroma_directory_alias() -> None:
             os.environ["CHROMA_PERSIST_DIRECTORY"] = previous
 
     assert settings.chroma_persist_dir == "/tmp/legacy-chroma"
+
+
+def test_prod_non_mock_multimodal_requires_public_upload_url() -> None:
+    settings = Settings(
+        _env_file=None,
+        APP_ENV="prod",
+        APP_DEBUG=False,
+        MYSQL_PASSWORD="secret",
+        AUTH_API_KEYS="api:prod-token:upload:write",
+        LLM_PROVIDER="mock",
+        VISION_PROVIDER="llm",
+        SPEECH_PROVIDER="mock",
+        UPLOAD_PROVIDER="local",
+        UPLOAD_PUBLIC_BASE_URL="",
+    )
+
+    try:
+        settings.validate_production()
+    except ValueError as exc:
+        message = str(exc)
+    else:
+        message = ""
+
+    assert "UPLOAD_PUBLIC_BASE_URL must be set" in message
+
+
+def test_prod_non_mock_multimodal_allows_cos_upload_provider() -> None:
+    settings = Settings(
+        _env_file=None,
+        APP_ENV="prod",
+        APP_DEBUG=False,
+        MYSQL_PASSWORD="secret",
+        AUTH_API_KEYS="api:prod-token:upload:write",
+        LLM_PROVIDER="mock",
+        VISION_PROVIDER="mock",
+        SPEECH_PROVIDER="tencent",
+        UPLOAD_PROVIDER="cos",
+    )
+
+    settings.validate_production()

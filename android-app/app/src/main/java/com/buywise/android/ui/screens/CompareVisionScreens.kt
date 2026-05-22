@@ -23,6 +23,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -73,14 +74,34 @@ fun CompareScreen(state: CompareState, onProductClick: (String) -> Unit) {
 }
 
 @Composable
-fun VisionScreen(state: VisionState, onProductClick: (String) -> Unit) {
+fun VisionScreen(
+    state: VisionState,
+    onRunVisionDemo: () -> Unit,
+    onRunSpeechDemo: () -> Unit,
+    onUseQuery: () -> Unit,
+    onProductClick: (String) -> Unit,
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(18.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item { SectionTitle("图像识别", "本页保留本地演示，未纳入本轮前后端联调。") }
-        item { UploadPanel() }
+        item { SectionTitle("多模态联调", "使用固定演示资源调用后端上传、识图和语音接口。") }
+        item {
+            UploadPanel(
+                isLoading = state.isLoading,
+                hasQuery = !state.recognizedQuery.isNullOrBlank(),
+                onRunVisionDemo = onRunVisionDemo,
+                onRunSpeechDemo = onRunSpeechDemo,
+                onUseQuery = onUseQuery,
+            )
+        }
+        if (state.isLoading) {
+            item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
+        }
+        state.errorMessage?.let { message ->
+            item { ErrorPanel(message = message) }
+        }
         item {
             InfoPanel(
                 icon = { Icon(Icons.Outlined.Inventory2, contentDescription = null) },
@@ -88,7 +109,19 @@ fun VisionScreen(state: VisionState, onProductClick: (String) -> Unit) {
                 body = "${state.result.labels.joinToString(" / ")}",
             )
         }
-        item { SectionTitle("本地演示商品", "这些内容不代表后端识别结果。") }
+        state.speechText?.let { text ->
+            item {
+                InfoPanel(
+                    icon = { Icon(Icons.Outlined.CameraAlt, contentDescription = null) },
+                    title = "语音识别结果",
+                    body = text,
+                )
+            }
+        }
+        item { SectionTitle("识别关联商品", "可将识别 query 带入导购继续推荐。") }
+        if (state.result.similarProducts.isEmpty()) {
+            item { Text("等待后端识别结果。", color = BuyWiseTheme.colors.muted) }
+        }
         items(state.result.similarProducts) { product ->
             ProductCard(product = product, onClick = { onProductClick(product.id) })
         }
@@ -132,7 +165,13 @@ private fun CompareTable(rows: List<CompareRow>) {
 }
 
 @Composable
-private fun UploadPanel() {
+private fun UploadPanel(
+    isLoading: Boolean,
+    hasQuery: Boolean,
+    onRunVisionDemo: () -> Unit,
+    onRunSpeechDemo: () -> Unit,
+    onUseQuery: () -> Unit,
+) {
     Card(
         colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
         shape = RoundedCornerShape(8.dp),
@@ -146,14 +185,24 @@ private fun UploadPanel() {
             }
             Text("上传商品图片", style = MaterialTheme.typography.titleLarge, color = BuyWiseTheme.colors.ink)
             Text(
-                "视觉上传、识别和语音链路暂不属于本轮联调范围。",
+                "图片和音频使用内置演示资源，不申请相机或麦克风权限。",
                 color = BuyWiseTheme.colors.muted,
                 style = MaterialTheme.typography.bodyMedium,
             )
-            FilledTonalButton(onClick = {}) {
+            FilledTonalButton(onClick = onRunVisionDemo, enabled = !isLoading) {
                 Icon(Icons.Outlined.ImageSearch, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("查看本地演示")
+                Text("运行识图联调")
+            }
+            OutlinedButton(onClick = onRunSpeechDemo, enabled = !isLoading) {
+                Icon(Icons.Outlined.CameraAlt, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("运行语音联调")
+            }
+            OutlinedButton(onClick = onUseQuery, enabled = hasQuery && !isLoading) {
+                Icon(Icons.Outlined.Inventory2, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("带入导购")
             }
         }
     }

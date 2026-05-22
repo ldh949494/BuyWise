@@ -2,6 +2,7 @@ package com.buywise.android.data
 
 import com.buywise.android.BuildConfig
 import java.io.IOException
+import okhttp3.MultipartBody
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -28,22 +29,6 @@ class ShopRepository(
     private val eventSourceFactory = EventSources.createFactory(httpClient)
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
-    private val demoProducts = listOf(
-        Product(
-            id = "vision-keyboard",
-            name = "本地演示机械键盘",
-            brand = "BuyWise Demo",
-            category = "机械键盘",
-            price = 299.0,
-            rating = 4.7,
-            recommendationScore = null,
-            headline = "视觉页当前保留本地演示数据，未纳入本轮前后端联调。",
-            tags = listOf("本地演示", "机械键盘", "低噪音"),
-            advantages = listOf("用于展示识图页面布局"),
-            cautions = listOf("不代表后端识别结果"),
-        ),
-    )
-
     fun homeState(): HomeState = HomeState(
         heroTitle = "更快找到适合你的商品",
         heroSubtitle = "连接 BuyWise 后端，按预算、场景和偏好生成导购建议。",
@@ -60,12 +45,49 @@ class ShopRepository(
 
     fun visionState(): VisionState = VisionState(
         result = VisionResult(
-            title = "本地演示：视觉识别未纳入本轮联调",
+            title = "后端多模态联调",
             confidence = 0,
-            labels = listOf("本地演示"),
-            similarProducts = demoProducts,
+            labels = listOf("等待联调"),
+            similarProducts = emptyList(),
         ),
     )
+
+    @Throws(IOException::class)
+    fun runVisionDemo(): VisionResult {
+        val upload = uploadDemoFile(
+            filename = "buywise-demo.png",
+            contentType = "image/png",
+            bytes = DEMO_PNG_BYTES,
+        )
+        val payload = JSONObject()
+            .put("image_url", upload.url)
+            .toString()
+            .toRequestBody(jsonMediaType)
+        val json = postJson("$baseUrl/api/v1/vision/recognize", payload)
+        val category = json.optStringOrNull("category") ?: "识别结果"
+        val features = json.optJSONArray("features").toStringList()
+        val query = json.optStringOrNull("query") ?: listOf(features.joinToString(" "), category).joinToString(" ").trim()
+        return VisionResult(
+            title = query.ifBlank { category },
+            confidence = 100,
+            labels = listOfNotBlank(category) + features,
+            similarProducts = emptyList(),
+        )
+    }
+
+    @Throws(IOException::class)
+    fun runSpeechDemo(): String {
+        val upload = uploadDemoFile(
+            filename = "buywise-demo.wav",
+            contentType = "audio/wav",
+            bytes = DEMO_WAV_BYTES,
+        )
+        val payload = JSONObject()
+            .put("audio_url", upload.url)
+            .toString()
+            .toRequestBody(jsonMediaType)
+        return postJson("$baseUrl/api/v1/speech/asr", payload).optString("text")
+    }
 
     @Throws(IOException::class)
     fun fetchProducts(page: Int = 1, pageSize: Int = 20): List<Product> {
@@ -148,6 +170,23 @@ class ShopRepository(
         return executeJson(request)
     }
 
+    private fun uploadDemoFile(filename: String, contentType: String, bytes: ByteArray): UploadResult {
+        val body = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart("file", filename, bytes.toRequestBody(contentType.toMediaType()))
+            .build()
+        val request = Request.Builder()
+            .url("$baseUrl/api/v1/upload")
+            .header("Authorization", "Bearer ${BuildConfig.BUYWISE_UPLOAD_TOKEN}")
+            .post(body)
+            .build()
+        val json = executeJson(request)
+        return UploadResult(
+            url = json.optString("url"),
+            filename = json.optString("filename"),
+        )
+    }
+
     private fun executeJson(request: Request): JSONObject {
         httpClient.newCall(request).execute().use { response ->
             val body = response.body?.string().orEmpty()
@@ -192,79 +231,6 @@ class ShopRepository(
         )
     }
 
-    private fun parseProductRead(json: JSONObject): Product {
-        val description = json.optStringOrNull("description")
-        val reviewSummary = json.optStringOrNull("review_summary")
-        val scenes = json.optJSONArray("suitable_scene").toStringList()
-        return Product(
-            id = json.optInt("id").toString(),
-            name = json.optString("name", "未命名商品"),
-            brand = json.optStringOrNull("brand") ?: json.optStringOrNull("platform"),
-            category = json.optStringOrNull("category"),
-            price = json.optDoubleOrNull("price"),
-            rating = json.optDoubleOrNull("rating"),
-            recommendationScore = null,
-            headline = description ?: reviewSummary ?: "暂无商品简介",
-            tags = json.optJSONArray("tags").toStringList().ifEmpty { scenes },
-            advantages = listOfNotBlank(reviewSummary) + scenes.map { "适合$it" },
-            cautions = listOfNotBlank(json.optStringOrNull("stock_status")?.let { "库存状态：$it" }),
-            imageUrl = json.optStringOrNull("image_url"),
-            productUrl = json.optStringOrNull("product_url"),
-            stockStatus = json.optStringOrNull("stock_status"),
-            reviewSummary = reviewSummary,
-        )
-    }
-
-    private fun parseProductCard(json: JSONObject, category: String, reason: String): Product {
-        val conflicts = json.optJSONArray("conflicts").toStringList()
-        return Product(
-            id = json.optInt("id").toString(),
-            name = json.optString("name", "未命名商品"),
-            brand = "BuyWise",
-            category = category.ifBlank { "推荐商品" },
-            price = json.optDoubleOrNull("price"),
-            rating = json.optDoubleOrNull("rating"),
-            recommendationScore = json.optDoubleOrNull("score"),
-            headline = reason,
-            tags = json.optJSONArray("tags").toStringList(),
-            advantages = listOfNotBlank(reason),
-            cautions = conflicts,
-            imageUrl = json.optStringOrNull("image_url"),
-        )
-    }
-
-    private fun parseCompareItem(json: JSONObject): Product {
-        val pros = json.optJSONArray("pros").toStringList()
-        val cons = json.optJSONArray("cons").toStringList()
-        return Product(
-            id = (json.optIntOrNull("product_id") ?: json.optInt("id")).toString(),
-            name = json.optString("name", "未命名商品"),
-            brand = "BuyWise",
-            category = "对比商品",
-            price = json.optDoubleOrNull("price"),
-            rating = json.optDoubleOrNull("rating"),
-            recommendationScore = json.optDoubleOrNull("score"),
-            headline = pros.firstOrNull() ?: "后端已返回对比结果",
-            tags = pros.ifEmpty { listOf("对比结果") },
-            advantages = pros,
-            cautions = cons,
-            imageUrl = json.optStringOrNull("image_url"),
-        )
-    }
-
-    private fun buildCompareRows(products: List<Product>): List<CompareRow> {
-        if (products.isEmpty()) {
-            return emptyList()
-        }
-        return listOf(
-            CompareRow("价格", products.map { it.price.displayPrice() }),
-            CompareRow("评分", products.map { it.rating.displayRating() }),
-            CompareRow("推荐分", products.map { it.recommendationScore.displayScore() }),
-            CompareRow("优点", products.map { it.advantages.take(2).joinToString(" / ").ifBlank { "暂无" } }),
-            CompareRow("注意事项", products.map { it.cautions.take(2).joinToString(" / ").ifBlank { "暂无" } }),
-        )
-    }
-
     private fun JSONArray?.toStringList(): List<String> {
         if (this == null) {
             return emptyList()
@@ -278,18 +244,30 @@ class ShopRepository(
     private fun JSONObject.optStringOrNull(name: String): String? =
         if (has(name) && !isNull(name)) optString(name).takeIf { it.isNotBlank() } else null
 
-    private fun JSONObject.optDoubleOrNull(name: String): Double? =
-        if (has(name) && !isNull(name)) optDouble(name) else null
-
     private fun JSONObject.optIntOrNull(name: String): Int? =
         if (has(name) && !isNull(name)) optInt(name) else null
 
-    private fun Double?.displayPrice(): String = this?.let { "¥${formatNumber(it)}" } ?: "暂无"
+    private data class UploadResult(val url: String, val filename: String)
 
-    private fun Double?.displayRating(): String = this?.let { formatNumber(it) } ?: "暂无"
-
-    private fun Double?.displayScore(): String = this?.let { formatNumber(it) } ?: "暂无"
-
-    private fun formatNumber(value: Double): String =
-        if (value % 1.0 == 0.0) value.toInt().toString() else "%.1f".format(value)
+    private companion object {
+        val DEMO_PNG_BYTES = byteArrayOf(
+            -119, 80, 78, 71, 13, 10, 26, 10,
+            0, 0, 0, 13, 73, 72, 68, 82,
+            0, 0, 0, 1, 0, 0, 0, 1,
+            8, 2, 0, 0, 0, -112, 119, 83, -34,
+            0, 0, 0, 12, 73, 68, 65, 84,
+            8, -41, 99, -8, -1, -1, 63, 0,
+            5, -2, 2, -2, -36, -52, 89, -25,
+            0, 0, 0, 0, 73, 69, 78, 68,
+            -82, 66, 96, -126,
+        )
+        val DEMO_WAV_BYTES = byteArrayOf(
+            82, 73, 70, 70, 38, 0, 0, 0,
+            87, 65, 86, 69, 102, 109, 116, 32,
+            16, 0, 0, 0, 1, 0, 1, 0,
+            -128, 62, 0, 0, 0, 125, 0, 0,
+            2, 0, 16, 0, 100, 97, 116, 97,
+            2, 0, 0, 0, 0, 0,
+        )
+    }
 }
