@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from decimal import Decimal
 from typing import Any
 
@@ -21,38 +22,69 @@ class RagService:
         self.product_store = product_store or ChromaProductStore()
 
     def search(self, request: RagSearchRequest, db: Session) -> RagSearchResponse:
-        vector_items = self._valid_vector_items(request, db)
+        vector_items, diagnostics = self._valid_vector_items(request, db)
         if vector_items:
             items = vector_items[: request.top_k]
-            logger.info(
-                "RAG search completed",
-                extra={"source": "vector", "top_k": request.top_k, "result_count": len(items)},
-            )
+            self._log_search("vector", request, len(items), diagnostics)
             return RagSearchResponse(query=request.query, items=items, total=len(items))
 
         fallback_items = self._search_database(request, db)
-        logger.info(
-            "RAG search completed",
-            extra={"source": "database", "top_k": request.top_k, "result_count": len(fallback_items)},
-        )
+        self._log_search("database", request, len(fallback_items), diagnostics)
         return RagSearchResponse(
             query=request.query,
             items=fallback_items,
             total=len(fallback_items),
         )
 
-    def _valid_vector_items(self, request: RagSearchRequest, db: Session) -> list[dict[str, Any]]:
+    def _log_search(
+        self,
+        source: str,
+        request: RagSearchRequest,
+        result_count: int,
+        diagnostics: dict[str, Any],
+    ) -> None:
+        logger.info(
+            "RAG search completed",
+            extra={
+                "source": source,
+                "top_k": request.top_k,
+                "vector_result_count": diagnostics["vector_result_count"],
+                "candidate_count": diagnostics["candidate_count"],
+                "result_count": result_count,
+                "filter_reasons": diagnostics["filter_reasons"],
+            },
+        )
+
+    def _valid_vector_items(
+        self,
+        request: RagSearchRequest,
+        db: Session,
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         vector_items = self._search_vector_store(request)
+        diagnostics = {
+            "vector_result_count": len(vector_items),
+            "candidate_count": 0,
+            "filter_reasons": {},
+        }
         if not vector_items:
-            return []
+            return [], diagnostics
         repo = ProductRepository(db)
         product_ids = [int(item["product_id"]) for item in vector_items]
         valid_ids = {product.id for product in repo.get_by_ids(product_ids)}
-        return [
-            item
-            for item in vector_items
-            if int(item["product_id"]) in valid_ids and self._matches_filters(item, request)
-        ]
+        diagnostics["candidate_count"] = len(vector_items)
+        reasons: Counter[str] = Counter()
+        valid_items = []
+        for item in vector_items:
+            if int(item["product_id"]) not in valid_ids:
+                reasons["stale_index"] += 1
+                continue
+            reason = self._filter_reason(item, request)
+            if reason:
+                reasons[reason] += 1
+                continue
+            valid_items.append(item)
+        diagnostics["filter_reasons"] = dict(reasons)
+        return valid_items, diagnostics
 
     def _search_vector_store(self, request: RagSearchRequest) -> list[dict[str, Any]]:
         results = self.product_store.search(request.query, top_k=request.top_k)
@@ -99,14 +131,17 @@ class RagService:
         ]
 
     def _matches_filters(self, item: dict[str, Any], request: RagSearchRequest) -> bool:
+        return self._filter_reason(item, request) is None
+
+    def _filter_reason(self, item: dict[str, Any], request: RagSearchRequest) -> str | None:
         filters = request.filters or {}
         category = filters.get("category")
         price_max = filters.get("price_max")
         if category and item.get("category") != category:
-            return False
+            return "category_mismatch"
         if price_max is not None and self._exceeds_price(item.get("price"), price_max):
-            return False
-        return True
+            return "over_budget"
+        return None
 
     def _exceeds_price(self, price: Any, price_max: Any) -> bool:
         if price is None:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from decimal import Decimal
 from typing import Any
 
@@ -16,6 +17,17 @@ from app.vectorstore.chroma_client import ChromaProductStore
 
 
 logger = get_logger(__name__)
+
+ADJACENT_CATEGORIES = {
+    "学习用品": ["台灯", "机械键盘"],
+    "机械键盘": ["台灯", "蓝牙耳机"],
+    "蓝牙耳机": ["充电宝", "双肩包"],
+    "台灯": ["机械键盘", "双肩包"],
+    "充电宝": ["蓝牙耳机", "双肩包"],
+    "双肩包": ["充电宝", "蓝牙耳机"],
+}
+FALLBACK_BUDGET_MULTIPLIER = Decimal("1.15")
+FALLBACK_BUDGET_DELTA = Decimal("50")
 
 
 class RAGPipeline:
@@ -39,8 +51,13 @@ class RAGPipeline:
         repo = ProductRepository(db)
         search_results = self._search_vector_store(need, top_k)
         candidates = self._build_candidates(repo, need, search_results, top_k)
-        filtered = self._filter_products(candidates, need)[:top_k]
-        self._log_search(search_results, top_k, candidates, filtered)
+        filtered, filter_reasons = self._filter_products(candidates, need)
+        fallback_stage = "strict"
+        if not filtered:
+            filtered, fallback_stage, fallback_reasons = self._fallback_products(repo, need, top_k)
+            filter_reasons.update(fallback_reasons)
+        filtered = filtered[:top_k]
+        self._log_search(search_results, top_k, candidates, filtered, filter_reasons, fallback_stage)
         return filtered
 
     def _search_vector_store(self, need: Any, top_k: int) -> list[dict]:
@@ -94,14 +111,20 @@ class RAGPipeline:
         top_k: int,
         candidates: list[Product],
         filtered: list[Product],
+        filter_reasons: Counter[str],
+        fallback_stage: str,
     ) -> None:
         logger.info(
             "RAG pipeline search completed",
             extra={
                 "source": "vector" if search_results else "database",
                 "top_k": top_k,
+                "vector_result_count": len(search_results),
                 "candidate_count": len(candidates),
                 "result_count": len(filtered),
+                "filtered_count": max(len(candidates) - len(filtered), 0),
+                "filter_reasons": dict(filter_reasons),
+                "fallback_stage": fallback_stage,
             },
         )
 
@@ -119,25 +142,92 @@ class RAGPipeline:
                 seen.add(product_id)
         return product_ids
 
-    def _filter_products(self, products: list[Product], need: Any) -> list[Product]:
+    def _fallback_products(
+        self,
+        repo: ProductRepository,
+        need: Any,
+        top_k: int,
+    ) -> tuple[list[Product], str, Counter[str]]:
+        for stage in ["fallback_budget", "fallback_relaxed", "fallback_adjacent"]:
+            candidates = self._fallback_candidates_for_stage(repo, need, stage, top_k)
+            filtered, reasons = self._filter_products(candidates, need, stage=stage)
+            if filtered:
+                return filtered, stage, reasons
+        return [], "none", Counter()
+
+    def _fallback_candidates_for_stage(
+        self,
+        repo: ProductRepository,
+        need: Any,
+        stage: str,
+        top_k: int,
+    ) -> list[Product]:
+        category = self._get_need_value(need, "category")
+        budget_max = self._get_need_value(need, "budget_max")
+        page_size = max(top_k * 3, top_k)
+        if stage == "fallback_budget":
+            candidates, _ = repo.list_products(
+                category=category,
+                price_max=self._relaxed_budget(budget_max),
+                page=1,
+                page_size=page_size,
+            )
+            return candidates
+        if stage == "fallback_relaxed":
+            candidates, _ = repo.list_products(category=category, page=1, page_size=page_size)
+            return candidates
+        return self._adjacent_category_candidates(repo, category, page_size)
+
+    def _adjacent_category_candidates(
+        self,
+        repo: ProductRepository,
+        category: str | None,
+        page_size: int,
+    ) -> list[Product]:
+        candidates = []
+        for adjacent in ADJACENT_CATEGORIES.get(category or "", []):
+            products, _ = repo.list_products(category=adjacent, page=1, page_size=page_size)
+            candidates.extend(products)
+        return candidates
+
+    def _filter_products(
+        self,
+        products: list[Product],
+        need: Any,
+        *,
+        stage: str = "strict",
+    ) -> tuple[list[Product], Counter[str]]:
         category = self._get_need_value(need, "category")
         budget_max = self._get_need_value(need, "budget_max")
 
         filtered = []
+        reasons: Counter[str] = Counter()
         for product in products:
-            if category and product.category != category:
+            if stage != "fallback_adjacent" and category and product.category != category:
+                reasons["category_mismatch"] += 1
                 continue
-            if self._exceeds_budget(product, budget_max):
+            if self._exceeds_budget(product, budget_max, stage=stage):
+                reasons["over_budget"] += 1
                 continue
             if product.stock is not None and product.stock <= 0:
+                reasons["out_of_stock"] += 1
                 continue
             filtered.append(product)
-        return filtered
+        return filtered, reasons
 
-    def _exceeds_budget(self, product: Product, budget_max: Any) -> bool:
+    def _exceeds_budget(self, product: Product, budget_max: Any, *, stage: str) -> bool:
         if budget_max is None or product.price is None:
             return False
-        return Decimal(str(product.price)) > Decimal(str(budget_max))
+        if stage == "fallback_relaxed" or stage == "fallback_adjacent":
+            return False
+        max_price = self._relaxed_budget(budget_max) if stage == "fallback_budget" else Decimal(str(budget_max))
+        return Decimal(str(product.price)) > max_price
+
+    def _relaxed_budget(self, budget_max: Any) -> Decimal | None:
+        if budget_max is None:
+            return None
+        budget = Decimal(str(budget_max))
+        return max(budget * FALLBACK_BUDGET_MULTIPLIER, budget + FALLBACK_BUDGET_DELTA)
 
     def _get_need_value(self, need: Any, key: str) -> Any:
         if isinstance(need, dict):

@@ -145,6 +145,89 @@ async def test_extract_normalizes_llm_intent_and_ignores_non_core_missing_fields
 
 
 @pytest.mark.anyio
+async def test_extract_normalizes_realistic_llm_recommendation_aliases() -> None:
+    samples = [
+        (
+            """
+            ```json
+            {
+              "intent": "推荐",
+              "category": "耳麦",
+              "budget_max": "300",
+              "scenario": "地铁通勤",
+              "preferences": ["主动降噪", "蓝牙"],
+              "avoid": [],
+              "need_clarify": false,
+              "missing_fields": []
+            }
+            ```
+            """,
+            {
+                "intent": "商品推荐",
+                "category": "蓝牙耳机",
+                "budget_max": 300,
+                "scenario": "通勤",
+                "preferences": ["降噪", "无线"],
+            },
+        ),
+        (
+            """
+            {
+              "intent": "找推荐",
+              "category": "护眼灯",
+              "budget_max": 200,
+              "scenario": "宿舍床边阅读",
+              "preferences": ["护眼"],
+              "avoid": ["太占地方"],
+              "need_clarify": false,
+              "missing_fields": []
+            }
+            """,
+            {
+                "intent": "商品推荐",
+                "category": "台灯",
+                "budget_max": 200,
+                "scenario": "宿舍",
+                "preferences": ["护眼"],
+            },
+        ),
+        (
+            """
+            {
+              "intent": "商品推荐",
+              "category": "移动电源",
+              "budget_max": 150,
+              "scenario": "短途旅行",
+              "preferences": ["快充", "大容量"],
+              "avoid": [],
+              "need_clarify": false,
+              "missing_fields": []
+            }
+            """,
+            {
+                "intent": "商品推荐",
+                "category": "充电宝",
+                "budget_max": 150,
+                "scenario": "旅行",
+                "preferences": ["快充", "大容量"],
+            },
+        ),
+    ]
+
+    for content, expected in samples:
+        service = IntentService(llm_client=FakeLLMClient(content))
+
+        need = await service.extract("demo request")
+
+        assert need.intent == expected["intent"]
+        assert need.category == expected["category"]
+        assert need.budget_max == expected["budget_max"]
+        assert need.scenario == expected["scenario"]
+        assert need.preferences == expected["preferences"]
+        assert need.need_clarify is False
+
+
+@pytest.mark.anyio
 async def test_extract_falls_back_to_rules_when_llm_fails() -> None:
     service = IntentService(llm_client=FakeLLMClient(should_fail=True))
 

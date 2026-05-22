@@ -8,6 +8,7 @@ from app.ai.embedding_client import EmbeddingClient
 from app.core.database import Base
 from app.models import Product
 from app.scripts.build_vector_index import build_vector_index
+from app.services.product_index_service import validate_vector_index_health
 from app.vectorstore.chroma_client import ChromaProductStore
 
 
@@ -149,3 +150,37 @@ def test_build_vector_index_upserts_selected_product(tmp_path) -> None:
     assert result == {"indexed": 1, "mode": "upsert", "deleted_collection": False}
     assert len(results) == 1
     assert results[0]["metadata"]["product_id"] == 2
+
+
+def test_validate_vector_index_health_reports_missing_and_stale_ids(tmp_path) -> None:
+    session_factory = make_session_factory()
+    seed_products(session_factory)
+    store = make_store(tmp_path)
+    store.add_documents(
+        [
+            {
+                "id": "product_1",
+                "text": "quiet keyboard",
+                "metadata": {"product_id": 1, "name": "K87"},
+            },
+            {
+                "id": "product_999",
+                "text": "stale product",
+                "metadata": {"product_id": 999, "name": "Stale"},
+            },
+        ]
+    )
+
+    report = validate_vector_index_health(
+        session_factory=session_factory,
+        store=store,
+        expected_product_ids=[1, 2],
+        profile="test",
+    )
+
+    assert report["ok"] is False
+    assert report["profile"] == "test"
+    assert report["collection_count"] == 2
+    assert report["db_product_count"] == 2
+    assert report["missing_in_index"] == [2]
+    assert report["stale_in_index"] == [999]

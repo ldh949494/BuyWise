@@ -71,6 +71,20 @@ class ChromaProductStore:
             pass
         self.collection = self._get_or_create_collection()
 
+    def count(self) -> int:
+        return int(self.collection.count())
+
+    def indexed_product_ids(self) -> list[int]:
+        if self.collection.count() == 0:
+            return []
+        result = self.collection.get(include=["metadatas"])
+        product_ids = []
+        for metadata in result.get("metadatas", []):
+            if not metadata or metadata.get("product_id") is None:
+                continue
+            product_ids.append(int(metadata["product_id"]))
+        return sorted(set(product_ids))
+
     def _get_or_create_collection(self):
         return self.client.get_or_create_collection(
             name=self.collection_name,
