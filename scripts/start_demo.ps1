@@ -52,6 +52,12 @@ if (-not (Test-Path -LiteralPath ".env")) {
 $envValues = Read-DemoEnv ".env"
 $llmProvider = Get-DemoEnvValue $envValues "LLM_PROVIDER"
 $llmApiKey = Get-DemoEnvValue $envValues "LLM_API_KEY"
+$mysqlHost = Get-DemoEnvValue $envValues "MYSQL_HOST"
+
+if ($mysqlHost -eq "mysql") {
+    $env:MYSQL_HOST = "127.0.0.1"
+    Write-Host "MYSQL_HOST=mysql detected in .env; using 127.0.0.1 for local demo startup."
+}
 
 if ($llmProvider -ne "openai-compatible" -and -not $AllowMockLlm) {
     throw "Demo expects LLM_PROVIDER=openai-compatible. Use -AllowMockLlm only for offline smoke checks."
