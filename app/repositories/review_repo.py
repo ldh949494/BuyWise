@@ -41,3 +41,15 @@ class ReviewRepository:
         if highlights:
             parts.append(" | ".join(highlights))
         return "; ".join(parts) if parts else None
+
+    def get_sentiment_counts_by_product_ids(self, product_ids: list[int]) -> dict[int, dict[str, int]]:
+        if not product_ids:
+            return {}
+        reviews = self.db.scalars(select(Review).where(Review.product_id.in_(product_ids))).all()
+        counts: dict[int, dict[str, int]] = {}
+        for review in reviews:
+            if review.product_id is None or not review.sentiment:
+                continue
+            product_counts = counts.setdefault(int(review.product_id), {})
+            product_counts[review.sentiment] = product_counts.get(review.sentiment, 0) + 1
+        return counts

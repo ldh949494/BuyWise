@@ -1,5 +1,8 @@
 """Product domain service."""
 
+from collections.abc import Callable
+
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.providers import AppError
@@ -7,19 +10,22 @@ from app.models.product import Product
 from app.repositories.price_repo import PriceHistoryRepository
 from app.repositories.product_repo import ProductRepository
 from app.repositories.review_repo import ReviewRepository
-from app.schemas.product import ProductCreate
+from app.schemas.product import ProductCreate, ProductUpdate
+from app.services.product_index_service import update_product_index
 from app.utils.logging import get_logger
 
 
 logger = get_logger(__name__)
+IndexUpdater = Callable[[list[int]], dict[str, int | str | bool]]
 
 
 class ProductService:
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, index_updater: IndexUpdater | None = update_product_index) -> None:
         self.db = db
         self.repo = ProductRepository(db)
         self.price_repo = PriceHistoryRepository(db)
         self.review_repo = ReviewRepository(db)
+        self.index_updater = index_updater
 
     def get_product(self, product_id: int) -> Product:
         product = self.repo.get_by_id(product_id)
@@ -65,14 +71,35 @@ class ProductService:
     def create_product(self, product_data: ProductCreate) -> Product:
         try:
             product = self.repo.create_product(product_data.model_dump(exclude_unset=True))
-            self.db.commit()
-            self.db.refresh(product)
-            self._normalize_product(product)
-            logger.info(
-                "Product created",
-                extra={"product_id": product.id, "category": product.category},
-            )
-            return product
+            return self._commit_write(product, operation="create")
+        except Exception:
+            self.db.rollback()
+            raise
+
+    def update_product(self, product_id: int, product_data: ProductUpdate) -> Product:
+        product = self._active_product(product_id)
+        try:
+            payload = product_data.model_dump(exclude_unset=True)
+            product = self.repo.update_product(product, payload)
+            return self._commit_write(product, operation="update")
+        except Exception:
+            self.db.rollback()
+            raise
+
+    def delete_product(self, product_id: int) -> Product:
+        product = self._active_product(product_id)
+        try:
+            product = self.repo.delete_product(product)
+            return self._commit_write(product, operation="soft_delete")
+        except Exception:
+            self.db.rollback()
+            raise
+
+    def update_product_by_sku(self, product_data: dict) -> tuple[Product, bool]:
+        try:
+            product, inserted = self.repo.update_by_sku(product_data)
+            product = self._commit_write(product, operation="upsert")
+            return product, inserted
         except Exception:
             self.db.rollback()
             raise
@@ -82,6 +109,29 @@ class ProductService:
         for product in products:
             self._normalize_product(product)
         return products
+
+    def _active_product(self, product_id: int) -> Product:
+        product = self.repo.get_by_id(product_id)
+        if product is None:
+            raise AppError("Product not found", status_code=404, code="not_found")
+        return product
+
+    def _commit_write(self, product: Product, *, operation: str) -> Product:
+        self._normalize_product(product)
+        self.db.commit()
+        self.db.refresh(product)
+        self._normalize_product(product)
+        self._upsert_index_best_effort(product.id, operation)
+        logger.info(
+            "Product write completed",
+            extra={
+                "product_id": product.id,
+                "category": product.category,
+                "operation": operation,
+                "stock_status": product.stock_status,
+            },
+        )
+        return product
 
     def _normalize_product(self, product: Product) -> None:
         if product.tags is None:
@@ -103,6 +153,25 @@ class ProductService:
         if stock <= 5:
             return "low_stock"
         return "in_stock"
+
+    def _upsert_index_best_effort(self, product_id: int, operation: str) -> None:
+        if self.index_updater is None:
+            return
+        try:
+            self.index_updater([product_id])
+            logger.info(
+                "Product index upsert completed",
+                extra={"product_id": product_id, "operation": operation},
+            )
+        except (RuntimeError, ValueError, SQLAlchemyError):
+            logger.exception(
+                "Product index upsert failed",
+                extra={
+                    "product_id": product_id,
+                    "operation": operation,
+                    "index_status": "failed",
+                },
+            )
 
     def _log_product_list(
         self,

@@ -5,20 +5,20 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Callable
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
-from app.models.product import Product
+from app.services.product_service import IndexUpdater, ProductService
 
 DEFAULT_CSV_PATH = Path(__file__).resolve().parents[2] / "data" / "products.csv"
 JSON_FIELDS = {"specs", "tags", "suitable_scene", "image_urls"}
 DECIMAL_FIELDS = {"price", "original_price", "rating"}
 INT_FIELDS = {"sales", "stock"}
+REQUIRED_FIELDS = {"sku", "name", "category", "price", "tags"}
 
 
 def parse_product_row(row: dict[str, str]) -> dict[str, Any]:
@@ -37,33 +37,62 @@ def parse_product_row(row: dict[str, str]) -> dict[str, Any]:
     return product_data
 
 
+def validate_product_rows(rows: list[dict[str, str]]) -> None:
+    seen_skus = set()
+    for index, row in enumerate(rows, start=2):
+        missing = [field for field in REQUIRED_FIELDS if not str(row.get(field) or "").strip()]
+        if missing:
+            raise ValueError(f"CSV row {index} missing required fields: {missing}")
+        sku = row["sku"].strip()
+        if sku in seen_skus:
+            raise ValueError(f"CSV row {index} duplicates sku: {sku}")
+        seen_skus.add(sku)
+        _validate_price(row["price"], index)
+        _validate_tags(row["tags"], index)
+
+
 def import_products(
     csv_path: str | Path = DEFAULT_CSV_PATH,
     session_factory: Callable[[], Session] = SessionLocal,
+    index_updater: IndexUpdater | None = None,
 ) -> dict[str, int]:
     path = Path(csv_path)
     inserted = 0
-    skipped = 0
+    updated = 0
 
     with path.open(encoding="utf-8", newline="") as file:
         rows = list(csv.DictReader(file))
+    validate_product_rows(rows)
 
     with session_factory() as db:
-        existing_names = set(db.scalars(select(Product.name)).all())
+        service = ProductService(db, index_updater=index_updater)
         for row in rows:
             product_data = parse_product_row(row)
-            name = product_data["name"]
-            if name in existing_names:
-                skipped += 1
-                continue
+            _, was_inserted = service.update_product_by_sku(product_data)
+            if was_inserted:
+                inserted += 1
+            else:
+                updated += 1
 
-            db.add(Product(**product_data))
-            existing_names.add(name)
-            inserted += 1
+    return {"inserted": inserted, "updated": updated, "failed": 0}
 
-        db.commit()
 
-    return {"inserted": inserted, "skipped": skipped}
+def _validate_price(value: str, line_number: int) -> None:
+    try:
+        price = Decimal(value)
+    except (InvalidOperation, ValueError) as exc:
+        raise ValueError(f"CSV row {line_number} has invalid price.") from exc
+    if price < 0:
+        raise ValueError(f"CSV row {line_number} has negative price.")
+
+
+def _validate_tags(value: str, line_number: int) -> None:
+    try:
+        tags = json.loads(value)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"CSV row {line_number} has invalid tags JSON.") from exc
+    if not isinstance(tags, list) or not tags:
+        raise ValueError(f"CSV row {line_number} tags must be a non-empty JSON list.")
 
 
 def main() -> None:
@@ -76,7 +105,10 @@ def main() -> None:
     args = parser.parse_args()
 
     result = import_products(args.csv)
-    print(f"Inserted {result['inserted']} products, skipped {result['skipped']} duplicates.")
+    print(
+        f"Inserted {result['inserted']} products, "
+        f"updated {result['updated']} products, failed {result['failed']} rows."
+    )
 
 
 if __name__ == "__main__":

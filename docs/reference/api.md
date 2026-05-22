@@ -28,7 +28,7 @@
 ## 鉴权说明
 
 - `POST /api/v1/upload` 需要 `Authorization: Bearer <token>`，并具备 `upload:write` scope。
-- `POST /api/v1/products` 需要 `Authorization: Bearer <token>`，并具备 `products:write` scope。
+- `POST`、`PATCH` 和 `DELETE /api/v1/products...` 需要 `Authorization: Bearer <token>`，并具备 `products:write` scope。
 - 当前 Android 集成流程中，商品浏览、详情、对比和 AI 聊天保持公开访问。
 - 认证、请求上下文、错误、遥测和日志必须通过 `app.core.providers` 访问；`scripts/validate_providers.py` 会阻止直接导入 provider 实现模块。
 
@@ -38,6 +38,8 @@
 | 商品浏览 | `GET` | `/api/v1/products` | 公开 | 无 |
 | 商品详情 | `GET` | `/api/v1/products/{product_id}` | 公开 | 无 |
 | 商品创建 | `POST` | `/api/v1/products` | Bearer token | `products:write` |
+| 商品更新 | `PATCH` | `/api/v1/products/{product_id}` | Bearer token | `products:write` |
+| 商品下架 | `DELETE` | `/api/v1/products/{product_id}` | Bearer token | `products:write` |
 | 商品对比 | `POST` | `/api/v1/products/compare` | 公开 | 无 |
 | AI 导购 | `POST` | `/api/v1/ai/chat` | 公开 | 无 |
 | AI 导购流式接口 | `POST` | `/api/v1/ai/chat/stream` | 公开 | 无 |
@@ -51,6 +53,7 @@
 原生 Android 客户端优先依赖以下后端流程：
 
 - 商品浏览：`GET /api/v1/products` 支持类目、关键词、价格和分页筛选；`GET /api/v1/products/{product_id}` 获取详情。
+- 商品维护：`POST /api/v1/products` 创建商品，`PATCH /api/v1/products/{product_id}` 更新商品，`DELETE /api/v1/products/{product_id}` 软下架商品。下架商品默认不进入公开浏览、详情、RAG、推荐和对比。
 - 商品对比：`POST /api/v1/products/compare`，请求体包含 `product_ids` 和可选 `user_need`。
 - AI 导购：`POST /api/v1/ai/chat` 返回 JSON，或 `POST /api/v1/ai/chat/stream` 返回 SSE token 流；请求包含 `session_id` 和 `message`，可选 `image_url` 和 `audio_url`。
 

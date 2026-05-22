@@ -25,7 +25,7 @@
 - 文件上传使用 `multipart/form-data`，字段名固定为 `file`。
 - 建议所有请求带 `X-Request-ID`，便于联调日志定位。
 - 当前公开浏览、对比、AI 导购、RAG、视觉识别、语音识别接口不要求登录。
-- `POST /api/v1/upload` 和 `POST /api/v1/products` 需要 Bearer Token。
+- `POST /api/v1/upload` 以及商品创建、更新、下架接口需要 Bearer Token。
 
 鉴权头格式：
 
@@ -74,6 +74,9 @@ Authorization: Bearer <token>
 | 健康检查 | `GET` | `/api/v1/health` | 公开 | 启动页、联调探活 |
 | 商品浏览 | `GET` | `/api/v1/products` | 公开 | 商品列表、搜索、筛选 |
 | 商品详情 | `GET` | `/api/v1/products/{product_id}` | 公开 | 商品详情页 |
+| 商品创建 | `POST` | `/api/v1/products` | Bearer token | 内部商品维护 |
+| 商品更新 | `PATCH` | `/api/v1/products/{product_id}` | Bearer token | 内部商品维护 |
+| 商品下架 | `DELETE` | `/api/v1/products/{product_id}` | Bearer token | 内部商品维护 |
 | 商品创建 | `POST` | `/api/v1/products` | `products:write` | 后台录入或测试数据创建 |
 | 商品对比 | `POST` | `/api/v1/products/compare` | 公开 | 商品对比页 |
 | AI 导购 | `POST` | `/api/v1/ai/chat` | 公开 | AI 导购会话 |

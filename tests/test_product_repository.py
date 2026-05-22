@@ -96,6 +96,24 @@ def test_product_repository_creates_and_returns_all_products() -> None:
     ]
 
 
+def test_product_repository_updates_upserts_by_sku_and_soft_deletes() -> None:
+    db = make_session()
+    products = seed_products(db)
+    repo = ProductRepository(db)
+
+    updated = repo.update_product(products[0], {"price": Decimal("1899.00"), "sku": "PHONE-PRO"})
+    upserted, inserted = repo.update_by_sku({"sku": "PHONE-PRO", "name": "Phone Pro Updated"})
+    repo.delete_product(upserted)
+    db.commit()
+
+    assert updated.price == Decimal("1899.00")
+    assert inserted is False
+    assert upserted.name == "Phone Pro Updated"
+    assert repo.get_by_id(upserted.id) is None
+    assert repo.get_by_id(upserted.id, include_inactive=True).stock_status == "discontinued"
+    assert [product.id for product in repo.get_all()] == [products[1].id, products[2].id]
+
+
 def test_product_repository_create_flushes_without_committing() -> None:
     class FakeSession:
         def __init__(self) -> None:
