@@ -53,6 +53,10 @@ $envValues = Read-DemoEnv ".env"
 $llmProvider = Get-DemoEnvValue $envValues "LLM_PROVIDER"
 $llmApiKey = Get-DemoEnvValue $envValues "LLM_API_KEY"
 $mysqlHost = Get-DemoEnvValue $envValues "MYSQL_HOST"
+$visionProvider = Get-DemoEnvValue $envValues "VISION_PROVIDER"
+$speechProvider = Get-DemoEnvValue $envValues "SPEECH_PROVIDER"
+$uploadProvider = Get-DemoEnvValue $envValues "UPLOAD_PROVIDER"
+$uploadPublicBaseUrl = Get-DemoEnvValue $envValues "UPLOAD_PUBLIC_BASE_URL"
 
 if ($mysqlHost -eq "mysql") {
     $env:MYSQL_HOST = "127.0.0.1"
@@ -67,11 +71,19 @@ if (-not $AllowMockLlm -and ([string]::IsNullOrWhiteSpace($llmApiKey) -or $llmAp
     throw "LLM_API_KEY is missing or still a placeholder in .env."
 }
 
+$usesExternalMultimodal = ($visionProvider -and $visionProvider -ne "mock") -or ($speechProvider -and $speechProvider -ne "mock")
+$hasPublicUploadUrl = -not [string]::IsNullOrWhiteSpace($uploadPublicBaseUrl) -or $uploadProvider -eq "cos"
+if ($usesExternalMultimodal -and -not $hasPublicUploadUrl) {
+    throw "Non-mock VISION_PROVIDER or SPEECH_PROVIDER requires UPLOAD_PUBLIC_BASE_URL, unless UPLOAD_PROVIDER=cos."
+}
+
 Write-Host "========== BuyWise Demo Startup =========="
 Write-Host "Python: $python"
 Write-Host "Backend: http://127.0.0.1:$Port"
 Write-Host "Swagger: http://127.0.0.1:$Port/docs"
 Write-Host "LLM provider: $llmProvider"
+Write-Host "Vision provider: $visionProvider"
+Write-Host "Speech provider: $speechProvider"
 
 Write-Host "========== Database Migration =========="
 & $python -m app.scripts.migrate_database

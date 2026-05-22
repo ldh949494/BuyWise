@@ -158,6 +158,11 @@ class Settings(BaseSettings):
             errors.append("MYSQL_PASSWORD must not be a placeholder in prod.")
         if self.llm_provider != "mock" and self._is_placeholder(self.llm_api_key):
             errors.append("LLM_API_KEY must be set for non-mock LLM providers in prod.")
+        if self._uses_external_multimodal_provider() and not self._has_public_upload_url():
+            errors.append(
+                "UPLOAD_PUBLIC_BASE_URL must be set, or UPLOAD_PROVIDER must be cos, "
+                "when VISION_PROVIDER or SPEECH_PROVIDER is non-mock in prod."
+            )
         if self._contains_placeholder_auth_key():
             errors.append("AUTH_API_KEYS must not contain placeholder tokens in prod.")
         if errors:
@@ -177,6 +182,12 @@ class Settings(BaseSettings):
 
     def _contains_placeholder_auth_key(self) -> bool:
         return any(self._is_placeholder(token) for token in self.configured_auth_api_keys)
+
+    def _uses_external_multimodal_provider(self) -> bool:
+        return self.vision_provider.strip().lower() != "mock" or self.speech_provider.strip().lower() != "mock"
+
+    def _has_public_upload_url(self) -> bool:
+        return bool(self.upload_public_base_url.strip()) or self.upload_provider.strip().lower() == "cos"
 
     def _is_placeholder(self, value: str) -> bool:
         normalized = value.strip().lower()

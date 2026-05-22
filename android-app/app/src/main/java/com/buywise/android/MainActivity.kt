@@ -135,6 +135,12 @@ private fun BuyWiseRoot(
                 composable("vision") {
                     VisionScreen(
                         state = viewModel.visionState,
+                        onRunVisionDemo = viewModel::runVisionDemo,
+                        onRunSpeechDemo = viewModel::runSpeechDemo,
+                        onUseQuery = {
+                            viewModel.useVisionQueryInGuide()
+                            navController.navigate("guide")
+                        },
                         onProductClick = { navController.navigate("detail/$it") },
                     )
                 }

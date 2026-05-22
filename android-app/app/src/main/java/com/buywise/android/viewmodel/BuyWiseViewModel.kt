@@ -32,7 +32,8 @@ class BuyWiseViewModel(
     var compareState by mutableStateOf(repository.compareState())
         private set
 
-    val visionState: VisionState = repository.visionState()
+    var visionState by mutableStateOf(repository.visionState())
+        private set
 
     var guideState by mutableStateOf(repository.guideState(""))
         private set
@@ -134,6 +135,51 @@ class BuyWiseViewModel(
                 mainHandler.post { applyChatEvent(event) }
             },
         )
+    }
+
+    fun runVisionDemo() {
+        visionState = visionState.copy(isLoading = true, errorMessage = null)
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) { repository.runVisionDemo() }
+            }.onSuccess { result ->
+                visionState = visionState.copy(
+                    result = result,
+                    recognizedQuery = result.title,
+                    isLoading = false,
+                )
+            }.onFailure { throwable ->
+                visionState = visionState.copy(
+                    isLoading = false,
+                    errorMessage = throwable.userMessage("图像识别联调失败"),
+                )
+            }
+        }
+    }
+
+    fun runSpeechDemo() {
+        visionState = visionState.copy(isLoading = true, errorMessage = null)
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) { repository.runSpeechDemo() }
+            }.onSuccess { text ->
+                visionState = visionState.copy(
+                    speechText = text,
+                    recognizedQuery = text,
+                    isLoading = false,
+                )
+            }.onFailure { throwable ->
+                visionState = visionState.copy(
+                    isLoading = false,
+                    errorMessage = throwable.userMessage("语音识别联调失败"),
+                )
+            }
+        }
+    }
+
+    fun useVisionQueryInGuide() {
+        val query = visionState.recognizedQuery ?: visionState.speechText ?: return
+        updateGuideQuery(query)
     }
 
     fun product(productId: String?): Product? =

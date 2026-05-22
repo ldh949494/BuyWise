@@ -290,7 +290,7 @@ file=<binary>
 ```
 
 注意：`UPLOAD_PROVIDER=local` 且未配置 `UPLOAD_PUBLIC_BASE_URL` 时返回后端相对 URL；启用 `UPLOAD_PUBLIC_BASE_URL` 或 `UPLOAD_PROVIDER=cos` 时返回外部可访问 URL。
-当后端启用非 mock 视觉或语音 provider 时，应让上传接口返回可被外部模型或腾讯 ASR 访问的 URL。
+当后端启用非 mock 视觉或语音 provider 时，应让上传接口返回可被外部模型或腾讯 ASR 访问的 URL。本地上传文件可通过 `python -m app.scripts.cleanup_uploads --max-age-hours 24 --dry-run` 预览 TTL 清理；COS 上传应在 bucket 上配置生命周期规则。
 
 ## 视觉识别
 
@@ -313,7 +313,7 @@ Content-Type: application/json
 }
 ```
 
-前端可将 `query` 自动填入搜索框，或转发给 `/api/v1/ai/chat` 继续导购。
+真实视觉 provider 演示路径为 OpenAI-compatible 多模态接口，优先 DashScope/Qwen-VL 兼容服务。前端可将 `query` 自动填入搜索框，或转发给 `/api/v1/ai/chat` 继续导购。
 
 ## 语音识别
 
@@ -334,7 +334,7 @@ Content-Type: application/json
 }
 ```
 
-前端可将 `text` 放入输入框供用户确认，或直接发送给 `/api/v1/ai/chat`。
+真实语音 provider 演示路径为上传音频后的 URL ASR。P2 不支持二进制直传 ASR，Android 侧使用固定演示音频资源联调，不申请麦克风权限。前端可将 `text` 放入输入框供用户确认，或直接发送给 `/api/v1/ai/chat`。
 
 ## RAG 搜索
 
