@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.buywise.android.data.CompareRow
 import com.buywise.android.data.CompareState
+import com.buywise.android.data.Product
 import com.buywise.android.data.VisionState
 import com.buywise.android.ui.BuyWiseTheme
 import com.buywise.android.ui.components.ProductCard
@@ -46,7 +47,7 @@ fun CompareScreen(state: CompareState, onProductClick: (String) -> Unit) {
         contentPadding = PaddingValues(18.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item { SectionTitle("商品对比", "自动对比首页前 2-3 个后端商品。") }
+        item { SectionTitle("商品对比", "对已选商品进行价格、评分、优点和注意事项分析。") }
         if (state.isLoading) {
             item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
         }
@@ -80,6 +81,8 @@ fun VisionScreen(
     onRunSpeechDemo: () -> Unit,
     onUseQuery: () -> Unit,
     onProductClick: (String) -> Unit,
+    isInCompareBasket: (String) -> Boolean,
+    onToggleCompare: (Product) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -123,7 +126,12 @@ fun VisionScreen(
             item { Text("等待后端识别结果。", color = BuyWiseTheme.colors.muted) }
         }
         items(state.result.similarProducts) { product ->
-            ProductCard(product = product, onClick = { onProductClick(product.id) })
+            ProductCard(
+                product = product,
+                onClick = { onProductClick(product.id) },
+                isInCompareBasket = isInCompareBasket(product.id),
+                onToggleCompare = { onToggleCompare(product) },
+            )
         }
     }
 }

@@ -19,10 +19,15 @@ import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -31,6 +36,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.buywise.android.ui.BuyWiseTheme
+import com.buywise.android.ui.components.FloatingCompareBasket
 import com.buywise.android.ui.screens.CompareScreen
 import com.buywise.android.ui.screens.GuideScreen
 import com.buywise.android.ui.screens.HomeScreen
@@ -68,8 +74,19 @@ private fun BuyWiseRoot(
     )
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
     val showBottomBar = currentRoute?.startsWith("detail/") != true
+    val showCompareBasket = currentRoute != "compare"
+    val snackbarHostState = remember { SnackbarHostState() }
+    val basketMessage = viewModel.compareBasketState.message
+
+    LaunchedEffect(basketMessage) {
+        if (basketMessage != null) {
+            snackbarHostState.showSnackbar(basketMessage)
+            viewModel.clearCompareBasketMessage()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar(
@@ -114,6 +131,8 @@ private fun BuyWiseRoot(
                     HomeScreen(
                         state = viewModel.homeState,
                         onProductClick = { navController.navigate("detail/$it") },
+                        isInCompareBasket = viewModel::isInCompareBasket,
+                        onToggleCompare = { viewModel.toggleCompareBasket(it) },
                         onOpenGuide = { navController.navigate("guide") },
                         onSubmitFeedback = viewModel::submitFeedback,
                         onRetry = viewModel::loadHomeProducts,
@@ -125,6 +144,8 @@ private fun BuyWiseRoot(
                         onQueryChange = viewModel::updateGuideQuery,
                         onSubmit = viewModel::submitGuideQuery,
                         onProductClick = { navController.navigate("detail/$it") },
+                        isInCompareBasket = viewModel::isInCompareBasket,
+                        onToggleCompare = viewModel::toggleCompareBasket,
                     )
                 }
                 composable("compare") {
@@ -143,6 +164,8 @@ private fun BuyWiseRoot(
                             navController.navigate("guide")
                         },
                         onProductClick = { navController.navigate("detail/$it") },
+                        isInCompareBasket = viewModel::isInCompareBasket,
+                        onToggleCompare = { viewModel.toggleCompareBasket(it) },
                     )
                 }
                 composable("detail/{productId}") { backStackEntry ->
@@ -154,9 +177,29 @@ private fun BuyWiseRoot(
                         state = viewModel.productDetailState,
                         fallbackProduct = viewModel.product(productId),
                         onBack = navController::popBackStack,
+                        isInCompareBasket = viewModel::isInCompareBasket,
+                        onToggleCompare = { viewModel.toggleCompareBasket(it) },
                         onRecordPurchase = viewModel::recordPurchase,
                     )
                 }
+            }
+            if (showCompareBasket) {
+                FloatingCompareBasket(
+                    state = viewModel.compareBasketState,
+                    onExpandedChange = viewModel::setCompareBasketExpanded,
+                    onRemoveProduct = { viewModel.toggleCompareBasket(it) },
+                    onClear = viewModel::clearCompareBasket,
+                    onStartCompare = {
+                        if (viewModel.startCompareFromBasket()) {
+                            navController.navigate("compare") {
+                                launchSingleTop = true
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(18.dp),
+                )
             }
         }
     }
