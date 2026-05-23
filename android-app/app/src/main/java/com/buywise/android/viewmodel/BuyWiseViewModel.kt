@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.buywise.android.data.ChatStreamEvent
 import com.buywise.android.data.CompareState
+import com.buywise.android.data.FeedbackPrompt
 import com.buywise.android.data.GuideState
 import com.buywise.android.data.HomeState
 import com.buywise.android.data.Product
@@ -53,6 +54,7 @@ class BuyWiseViewModel(
             }.onSuccess { products ->
                 homeState = homeState.copy(products = products, isLoading = false)
                 loadCompare(products.take(3).map { it.id })
+                refreshFeedbackPrompts()
             }.onFailure { throwable ->
                 homeState = homeState.copy(
                     products = emptyList(),
@@ -109,6 +111,50 @@ class BuyWiseViewModel(
                     isLoading = false,
                     errorMessage = throwable.userMessage("商品详情加载失败"),
                 )
+            }
+        }
+    }
+
+    fun recordPurchase(productId: String) {
+        productDetailState = productDetailState.copy(isLoading = true, errorMessage = null, orderStatusMessage = null)
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) { repository.recordPurchase(productId) }
+            }.onSuccess { status ->
+                productDetailState = productDetailState.copy(
+                    isLoading = false,
+                    orderStatusMessage = if (status == "delivered") "已记录购买并模拟收货，达到反馈时间后会出现在首页。" else "已记录购买：$status",
+                )
+                refreshFeedbackPrompts()
+            }.onFailure { throwable ->
+                productDetailState = productDetailState.copy(
+                    isLoading = false,
+                    errorMessage = throwable.userMessage("购买记录创建失败"),
+                )
+            }
+        }
+    }
+
+    fun refreshFeedbackPrompts() {
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) { repository.fetchFeedbackPrompts() }
+            }.onSuccess { prompts ->
+                homeState = homeState.copy(feedbackPrompts = prompts)
+            }
+        }
+    }
+
+    fun submitFeedback(prompt: FeedbackPrompt) {
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) { repository.submitFeedback(prompt) }
+            }.onSuccess {
+                homeState = homeState.copy(
+                    feedbackPrompts = homeState.feedbackPrompts.filterNot { it.orderItemId == prompt.orderItemId },
+                )
+            }.onFailure { throwable ->
+                homeState = homeState.copy(errorMessage = throwable.userMessage("评价提交失败"))
             }
         }
     }

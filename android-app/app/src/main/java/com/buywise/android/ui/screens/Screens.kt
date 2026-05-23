@@ -48,6 +48,7 @@ fun HomeScreen(
     state: HomeState,
     onProductClick: (String) -> Unit,
     onOpenGuide: () -> Unit,
+    onSubmitFeedback: (com.buywise.android.data.FeedbackPrompt) -> Unit,
     onRetry: () -> Unit,
 ) {
     LazyColumn(
@@ -76,6 +77,17 @@ fun HomeScreen(
                 ErrorPanel(message = message, actionLabel = "重试", onAction = onRetry)
             }
         }
+        if (state.feedbackPrompts.isNotEmpty()) {
+            item {
+                SectionTitle("待评价", "收货后的真实反馈会进入商品分析")
+            }
+            items(state.feedbackPrompts) { prompt ->
+                FeedbackPromptCard(
+                    productName = prompt.productName,
+                    onSubmit = { onSubmitFeedback(prompt) },
+                )
+            }
+        }
         item {
             SectionTitle("精选商品", "来自 BuyWise 后端的商品列表")
         }
@@ -93,6 +105,7 @@ fun ProductDetailScreen(
     state: ProductDetailState,
     fallbackProduct: Product?,
     onBack: () -> Unit,
+    onRecordPurchase: (String) -> Unit,
 ) {
     val product = state.product ?: fallbackProduct
     LazyColumn(
@@ -117,11 +130,14 @@ fun ProductDetailScreen(
         state.errorMessage?.let { message ->
             item { ErrorPanel(message = message) }
         }
+        state.orderStatusMessage?.let { message ->
+            item { InfoPanel(icon = { Icon(Icons.Outlined.ShoppingBag, contentDescription = null) }, title = "购买记录", body = message) }
+        }
         item {
             if (product == null) {
                 Text("商品不存在", style = MaterialTheme.typography.titleLarge, color = BuyWiseTheme.colors.ink)
             } else {
-                ProductHeader(product = product)
+                ProductHeader(product = product, onRecordPurchase = { onRecordPurchase(product.id) })
             }
         }
         if (product != null) {
@@ -214,7 +230,7 @@ fun ErrorPanel(message: String, actionLabel: String? = null, onAction: (() -> Un
 }
 
 @Composable
-private fun ProductHeader(product: Product) {
+private fun ProductHeader(product: Product, onRecordPurchase: () -> Unit) {
     Card(
         colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
         shape = RoundedCornerShape(8.dp),
@@ -230,6 +246,11 @@ private fun ProductHeader(product: Product) {
             Text(product.headline, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
             product.reviewSummary?.let {
                 Text(it, color = BuyWiseTheme.colors.ink, style = MaterialTheme.typography.bodyMedium)
+            }
+            Button(onClick = onRecordPurchase, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Outlined.ShoppingBag, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("记录购买")
             }
         }
     }

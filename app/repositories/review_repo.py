@@ -45,7 +45,12 @@ class ReviewRepository:
     def get_sentiment_counts_by_product_ids(self, product_ids: list[int]) -> dict[int, dict[str, int]]:
         if not product_ids:
             return {}
-        reviews = self.db.scalars(select(Review).where(Review.product_id.in_(product_ids))).all()
+        reviews = self.db.scalars(
+            select(Review).where(
+                Review.product_id.in_(product_ids),
+                (Review.status.is_(None)) | (Review.status == "active"),
+            )
+        ).all()
         counts: dict[int, dict[str, int]] = {}
         for review in reviews:
             if review.product_id is None or not review.sentiment:
@@ -53,3 +58,28 @@ class ReviewRepository:
             product_counts = counts.setdefault(int(review.product_id), {})
             product_counts[review.sentiment] = product_counts.get(review.sentiment, 0) + 1
         return counts
+
+    def get_by_id_for_user(self, review_id: int, user_ref: str) -> Review | None:
+        return self.db.scalar(select(Review).where(Review.id == review_id, Review.user_ref == user_ref))
+
+    def get_active_for_order_item(self, order_item_id: int) -> Review | None:
+        return self.db.scalar(
+            select(Review).where(
+                Review.order_item_id == order_item_id,
+                Review.status == "active",
+            )
+        )
+
+    def create(self, review: Review) -> Review:
+        self.db.add(review)
+        self.db.flush()
+        return review
+
+    def list_active_for_product_ids(self, product_ids: list[int]) -> list[Review]:
+        if not product_ids:
+            return []
+        statement = select(Review).where(
+            Review.product_id.in_(product_ids),
+            (Review.status.is_(None)) | (Review.status == "active"),
+        )
+        return list(self.db.scalars(statement).all())

@@ -67,10 +67,18 @@ def seed_products(db):
             PriceHistory(product_id=products[0].id, date=date(2026, 5, 2), price=Decimal("289.00")),
             Review(
                 product_id=products[0].id,
+                user_ref="demo-user",
                 user_name="buyer",
                 rating=Decimal("5.0"),
                 content="宿舍用很安静",
                 sentiment="positive",
+                source="buywise_post_delivery",
+                verified_purchase=True,
+                pros_tags=["quiet"],
+                cons_tags=[],
+                met_expectation=True,
+                status="active",
+                submitted_at=datetime(2026, 5, 1),
                 created_at=datetime(2026, 5, 1),
             ),
         ]
@@ -108,6 +116,7 @@ async def test_compare_service_builds_items_with_rules_and_summary(monkeypatch) 
     assert "\u9002\u5408\u5199\u4ee3\u7801" in response.items[0].pros
     assert "\u8fd1\u671f\u4ef7\u683c\u66f4\u4f4e" in response.items[0].pros
     assert "\u7528\u6237\u53cd\u9988\u8f83\u597d" in response.items[0].pros
+    assert "已购反馈满意度高" in response.items[0].pros
     assert "\u4e0d\u652f\u6301\u65e0\u7ebf" in response.items[0].cons
 
 

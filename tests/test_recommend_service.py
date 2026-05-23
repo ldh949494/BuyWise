@@ -134,3 +134,26 @@ def test_rank_uses_price_history_and_review_signals_in_reasons() -> None:
 
     assert "近期价格有优势" in cards[0].reason
     assert "用户反馈较好" in cards[0].reason
+
+
+def test_rank_uses_verified_feedback_metrics_with_limited_weight() -> None:
+    service = RecommendService()
+    need = {"budget_max": 300}
+    matching = make_product(
+        id=1,
+        name="Budget Match",
+        price=Decimal("299.00"),
+        feedback_metrics={"weighted_rating": 2.0},
+    )
+    over_budget = make_product(
+        id=2,
+        name="Over Budget",
+        price=Decimal("399.00"),
+        feedback_metrics={"weighted_rating": 5.0},
+    )
+
+    cards = service.rank([matching, over_budget], need)
+
+    assert cards[0].name == "Budget Match"
+    assert "已购反馈满意度偏低" in cards[0].conflicts
+    assert "已购反馈满意度高" in (cards[1].reason or "")

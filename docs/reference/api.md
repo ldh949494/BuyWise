@@ -7,6 +7,9 @@
 - 健康检查：`/api/v1/health`
 - 商品：`/api/v1/products`
 - 商品对比：`/api/v1/products/compare`
+- 模拟订单：`/api/v1/orders`
+- 待评价提示：`/api/v1/feedback/prompts`
+- 已购评价：`/api/v1/reviews`
 - AI 聊天：`/api/v1/ai/chat`
 - AI 聊天流式接口：`/api/v1/ai/chat/stream`
 - RAG 搜索：`/api/v1/rag/search`
@@ -20,7 +23,9 @@
 
 ## 响应说明
 
-- 商品响应包含可选扩展电商字段：`sku`、`product_url`、`image_urls`、`stock_status`、`review_summary` 和 `price_history`。
+- 商品响应包含可选扩展电商字段：`sku`、`product_url`、`image_urls`、`stock_status`、`review_summary`、`feedback_metrics` 和 `price_history`。
+- 订单响应是 BuyWise 内部交易影子模型，只表达模拟付款、物流状态和订单项快照，不代表真实支付或真实履约。
+- 已购评价通过服务端校验订单项归属和已收货状态后写入 `reviews`，`verified_purchase` 由服务端判定。
 - 聊天响应通过 `extra.session_id` 返回持久化会话标识。
 - 聊天流式响应使用 Server-Sent Events，事件包括 `meta`、`status`、`token`、`products`、`done` 和 `error`。
 - 聊天商品卡片包含解释字段：`budget_match`、`scenario_match`、`conflicts` 和 `alternatives`。
@@ -41,6 +46,15 @@
 | 商品更新 | `PATCH` | `/api/v1/products/{product_id}` | Bearer token | `products:write` |
 | 商品下架 | `DELETE` | `/api/v1/products/{product_id}` | Bearer token | `products:write` |
 | 商品对比 | `POST` | `/api/v1/products/compare` | 公开 | 无 |
+| 创建模拟订单 | `POST` | `/api/v1/orders` | 可选 Bearer token | 无 |
+| 订单列表 | `GET` | `/api/v1/orders` | 可选 Bearer token | 无 |
+| 订单详情 | `GET` | `/api/v1/orders/{order_id}` | 可选 Bearer token | 无 |
+| 推进模拟物流 | `POST` | `/api/v1/orders/{order_id}/advance` | 可选 Bearer token | 无 |
+| 待评价提示 | `GET` | `/api/v1/feedback/prompts` | 可选 Bearer token | 无 |
+| 忽略待评价提示 | `POST` | `/api/v1/feedback/prompts/{order_item_id}/dismiss` | 可选 Bearer token | 无 |
+| 提交已购评价 | `POST` | `/api/v1/reviews/from-order-item` | 可选 Bearer token | 无 |
+| 更新已购评价 | `PUT` | `/api/v1/reviews/{review_id}` | 可选 Bearer token | 无 |
+| 撤回已购评价 | `POST` | `/api/v1/reviews/{review_id}/withdraw` | 可选 Bearer token | 无 |
 | AI 导购 | `POST` | `/api/v1/ai/chat` | 公开 | 无 |
 | AI 导购流式接口 | `POST` | `/api/v1/ai/chat/stream` | 公开 | 无 |
 | RAG 搜索 | `POST` | `/api/v1/rag/search` | 公开 | 无 |
@@ -55,6 +69,7 @@
 - 商品浏览：`GET /api/v1/products` 支持类目、关键词、价格和分页筛选；`GET /api/v1/products/{product_id}` 获取详情。
 - 商品维护：`POST /api/v1/products` 创建商品，`PATCH /api/v1/products/{product_id}` 更新商品，`DELETE /api/v1/products/{product_id}` 软下架商品。下架商品默认不进入公开浏览、详情、RAG、推荐和对比。
 - 商品对比：`POST /api/v1/products/compare`，请求体包含 `product_ids` 和可选 `user_need`。
+- 订单反馈闭环：`POST /api/v1/orders` 记录模拟购买，`POST /api/v1/orders/{order_id}/advance` 推进到发货/收货，`GET /api/v1/feedback/prompts` 获取待评价项，`POST /api/v1/reviews/from-order-item` 提交已购评价。
 - AI 导购：`POST /api/v1/ai/chat` 返回 JSON，或 `POST /api/v1/ai/chat/stream` 返回 SSE token 流；请求包含 `session_id` 和 `message`，可选 `image_url` 和 `audio_url`。
 
 `app.scripts.seed_products.seed_android_contract_products` 提供这些流程使用的确定性商品数据。`tests/test_android_contract_api.py` 锁定 Android 使用的响应形状，后续真实 AI provider 可以调整排序和文案，但不能移除必需字段。

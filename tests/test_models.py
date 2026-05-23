@@ -6,6 +6,8 @@ from app.core.database import Base
 from app.models import (
     ChatMessage,
     ChatSession,
+    Order,
+    OrderItem,
     PriceHistory,
     Product,
     Recommendation,
@@ -54,13 +56,57 @@ def test_review_table_schema() -> None:
     assert Review.__tablename__ == "reviews"
     assert isinstance(column(Review, "id").type, BigInteger)
     assert isinstance(column(Review, "product_id").type, BigInteger)
+    assert isinstance(column(Review, "order_item_id").type, BigInteger)
+    assert isinstance(column(Review, "user_ref").type, String)
     assert isinstance(column(Review, "user_name").type, String)
     assert column(Review, "user_name").type.length == 64
     assert isinstance(column(Review, "rating").type, Numeric)
     assert isinstance(column(Review, "content").type, Text)
     assert isinstance(column(Review, "sentiment").type, String)
+    assert isinstance(column(Review, "source").type, String)
+    assert isinstance(column(Review, "pros_tags").type, JSON)
+    assert isinstance(column(Review, "cons_tags").type, JSON)
+    assert isinstance(column(Review, "status").type, String)
+    assert isinstance(column(Review, "submitted_at").type, DateTime)
+    assert isinstance(column(Review, "updated_at").type, DateTime)
     assert isinstance(column(Review, "created_at").type, DateTime)
     assert ("product_id",) in index_columns(Review)
+    assert ("order_item_id",) in index_columns(Review)
+    assert ("source",) in index_columns(Review)
+    assert ("user_ref",) in index_columns(Review)
+
+
+def test_order_table_schema() -> None:
+    assert Order.__tablename__ == "orders"
+    assert isinstance(column(Order, "id").type, BigInteger)
+    assert isinstance(column(Order, "user_ref").type, String)
+    assert column(Order, "user_ref").nullable is False
+    assert isinstance(column(Order, "payment_status").type, String)
+    assert isinstance(column(Order, "fulfillment_status").type, String)
+    assert isinstance(column(Order, "external_platform").type, String)
+    assert isinstance(column(Order, "external_order_ref").type, String)
+    assert isinstance(column(Order, "paid_at").type, DateTime)
+    assert isinstance(column(Order, "shipped_at").type, DateTime)
+    assert isinstance(column(Order, "delivered_at").type, DateTime)
+    assert ("user_ref",) in index_columns(Order)
+
+
+def test_order_item_table_schema() -> None:
+    assert OrderItem.__tablename__ == "order_items"
+    assert isinstance(column(OrderItem, "id").type, BigInteger)
+    assert isinstance(column(OrderItem, "order_id").type, BigInteger)
+    assert isinstance(column(OrderItem, "product_id").type, BigInteger)
+    assert isinstance(column(OrderItem, "quantity").type, Integer)
+    assert isinstance(column(OrderItem, "unit_price_snapshot").type, Numeric)
+    assert isinstance(column(OrderItem, "name_snapshot").type, String)
+    assert isinstance(column(OrderItem, "platform_snapshot").type, String)
+    assert isinstance(column(OrderItem, "product_url_snapshot").type, String)
+    assert isinstance(column(OrderItem, "feedback_due_at").type, DateTime)
+    assert isinstance(column(OrderItem, "feedback_submitted_at").type, DateTime)
+    assert isinstance(column(OrderItem, "feedback_prompt_dismissed_at").type, DateTime)
+    assert ("order_id",) in index_columns(OrderItem)
+    assert ("product_id",) in index_columns(OrderItem)
+    assert ("feedback_due_at",) in index_columns(OrderItem)
 
 
 def test_price_history_table_schema() -> None:
