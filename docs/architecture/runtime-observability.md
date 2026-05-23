@@ -16,6 +16,16 @@ Docker 入口：
 docker compose up --build
 ```
 
+发版或首次部署前先显式准备数据库和可选数据资产：
+
+```powershell
+.\scripts\release_prepare.ps1
+.\scripts\release_prepare.ps1 -ImportCsv .\data\products.csv -BuildIndex
+.\scripts\release_prepare.ps1 -SeedProfile demo -BuildIndex -CheckIndex
+```
+
+`release_prepare.ps1` 默认只执行 Alembic 迁移。商品 seed、CSV 导入、向量索引构建和索引检查都必须显式开启；应用容器启动时不自动写入演示数据，也不自动重建索引。
+
 ## PR 环境
 
 `scripts/start_pr_env.ps1` 会创建或复用隔离 worktree，并使用独立 Compose project name 启动后端和 MySQL。`scripts/stop_pr_env.ps1` 用于停止环境，可选择删除 volume 和 worktree。
@@ -38,6 +48,10 @@ docker compose up --build
 ## 日志和错误
 
 后端通过 provider 配置结构化日志和全局错误处理。请求中的 `X-Request-ID` 会进入响应和日志，方便前后端联合排查。
+
+## 后台维护
+
+后台维护任务采用脚本加外部调度，不在 FastAPI 进程内运行常驻 scheduler。上传 TTL 清理使用 `python -m app.scripts.cleanup_uploads --max-age-hours 24`；向量索引健康检查使用 `python -m app.scripts.check_vector_index`，必要时再运行 `python -m app.scripts.build_vector_index --mode upsert` 或 `--mode rebuild`。生产调度由 cron、Windows Task Scheduler、CI/CD scheduled job 或容器平台 CronJob 承载。
 
 ## 验证
 
