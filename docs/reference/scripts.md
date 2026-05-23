@@ -21,6 +21,7 @@
 ## 运行时
 
 - `scripts/start_backend.ps1`：本机开发后端启动脚本。它加载 UTF-8 设置，执行数据库迁移，并启动 Uvicorn。如果 `.env` 中的 `MYSQL_HOST=mysql`，会在当前本机进程中使用 `127.0.0.1` 连接 Docker 暴露到宿主机的 MySQL。可用 `-Port <port>` 切换端口、`-NoReload` 关闭 reload、`-SkipMigration` 跳过迁移。
+- `scripts/release_prepare.ps1`：发版或首次部署前的显式准备脚本。默认只执行数据库迁移；使用 `-SeedProfile android-contract|demo` 写入确定性 seed 数据，使用 `-ImportCsv <path>` 导入商品 CSV，使用 `-BuildIndex -IndexMode upsert|rebuild` 构建向量索引，使用 `-CheckIndex` 检查索引健康。`-SeedProfile` 和 `-ImportCsv` 不能同时使用，避免混合演示数据和外部商品目录。
 - `scripts/start_pr_env.ps1`：创建或复用隔离 worktree，并用指定 project name 启动 Docker Compose。
 - `scripts/stop_pr_env.ps1`：停止隔离 compose project，可选择删除 volume 或 worktree。
 - `scripts/start_demo.ps1`：本地演示启动脚本。它检查 `.env` 的 LLM 配置，执行迁移、`seed_products --profile demo`、向量索引构建，并启动 Uvicorn。可用 `-SkipIndex` 跳过索引、`-Port <port>` 切换端口、`-AllowMockLlm` 做离线 smoke。
@@ -42,3 +43,5 @@
 - `scripts/init_db.py`：数据库初始化辅助脚本，执行 Alembic 迁移。
 - `scripts/ai_update_readme.py`：GitHub Actions 使用的 AI 辅助 README 更新脚本。
 - `scripts/doc_gardening.py`：AI 辅助仓库记忆维护报告。默认只写报告；使用 `--apply` 时才会编辑 `AGENTS.md`、README 或 `docs/`。
+
+后台维护任务保持为手动或外部调度脚本，不在 FastAPI 进程内启动常驻 scheduler。生产环境可用 cron、Windows Task Scheduler、CI/CD scheduled job 或容器平台 CronJob 定期执行上传清理和索引健康检查，避免多副本应用进程重复执行维护任务。
