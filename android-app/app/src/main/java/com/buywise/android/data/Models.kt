@@ -63,6 +63,34 @@ data class CompareState(
     val errorMessage: String? = null,
 )
 
+data class CompareBasketState(
+    val products: List<Product> = emptyList(),
+    val userNeed: String? = null,
+    val isExpanded: Boolean = false,
+    val message: String? = null,
+) {
+    val hasMixedCategories: Boolean
+        get() = products.mapNotNull { it.category?.takeIf(String::isNotBlank) }.distinct().size > 1
+
+    fun toggle(product: Product, userNeed: String? = null): CompareBasketState {
+        if (product.id.toIntOrNull() == null) {
+            return copy(message = "该商品暂时无法加入对比")
+        }
+        if (products.any { it.id == product.id }) {
+            return copy(products = products.filterNot { it.id == product.id }, message = null)
+        }
+        if (products.size >= MAX_PRODUCTS) {
+            return copy(message = "最多选择 4 个商品")
+        }
+        val nextNeed = if (products.isEmpty()) userNeed?.takeIf { it.isNotBlank() } else this.userNeed
+        return copy(products = products + product, userNeed = nextNeed, message = null)
+    }
+
+    companion object {
+        const val MAX_PRODUCTS = 4
+    }
+}
+
 data class VisionState(
     val result: VisionResult,
     val isLoading: Boolean = false,

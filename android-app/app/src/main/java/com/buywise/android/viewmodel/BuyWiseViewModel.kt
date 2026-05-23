@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.buywise.android.data.ChatStreamEvent
+import com.buywise.android.data.CompareBasketState
 import com.buywise.android.data.CompareState
 import com.buywise.android.data.FeedbackPrompt
 import com.buywise.android.data.GuideState
@@ -31,6 +32,9 @@ class BuyWiseViewModel(
         private set
 
     var compareState by mutableStateOf(repository.compareState())
+        private set
+
+    var compareBasketState by mutableStateOf(CompareBasketState())
         private set
 
     var visionState by mutableStateOf(repository.visionState())
@@ -71,7 +75,7 @@ class BuyWiseViewModel(
         }
     }
 
-    fun loadCompare(productIds: List<String>) {
+    fun loadCompare(productIds: List<String>, userNeed: String? = null) {
         viewModelScope.launch {
             if (productIds.size < 2) {
                 compareState = CompareState(
@@ -83,7 +87,7 @@ class BuyWiseViewModel(
             }
             compareState = compareState.copy(isLoading = true, errorMessage = null)
             runCatching {
-                withContext(Dispatchers.IO) { repository.compareProducts(productIds) }
+                withContext(Dispatchers.IO) { repository.compareProducts(productIds, userNeed) }
             }.onSuccess { state ->
                 compareState = state.copy(isLoading = false)
             }.onFailure { throwable ->
@@ -93,6 +97,35 @@ class BuyWiseViewModel(
                 )
             }
         }
+    }
+
+    fun toggleCompareBasket(product: Product, userNeed: String? = null) {
+        compareBasketState = compareBasketState.toggle(product, userNeed)
+    }
+
+    fun setCompareBasketExpanded(isExpanded: Boolean) {
+        compareBasketState = compareBasketState.copy(isExpanded = isExpanded)
+    }
+
+    fun clearCompareBasket() {
+        compareBasketState = CompareBasketState()
+    }
+
+    fun clearCompareBasketMessage() {
+        compareBasketState = compareBasketState.copy(message = null)
+    }
+
+    fun isInCompareBasket(productId: String): Boolean =
+        compareBasketState.products.any { it.id == productId }
+
+    fun startCompareFromBasket(): Boolean {
+        if (compareBasketState.products.size < 2) {
+            compareBasketState = compareBasketState.copy(message = "至少选择 2 个商品才能对比")
+            return false
+        }
+        loadCompare(compareBasketState.products.map { it.id }, compareBasketState.userNeed)
+        compareBasketState = compareBasketState.copy(isExpanded = false, message = null)
+        return true
     }
 
     fun loadProductDetail(productId: String?) {

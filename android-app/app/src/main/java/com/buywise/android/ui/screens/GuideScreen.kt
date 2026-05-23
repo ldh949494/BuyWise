@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.buywise.android.data.GuideState
+import com.buywise.android.data.Product
 import com.buywise.android.ui.BuyWiseTheme
 import com.buywise.android.ui.components.ProductCard
 import com.buywise.android.ui.components.SectionTitle
@@ -36,6 +37,8 @@ fun GuideScreen(
     onQueryChange: (String) -> Unit,
     onSubmit: () -> Unit,
     onProductClick: (String) -> Unit,
+    isInCompareBasket: (String) -> Boolean,
+    onToggleCompare: (Product, String?) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -84,7 +87,12 @@ fun GuideScreen(
         }
         items(state.recommendations) { recommendation ->
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                ProductCard(product = recommendation.product, onClick = { onProductClick(recommendation.product.id) })
+                ProductCard(
+                    product = recommendation.product,
+                    onClick = { onProductClick(recommendation.product.id) },
+                    isInCompareBasket = isInCompareBasket(recommendation.product.id),
+                    onToggleCompare = { onToggleCompare(recommendation.product, state.query) },
+                )
                 Text(
                     recommendation.reason,
                     color = BuyWiseTheme.colors.muted,
