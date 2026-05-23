@@ -12,6 +12,7 @@ from app.repositories.product_repo import ProductRepository
 from app.repositories.review_repo import ReviewRepository
 from app.schemas.product import ProductCreate, ProductUpdate
 from app.services.product_index_service import update_product_index
+from app.services.review_signal_service import ReviewSignalService
 from app.utils.logging import get_logger
 
 
@@ -39,6 +40,7 @@ class ProductService:
         product.price_history = self.price_repo.list_for_product(product.id)
         if not product.review_summary:
             product.review_summary = self.review_repo.build_summary_for_product(product.id)
+        product.feedback_metrics = ReviewSignalService(self.review_repo).get_metrics_for_products([product.id]).get(product.id, {})
         return product
 
     def get_products_by_ids(self, product_ids: list[int]) -> list[Product]:
@@ -144,6 +146,8 @@ class ProductService:
             product.stock_status = self._stock_status(product.stock)
         if not hasattr(product, "price_history"):
             product.price_history = []
+        if not hasattr(product, "feedback_metrics"):
+            product.feedback_metrics = {}
 
     def _stock_status(self, stock: int | None) -> str | None:
         if stock is None:

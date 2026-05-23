@@ -104,6 +104,50 @@ class ShopRepository(
     }
 
     @Throws(IOException::class)
+    fun recordPurchase(productId: String): String {
+        val payload = JSONObject()
+            .put("product_id", productId.toInt())
+            .put("quantity", 1)
+            .toString()
+            .toRequestBody(jsonMediaType)
+        val created = postJson("$baseUrl/api/v1/orders", payload)
+        val orderId = created.optInt("id")
+        val shipped = postJson("$baseUrl/api/v1/orders/$orderId/advance", "{}".toRequestBody(jsonMediaType))
+        val delivered = postJson("$baseUrl/api/v1/orders/$orderId/advance", "{}".toRequestBody(jsonMediaType))
+        return delivered.optString("fulfillment_status", shipped.optString("fulfillment_status"))
+    }
+
+    @Throws(IOException::class)
+    fun fetchFeedbackPrompts(): List<FeedbackPrompt> {
+        val json = getJson("$baseUrl/api/v1/feedback/prompts")
+        val items = json.optJSONArray("items") ?: JSONArray()
+        return (0 until items.length()).mapNotNull { index ->
+            items.optJSONObject(index)?.let { item ->
+                FeedbackPrompt(
+                    orderId = item.optInt("order_id").toString(),
+                    orderItemId = item.optInt("order_item_id").toString(),
+                    productId = item.optInt("product_id").toString(),
+                    productName = item.optString("product_name", "已购商品"),
+                )
+            }
+        }
+    }
+
+    @Throws(IOException::class)
+    fun submitFeedback(prompt: FeedbackPrompt) {
+        val payload = JSONObject()
+            .put("order_item_id", prompt.orderItemId.toInt())
+            .put("rating", 5)
+            .put("content", "收货后体验符合预期，愿意继续推荐。")
+            .put("met_expectation", true)
+            .put("pros_tags", JSONArray().put("good_value").put("easy_to_use"))
+            .put("cons_tags", JSONArray())
+            .toString()
+            .toRequestBody(jsonMediaType)
+        postJson("$baseUrl/api/v1/reviews/from-order-item", payload)
+    }
+
+    @Throws(IOException::class)
     fun compareProducts(productIds: List<String>, userNeed: String? = null): CompareState {
         if (productIds.size < 2) {
             return CompareState(
@@ -249,25 +293,4 @@ class ShopRepository(
 
     private data class UploadResult(val url: String, val filename: String)
 
-    private companion object {
-        val DEMO_PNG_BYTES = byteArrayOf(
-            -119, 80, 78, 71, 13, 10, 26, 10,
-            0, 0, 0, 13, 73, 72, 68, 82,
-            0, 0, 0, 1, 0, 0, 0, 1,
-            8, 2, 0, 0, 0, -112, 119, 83, -34,
-            0, 0, 0, 12, 73, 68, 65, 84,
-            8, -41, 99, -8, -1, -1, 63, 0,
-            5, -2, 2, -2, -36, -52, 89, -25,
-            0, 0, 0, 0, 73, 69, 78, 68,
-            -82, 66, 96, -126,
-        )
-        val DEMO_WAV_BYTES = byteArrayOf(
-            82, 73, 70, 70, 38, 0, 0, 0,
-            87, 65, 86, 69, 102, 109, 116, 32,
-            16, 0, 0, 0, 1, 0, 1, 0,
-            -128, 62, 0, 0, 0, 125, 0, 0,
-            2, 0, 16, 0, 100, 97, 116, 97,
-            2, 0, 0, 0, 0, 0,
-        )
-    }
 }

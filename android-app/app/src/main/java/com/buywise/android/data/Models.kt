@@ -39,6 +39,7 @@ data class HomeState(
     val heroTitle: String,
     val heroSubtitle: String,
     val products: List<Product>,
+    val feedbackPrompts: List<FeedbackPrompt> = emptyList(),
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
 )
@@ -74,4 +75,12 @@ data class ProductDetailState(
     val product: Product? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
+    val orderStatusMessage: String? = null,
+)
+
+data class FeedbackPrompt(
+    val orderId: String,
+    val orderItemId: String,
+    val productId: String,
+    val productName: String,
 )

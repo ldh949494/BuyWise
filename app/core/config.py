@@ -83,6 +83,11 @@ class Settings(BaseSettings):
     cors_allow_credentials: bool = Field(default=False, validation_alias="CORS_ALLOW_CREDENTIALS")
     cors_allowed_methods: str = Field(default="GET,POST,OPTIONS", validation_alias="CORS_ALLOWED_METHODS")
     cors_allowed_headers: str = Field(default="Authorization,Content-Type,X-Request-ID", validation_alias="CORS_ALLOWED_HEADERS")
+    demo_user_ref: str = Field(default="demo-user", validation_alias="DEMO_USER_REF")
+    feedback_delay_days: int = Field(default=7, validation_alias="FEEDBACK_DELAY_DAYS")
+    review_imported_base_weight: float = Field(default=1.0, validation_alias="REVIEW_IMPORTED_BASE_WEIGHT")
+    review_verified_base_weight: float = Field(default=2.0, validation_alias="REVIEW_VERIFIED_BASE_WEIGHT")
+    review_weight_cap: float = Field(default=3.0, validation_alias="REVIEW_WEIGHT_CAP")
 
     @property
     def chroma_persist_directory(self) -> str:

@@ -14,6 +14,8 @@ from app.repositories.price_repo import PriceHistoryRepository
 from app.repositories.product_repo import ProductRepository
 from app.repositories.review_repo import ReviewRepository
 from app.schemas.compare import CompareItem, CompareResponse
+from app.services.review_signal_service import ReviewSignalService
+from app.utils.compare_signals import score_price_signal, score_review_counts, score_verified_feedback
 from app.utils.list_values import coerce_string_list, parse_json_or_none
 
 
@@ -43,12 +45,14 @@ class CompareService:
         ids = [product.id for product in ordered_products]
         price_averages = PriceHistoryRepository(db).get_average_by_product_ids(ids)
         review_counts = ReviewRepository(db).get_sentiment_counts_by_product_ids(ids)
+        feedback_metrics = ReviewSignalService(ReviewRepository(db)).get_metrics_for_products(ids)
         items = [
             self._build_item(
                 product,
                 user_need,
                 price_averages.get(product.id),
                 review_counts.get(product.id, {}),
+                feedback_metrics.get(product.id, {}),
             )
             for product in ordered_products
         ]
@@ -64,6 +68,7 @@ class CompareService:
         user_need: str,
         average_price: float | None = None,
         review_counts: dict[str, int] | None = None,
+        feedback_metrics: dict[str, Any] | None = None,
     ) -> CompareItem:
         pros = []
         cons = []
@@ -77,6 +82,7 @@ class CompareService:
             {"tags": tags, "scenes": scenes, "specs": specs},
             average_price,
             review_counts or {},
+            feedback_metrics or {},
             pros,
             cons,
         )
@@ -111,6 +117,7 @@ class CompareService:
         context: dict[str, Any],
         average_price: float | None,
         review_counts: dict[str, int],
+        feedback_metrics: dict[str, Any],
         pros: list[str],
         cons: list[str],
     ) -> float:
@@ -122,7 +129,7 @@ class CompareService:
                 self._score_wireless_need(user_need, context, pros, cons),
                 self._score_reputation(product),
                 self._score_stock(product),
-                self._score_quality_signals(product, average_price, review_counts, pros, cons),
+                self._score_quality_signals(product, average_price, review_counts, feedback_metrics, pros, cons),
             ]
         )
 
@@ -215,26 +222,17 @@ class CompareService:
         product: Any,
         average_price: float | None,
         review_counts: dict[str, int],
+        feedback_metrics: dict[str, Any],
         pros: list[str],
         cons: list[str],
     ) -> float:
-        score = 0.0
-        if product.price is not None and average_price is not None:
-            if Decimal(str(product.price)) < Decimal(str(average_price)):
-                pros.append("近期价格更低")
-                score += 4
-            else:
-                cons.append("价格优势不明显")
-
-        positive = int(review_counts.get("positive", 0) + review_counts.get("正向", 0))
-        negative = int(review_counts.get("negative", 0) + review_counts.get("负向", 0))
-        if positive > negative and positive > 0:
-            pros.append("用户反馈较好")
-            score += 4
-        elif negative > positive:
-            cons.append("存在负面反馈")
-            score -= 4
-        return score
+        return sum(
+            [
+                score_price_signal(product, average_price, pros, cons),
+                score_review_counts(review_counts, pros, cons),
+                score_verified_feedback(feedback_metrics, pros, cons),
+            ]
+        )
 
     def _extract_budget(self, text: str) -> float | None:
         match = re.search(r"(\d+(?:\.\d+)?)\s*(?:\u5143|\u5757)?\s*(?:\u4ee5\u5185|\u4ee5\u4e0b|\u4e4b\u5185)", text)

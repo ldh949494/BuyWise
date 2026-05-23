@@ -71,6 +71,7 @@ class RecommendService:
                 self._score_stock(product, reasons, conflicts),
                 self._score_reputation(product),
                 self._score_quality_signals(product, reasons, conflicts),
+                self._score_verified_feedback(product, reasons, conflicts),
             ]
         )
 
@@ -179,6 +180,19 @@ class RecommendService:
             score -= 4
             conflicts.append("存在负面反馈")
         return score
+
+    def _score_verified_feedback(self, product: Any, reasons: list[str], conflicts: list[str]) -> float:
+        metrics = self._get_value(product, "feedback_metrics") or {}
+        weighted_rating = metrics.get("weighted_rating") if isinstance(metrics, dict) else None
+        if not isinstance(weighted_rating, int | float):
+            return 0.0
+        if weighted_rating >= 4.2:
+            reasons.append("已购反馈满意度高")
+            return 6.0
+        if weighted_rating <= 2.5:
+            conflicts.append("已购反馈满意度偏低")
+            return -6.0
+        return 0.0
 
     def _searchable_values(self, product: Any, tags: list[str], scenes: list[str]) -> list[str]:
         values = tags + scenes

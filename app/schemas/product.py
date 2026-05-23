@@ -29,6 +29,7 @@ class ProductBase(BaseSchema):
     stock: int | None = None
     stock_status: str | None = None
     review_summary: str | None = None
+    feedback_metrics: dict[str, Any] = Field(default_factory=dict)
 
 
 class PriceHistoryRead(BaseSchema):

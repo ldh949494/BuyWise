@@ -115,6 +115,7 @@ private fun BuyWiseRoot(
                         state = viewModel.homeState,
                         onProductClick = { navController.navigate("detail/$it") },
                         onOpenGuide = { navController.navigate("guide") },
+                        onSubmitFeedback = viewModel::submitFeedback,
                         onRetry = viewModel::loadHomeProducts,
                     )
                 }
@@ -153,6 +154,7 @@ private fun BuyWiseRoot(
                         state = viewModel.productDetailState,
                         fallbackProduct = viewModel.product(productId),
                         onBack = navController::popBackStack,
+                        onRecordPurchase = viewModel::recordPurchase,
                     )
                 }
             }
