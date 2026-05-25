@@ -24,10 +24,22 @@ class ReviewSignalService:
         return {product_id: self._metrics(reviews) for product_id, reviews in grouped.items()}
 
     def get_weight(self, review: Review) -> float:
-        base = settings.review_verified_base_weight if review.verified_purchase else settings.review_imported_base_weight
+        base = self._base_weight(review)
         timing = self._timing_multiplier(review)
         content = self._content_multiplier(review)
         return min(base * timing * content, settings.review_weight_cap)
+
+    def _base_weight(self, review: Review) -> float:
+        evidence = (review.purchase_evidence or "").strip().lower()
+        if evidence == "platform_verified":
+            return settings.review_verified_base_weight
+        if evidence == "buywise_recorded":
+            return (settings.review_imported_base_weight + settings.review_verified_base_weight) / 2
+        if evidence == "claimed":
+            return settings.review_imported_base_weight * 1.2
+        if review.verified_purchase:
+            return settings.review_verified_base_weight
+        return settings.review_imported_base_weight
 
     def _metrics(self, reviews: list[Review]) -> dict[str, object]:
         rating_total = 0.0
@@ -38,10 +50,13 @@ class ReviewSignalService:
         expectation_known = 0
         expectation_met = 0
         verified_count = 0
+        purchase_feedback_count = 0
         for review in reviews:
             weight = self.get_weight(review)
-            if review.verified_purchase:
+            if self._is_platform_verified(review):
                 verified_count += 1
+            if self._is_purchase_feedback(review):
+                purchase_feedback_count += 1
             rating_total, rating_weight = self._add_rating(review, weight, rating_total, rating_weight)
             if review.sentiment in sentiment_weight:
                 sentiment_weight[review.sentiment] += weight
@@ -57,6 +72,7 @@ class ReviewSignalService:
             con_tags,
             expectation_known,
             expectation_met,
+            purchase_feedback_count,
         )
 
     def _build_metrics_result(
@@ -69,9 +85,11 @@ class ReviewSignalService:
         con_tags: Counter[str],
         expectation_known: int,
         expectation_met: int,
+        purchase_feedback_count: int,
     ) -> dict[str, object]:
         return {
             "verified_review_count": verified_count,
+            "purchase_feedback_count": purchase_feedback_count,
             "weighted_rating": round(rating_total / rating_weight, 2) if rating_weight else None,
             "positive_weight": round(sentiment_weight["positive"], 2),
             "neutral_weight": round(sentiment_weight["neutral"], 2),
@@ -79,8 +97,17 @@ class ReviewSignalService:
             "top_pro_tags": [tag for tag, _ in pro_tags.most_common(3)],
             "top_con_tags": [tag for tag, _ in con_tags.most_common(3)],
             "expectation_met_rate": round(expectation_met / expectation_known, 2) if expectation_known else None,
-            "recent_feedback_count": verified_count,
+            "recent_feedback_count": purchase_feedback_count,
         }
+
+    def _is_platform_verified(self, review: Review) -> bool:
+        return (review.purchase_evidence or "").strip().lower() == "platform_verified" or bool(
+            review.verified_purchase and not review.purchase_evidence
+        )
+
+    def _is_purchase_feedback(self, review: Review) -> bool:
+        evidence = (review.purchase_evidence or "").strip().lower()
+        return evidence in {"claimed", "buywise_recorded", "platform_verified"} or bool(review.verified_purchase)
 
     def _add_rating(self, review: Review, weight: float, total: float, rating_weight: float) -> tuple[float, float]:
         if review.rating is None:

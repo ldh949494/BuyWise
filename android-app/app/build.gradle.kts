@@ -21,6 +21,10 @@ android {
             .orElse(providers.environmentVariable("BUYWISE_UPLOAD_TOKEN"))
             .orElse("upload-token")
         buildConfigField("String", "BUYWISE_UPLOAD_TOKEN", "\"${uploadToken.get()}\"")
+        val betaToken = providers.gradleProperty("BUYWISE_BETA_TOKEN")
+            .orElse(providers.environmentVariable("BUYWISE_BETA_TOKEN"))
+            .orElse("")
+        buildConfigField("String", "BUYWISE_BETA_TOKEN", "\"${betaToken.get()}\"")
     }
 
     buildFeatures {

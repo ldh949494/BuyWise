@@ -21,7 +21,7 @@ def create_review_from_order_item(
     request: Request,
     service: ReviewWorkflowService = Depends(get_review_workflow_service),
 ) -> ReviewRead:
-    return service.create_from_order_item(payload, user_ref_from_request(request))
+    return service.create_from_order_item(payload, user_ref_from_request(request, ("feedback:write",)))
 
 
 @router.put("/{review_id}", response_model=ReviewRead)
@@ -31,7 +31,7 @@ def update_review(
     request: Request,
     service: ReviewWorkflowService = Depends(get_review_workflow_service),
 ) -> ReviewRead:
-    return service.update_review(review_id, payload, user_ref_from_request(request))
+    return service.update_review(review_id, payload, user_ref_from_request(request, ("feedback:write",)))
 
 
 @router.post("/{review_id}/withdraw", response_model=ReviewRead)
@@ -40,4 +40,4 @@ def withdraw_review(
     request: Request,
     service: ReviewWorkflowService = Depends(get_review_workflow_service),
 ) -> ReviewRead:
-    return service.update_review_withdrawn(review_id, user_ref_from_request(request))
+    return service.update_review_withdrawn(review_id, user_ref_from_request(request, ("feedback:write",)))

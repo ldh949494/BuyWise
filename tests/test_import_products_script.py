@@ -9,7 +9,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base
 from app.models import Product
-from app.scripts.import_products import import_products
+from app.scripts.import_products import import_products, validate_product_rows
 
 
 EXPECTED_FIELDS = {
@@ -107,3 +107,38 @@ def test_import_products_fails_entire_batch_for_missing_required_field(tmp_path)
 
     with session_factory() as db:
         assert db.query(Product).count() == 0
+
+
+def test_real_catalog_validation_requires_real_urls_and_stock() -> None:
+    rows = [
+        {
+            "sku": "REAL-1",
+            "name": "Real Keyboard",
+            "category": "机械键盘",
+            "price": "299",
+            "tags": '["静音"]',
+            "product_url": "https://shop.example-real.test/products/real-keyboard",
+            "image_url": "https://cdn.example-real.test/images/real-keyboard.jpg",
+            "stock": "5",
+        }
+    ]
+
+    validate_product_rows(rows, require_real_assets=True)
+
+
+def test_real_catalog_validation_rejects_placeholder_urls() -> None:
+    rows = [
+        {
+            "sku": "REAL-1",
+            "name": "Placeholder Keyboard",
+            "category": "机械键盘",
+            "price": "299",
+            "tags": '["静音"]',
+            "product_url": "https://example.com/products/keyboard",
+            "image_url": "https://cdn.example-real.test/images/keyboard.jpg",
+            "stock": "5",
+        }
+    ]
+
+    with pytest.raises(ValueError, match="product_url"):
+        validate_product_rows(rows, require_real_assets=True)

@@ -15,7 +15,9 @@ def list_feedback_prompts(
     request: Request,
     service: OrderService = Depends(get_order_service),
 ) -> FeedbackPromptListResponse:
-    return FeedbackPromptListResponse(items=service.list_due_feedback_prompts(user_ref_from_request(request)))
+    return FeedbackPromptListResponse(
+        items=service.list_due_feedback_prompts(user_ref_from_request(request, ("feedback:read",)))
+    )
 
 
 @router.post("/prompts/{order_item_id}/dismiss", status_code=status.HTTP_204_NO_CONTENT)
@@ -24,5 +26,5 @@ def dismiss_feedback_prompt(
     request: Request,
     service: OrderService = Depends(get_order_service),
 ) -> Response:
-    service.update_feedback_prompt_dismissed(order_item_id, user_ref_from_request(request))
+    service.update_feedback_prompt_dismissed(order_item_id, user_ref_from_request(request, ("feedback:write",)))
     return Response(status_code=status.HTTP_204_NO_CONTENT)

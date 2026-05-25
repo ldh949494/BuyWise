@@ -98,7 +98,8 @@ def test_simulated_order_feedback_loop() -> None:
     )
     assert review_response.status_code == 201
     review = review_response.json()
-    assert review["verified_purchase"] is True
+    assert review["verified_purchase"] is False
+    assert review["purchase_evidence"] == "buywise_recorded"
     assert review["source"] == "buywise_post_delivery"
     assert review["sentiment"] == "positive"
 
@@ -144,3 +145,61 @@ def test_review_requires_delivered_order_item() -> None:
 
     assert response.status_code == 409
     assert response.json()["code"] == "not_delivered"
+
+
+def test_prod_order_feedback_requires_bearer_token() -> None:
+    settings.app_env = "prod"
+    settings.app_debug = False
+    settings.mysql_password = "secret"
+    settings.auth_api_keys = "beta:beta-token:orders:read,orders:write,feedback:read,feedback:write"
+    client = make_client()
+
+    response = client.post("/api/v1/orders", json={"product_id": 1})
+
+    assert response.status_code == 401
+    assert response.json()["code"] == "unauthorized"
+
+
+def test_prod_order_feedback_rejects_missing_scope() -> None:
+    settings.app_env = "prod"
+    settings.app_debug = False
+    settings.mysql_password = "secret"
+    settings.auth_api_keys = "beta:beta-token:orders:read"
+    client = make_client()
+
+    response = client.post(
+        "/api/v1/orders",
+        json={"product_id": 1},
+        headers={"Authorization": "Bearer beta-token"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["code"] == "forbidden"
+
+
+def test_prod_order_feedback_uses_token_subject_for_user_ref() -> None:
+    settings.app_env = "prod"
+    settings.app_debug = False
+    settings.mysql_password = "secret"
+    settings.feedback_delay_days = 0
+    settings.auth_api_keys = (
+        "alice:alice-token:orders:read,orders:write,feedback:read,feedback:write;"
+        "bob:bob-token:orders:read,orders:write,feedback:read,feedback:write"
+    )
+    client = make_client()
+    alice_headers = {"Authorization": "Bearer alice-token"}
+    bob_headers = {"Authorization": "Bearer bob-token"}
+
+    order_response = client.post("/api/v1/orders", json={"product_id": 1}, headers=alice_headers)
+    order = order_response.json()
+    client.post(f"/api/v1/orders/{order['id']}/advance", headers=alice_headers)
+    delivered = client.post(f"/api/v1/orders/{order['id']}/advance", headers=alice_headers).json()
+
+    alice_prompts = client.get("/api/v1/feedback/prompts", headers=alice_headers).json()["items"]
+    bob_prompts = client.get("/api/v1/feedback/prompts", headers=bob_headers).json()["items"]
+
+    assert order_response.status_code == 201
+    assert order["user_ref"] == "alice"
+    assert delivered["user_ref"] == "alice"
+    assert alice_prompts
+    assert bob_prompts == []

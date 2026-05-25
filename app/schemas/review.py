@@ -76,6 +76,7 @@ class ReviewRead(BaseSchema):
     sentiment: str | None = None
     source: str | None = None
     verified_purchase: bool | None = None
+    purchase_evidence: str | None = None
     usage_context: str | None = None
     pros_tags: list[str] = Field(default_factory=list)
     cons_tags: list[str] = Field(default_factory=list)

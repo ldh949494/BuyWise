@@ -28,6 +28,8 @@ class ShopRepository(
     private val httpClient = OkHttpClient()
     private val eventSourceFactory = EventSources.createFactory(httpClient)
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
+    private val betaToken = BuildConfig.BUYWISE_BETA_TOKEN.takeIf { it.isNotBlank() }
+    private val uploadToken = betaToken ?: BuildConfig.BUYWISE_UPLOAD_TOKEN.takeIf { it.isNotBlank() }
 
     fun homeState(): HomeState = HomeState(
         heroTitle = "更快找到适合你的商品",
@@ -110,16 +112,16 @@ class ShopRepository(
             .put("quantity", 1)
             .toString()
             .toRequestBody(jsonMediaType)
-        val created = postJson("$baseUrl/api/v1/orders", payload)
+        val created = postJson("$baseUrl/api/v1/orders", payload, requireAuth = true)
         val orderId = created.optInt("id")
-        val shipped = postJson("$baseUrl/api/v1/orders/$orderId/advance", "{}".toRequestBody(jsonMediaType))
-        val delivered = postJson("$baseUrl/api/v1/orders/$orderId/advance", "{}".toRequestBody(jsonMediaType))
+        val shipped = postJson("$baseUrl/api/v1/orders/$orderId/advance", "{}".toRequestBody(jsonMediaType), requireAuth = true)
+        val delivered = postJson("$baseUrl/api/v1/orders/$orderId/advance", "{}".toRequestBody(jsonMediaType), requireAuth = true)
         return delivered.optString("fulfillment_status", shipped.optString("fulfillment_status"))
     }
 
     @Throws(IOException::class)
     fun fetchFeedbackPrompts(): List<FeedbackPrompt> {
-        val json = getJson("$baseUrl/api/v1/feedback/prompts")
+        val json = getJson("$baseUrl/api/v1/feedback/prompts", requireAuth = true)
         val items = json.optJSONArray("items") ?: JSONArray()
         return (0 until items.length()).mapNotNull { index ->
             items.optJSONObject(index)?.let { item ->
@@ -144,7 +146,7 @@ class ShopRepository(
             .put("cons_tags", JSONArray())
             .toString()
             .toRequestBody(jsonMediaType)
-        postJson("$baseUrl/api/v1/reviews/from-order-item", payload)
+        postJson("$baseUrl/api/v1/reviews/from-order-item", payload, requireAuth = true)
     }
 
     @Throws(IOException::class)
@@ -204,13 +206,13 @@ class ShopRepository(
         )
     }
 
-    private fun getJson(url: String): JSONObject {
-        val request = Request.Builder().url(url).get().build()
+    private fun getJson(url: String, requireAuth: Boolean = false): JSONObject {
+        val request = authorized(Request.Builder().url(url).get(), requireAuth).build()
         return executeJson(request)
     }
 
-    private fun postJson(url: String, body: okhttp3.RequestBody): JSONObject {
-        val request = Request.Builder().url(url).post(body).build()
+    private fun postJson(url: String, body: okhttp3.RequestBody, requireAuth: Boolean = false): JSONObject {
+        val request = authorized(Request.Builder().url(url).post(body), requireAuth).build()
         return executeJson(request)
     }
 
@@ -221,7 +223,9 @@ class ShopRepository(
             .build()
         val request = Request.Builder()
             .url("$baseUrl/api/v1/upload")
-            .header("Authorization", "Bearer ${BuildConfig.BUYWISE_UPLOAD_TOKEN}")
+            .apply {
+                uploadToken?.let { header("Authorization", "Bearer $it") }
+            }
             .post(body)
             .build()
         val json = executeJson(request)
@@ -239,6 +243,14 @@ class ShopRepository(
             }
             return JSONObject(body)
         }
+    }
+
+    private fun authorized(builder: Request.Builder, requireAuth: Boolean): Request.Builder {
+        if (!requireAuth) {
+            return builder
+        }
+        val token = betaToken ?: throw IOException("需要配置 BUYWISE_BETA_TOKEN 才能使用 beta 用户能力")
+        return builder.header("Authorization", "Bearer $token")
     }
 
     private fun parseStreamEvent(type: String?, data: String): ChatStreamEvent {

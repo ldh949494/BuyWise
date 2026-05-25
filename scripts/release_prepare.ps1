@@ -2,6 +2,7 @@ param(
     [ValidateSet("", "android-contract", "demo")]
     [string]$SeedProfile = "",
     [string]$ImportCsv = "",
+    [switch]$RequireRealCatalog,
     [switch]$BuildIndex,
     [ValidateSet("upsert", "rebuild")]
     [string]$IndexMode = "upsert",
@@ -44,6 +45,10 @@ if ($SeedProfile -and $ImportCsv) {
     throw "Use either -SeedProfile or -ImportCsv, not both, to avoid mixing deterministic seed data with imported catalog data."
 }
 
+if ($RequireRealCatalog -and -not $ImportCsv) {
+    throw "-RequireRealCatalog requires -ImportCsv."
+}
+
 $python = ".\.venv\Scripts\python.exe"
 if (-not (Test-Path $python)) {
     $python = "python"
@@ -64,6 +69,9 @@ if ($SeedProfile) {
 $importLabel = "disabled"
 if ($ImportCsv) {
     $importLabel = $ImportCsv
+    if ($RequireRealCatalog) {
+        $importLabel = "$ImportCsv (real catalog validation)"
+    }
 }
 $indexLabel = "disabled"
 if ($BuildIndex) {
@@ -92,7 +100,11 @@ if ($ImportCsv) {
         throw "Import CSV not found: $ImportCsv"
     }
     Write-Host "========== Import Products =========="
-    & $python -m app.scripts.import_products $ImportCsv
+    $importArgs = @("-m", "app.scripts.import_products", "--csv", $ImportCsv)
+    if ($RequireRealCatalog) {
+        $importArgs += "--require-real-assets"
+    }
+    & $python @importArgs
 }
 
 if ($BuildIndex) {

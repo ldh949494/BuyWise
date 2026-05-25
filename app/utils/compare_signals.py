@@ -28,7 +28,7 @@ def score_review_counts(review_counts: dict[str, int], pros: list[str], cons: li
     return 0.0
 
 
-def score_verified_feedback(feedback_metrics: dict[str, Any], pros: list[str], cons: list[str]) -> float:
+def score_purchase_feedback(feedback_metrics: dict[str, Any], pros: list[str], cons: list[str]) -> float:
     weighted_rating = feedback_metrics.get("weighted_rating")
     score = 0.0
     if isinstance(weighted_rating, int | float):

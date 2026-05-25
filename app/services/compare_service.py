@@ -15,7 +15,7 @@ from app.repositories.product_repo import ProductRepository
 from app.repositories.review_repo import ReviewRepository
 from app.schemas.compare import CompareItem, CompareResponse
 from app.services.review_signal_service import ReviewSignalService
-from app.utils.compare_signals import score_price_signal, score_review_counts, score_verified_feedback
+from app.utils.compare_signals import score_price_signal, score_purchase_feedback, score_review_counts
 from app.utils.list_values import coerce_string_list, parse_json_or_none
 
 
@@ -230,7 +230,7 @@ class CompareService:
             [
                 score_price_signal(product, average_price, pros, cons),
                 score_review_counts(review_counts, pros, cons),
-                score_verified_feedback(feedback_metrics, pros, cons),
+                score_purchase_feedback(feedback_metrics, pros, cons),
             ]
         )
 
