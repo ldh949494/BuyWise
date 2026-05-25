@@ -7,6 +7,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.core.traffic import is_capacity_limited
 from app.schemas.chat import ChatRequest
 from app.utils.logging import get_logger
 
@@ -100,13 +101,47 @@ class ChatStreamRunner:
         top_products = await self._rank_products(need, db)
         yield self._event("products", self._products_payload(need, top_products, need_clarify=False))
         yield self._event("status", {"stage": "generation", "message": "generation"})
+        async for event in self._stream_generation(context, need, top_products):
+            yield event
+
+    async def _stream_generation(
+        self,
+        context: dict[str, Any],
+        need: Any,
+        top_products: list[Any],
+    ) -> AsyncIterator[dict[str, Any]]:
         chunks = []
-        async for chunk in self.chat_service.llm_client.stream_recommendation(need, top_products):
-            chunks.append(chunk)
-            yield self._event("token", {"text": chunk})
+        try:
+            async for chunk in self.chat_service.llm_client.stream_recommendation(need, top_products):
+                chunks.append(chunk)
+                yield self._event("token", {"text": chunk})
+        except Exception as exc:
+            if not is_capacity_limited(exc, "llm"):
+                raise
+            async for event in self._stream_fallback(context, need, top_products):
+                yield event
+            return
         reply = "".join(chunks)
         self._save_assistant(context, reply, need, top_products, need_clarify=False)
         yield self._event("done", {"reply": reply})
+
+    async def _stream_fallback(
+        self,
+        context: dict[str, Any],
+        need: Any,
+        top_products: list[Any],
+    ) -> AsyncIterator[dict[str, Any]]:
+        reply = self.chat_service._fallback_recommendation_reply(top_products)
+        self._save_assistant(
+            context,
+            reply,
+            need,
+            top_products,
+            need_clarify=False,
+            degraded_reason="llm_capacity_limited",
+        )
+        yield self._event("fallback", {"reason": "llm_capacity_limited", "reply": reply})
+        yield self._event("done", {"reply": reply, "degraded": True})
 
     async def _rank_products(self, need: Any, db: Session) -> list[Any]:
         return await self.chat_service._rank_recommendations(need, db)
@@ -119,11 +154,15 @@ class ChatStreamRunner:
         products: list[Any],
         *,
         need_clarify: bool,
+        degraded_reason: str | None = None,
     ) -> None:
         chat_repo = context["chat_repo"]
         structured_data = {"need": self.chat_service._dump(need), "need_clarify": need_clarify}
         if products:
             structured_data["products"] = [self.chat_service._dump(product) for product in products]
+        if degraded_reason:
+            structured_data["degraded"] = True
+            structured_data["degraded_reason"] = degraded_reason
         chat_repo.create_message(context["session_id"], "assistant", reply, structured_data=structured_data)
         chat_repo.create_recommendations(context["session_id"], products)
         self.chat_service._commit(chat_repo)

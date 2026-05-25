@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any, Callable
 
+from app.core.providers import AppError
 from app.schemas.chat import StructuredNeed
 from app.utils.list_values import dedupe_strings
 
@@ -59,7 +60,7 @@ class LlmIntentExtractor:
             if not isinstance(payload, dict):
                 return None
             return self._need_from_payload(payload)
-        except (json.JSONDecodeError, KeyError, RuntimeError, TypeError, ValueError):
+        except (AppError, json.JSONDecodeError, KeyError, RuntimeError, TypeError, ValueError):
             return None
 
     def _messages(

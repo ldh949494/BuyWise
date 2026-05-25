@@ -46,6 +46,7 @@ class ErrorProvider:
             detail=exc.message,
             code=exc.code,
             extra=exc.extra,
+            headers=exc.headers,
         )
 
     def _http_error_response(self, request: Request, exc: HTTPException) -> JSONResponse:

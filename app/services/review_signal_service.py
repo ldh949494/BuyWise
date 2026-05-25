@@ -42,38 +42,67 @@ class ReviewSignalService:
         return settings.review_imported_base_weight
 
     def _metrics(self, reviews: list[Review]) -> dict[str, object]:
-        rating_total = 0.0
-        rating_weight = 0.0
-        sentiment_weight = {"positive": 0.0, "neutral": 0.0, "negative": 0.0}
-        pro_tags: Counter[str] = Counter()
-        con_tags: Counter[str] = Counter()
-        expectation_known = 0
-        expectation_met = 0
-        verified_count = 0
-        purchase_feedback_count = 0
+        state = self._empty_metrics_state()
         for review in reviews:
-            weight = self.get_weight(review)
-            if self._is_platform_verified(review):
-                verified_count += 1
-            if self._is_purchase_feedback(review):
-                purchase_feedback_count += 1
-            rating_total, rating_weight = self._add_rating(review, weight, rating_total, rating_weight)
-            if review.sentiment in sentiment_weight:
-                sentiment_weight[review.sentiment] += weight
-            pro_tags.update(review.pros_tags or [])
-            con_tags.update(review.cons_tags or [])
-            expectation_known, expectation_met = self._add_expectation(review, expectation_known, expectation_met)
+            self._add_review_metrics(state, review)
         return self._build_metrics_result(
-            verified_count,
-            rating_total,
-            rating_weight,
-            sentiment_weight,
-            pro_tags,
-            con_tags,
-            expectation_known,
-            expectation_met,
-            purchase_feedback_count,
+            state["verified_count"],
+            state["rating_total"],
+            state["rating_weight"],
+            state["sentiment_weight"],
+            state["pro_tags"],
+            state["con_tags"],
+            state["expectation_known"],
+            state["expectation_met"],
+            state["purchase_feedback_count"],
         )
+
+    def _empty_metrics_state(self) -> dict[str, object]:
+        return {
+            "rating_total": 0.0,
+            "rating_weight": 0.0,
+            "sentiment_weight": {"positive": 0.0, "neutral": 0.0, "negative": 0.0},
+            "pro_tags": Counter(),
+            "con_tags": Counter(),
+            "expectation_known": 0,
+            "expectation_met": 0,
+            "verified_count": 0,
+            "purchase_feedback_count": 0,
+        }
+
+    def _add_review_metrics(self, state: dict[str, object], review: Review) -> None:
+        weight = self.get_weight(review)
+        if self._is_platform_verified(review):
+            state["verified_count"] = int(state["verified_count"]) + 1
+        if self._is_purchase_feedback(review):
+            state["purchase_feedback_count"] = int(state["purchase_feedback_count"]) + 1
+        rating_total, rating_weight = self._add_rating(
+            review,
+            weight,
+            float(state["rating_total"]),
+            float(state["rating_weight"]),
+        )
+        state["rating_total"] = rating_total
+        state["rating_weight"] = rating_weight
+        self._add_weighted_sentiment(state["sentiment_weight"], review, weight)
+        state["pro_tags"].update(review.pros_tags or [])
+        state["con_tags"].update(review.cons_tags or [])
+        expectation_known, expectation_met = self._add_expectation(
+            review,
+            int(state["expectation_known"]),
+            int(state["expectation_met"]),
+        )
+        state["expectation_known"] = expectation_known
+        state["expectation_met"] = expectation_met
+
+    def _add_weighted_sentiment(
+        self,
+        sentiment_weight: dict[str, float],
+        review: Review,
+        weight: float,
+    ) -> None:
+        if review.sentiment in sentiment_weight:
+            sentiment_weight[review.sentiment] += weight
 
     def _build_metrics_result(
         self,

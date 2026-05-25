@@ -7,6 +7,7 @@ import re
 from typing import Any, Protocol
 
 from app.core.config import settings
+from app.core.traffic import run_with_capacity
 from app.integrations.media_url import resolve_public_media_url
 
 
@@ -34,7 +35,12 @@ class LlmVisionClient:
 
     async def recognize(self, image_url: str) -> dict[str, Any]:
         public_url = resolve_public_media_url(image_url, field_name="image_url")
-        response = await self.client.chat.completions.create(
+        response = await run_with_capacity("vision", lambda: self._recognize_with_provider(public_url))
+        content = response.choices[0].message.content or "{}"
+        return parse_vision_json(content)
+
+    async def _recognize_with_provider(self, public_url: str) -> Any:
+        return await self.client.chat.completions.create(
             model=self.model,
             messages=[
                 {
@@ -57,8 +63,6 @@ class LlmVisionClient:
             ],
             temperature=0.1,
         )
-        content = response.choices[0].message.content or "{}"
-        return parse_vision_json(content)
 
     def _create_client(self) -> Any:
         try:

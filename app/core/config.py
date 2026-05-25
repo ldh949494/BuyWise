@@ -88,6 +88,15 @@ class Settings(BaseSettings):
     review_imported_base_weight: float = Field(default=1.0, validation_alias="REVIEW_IMPORTED_BASE_WEIGHT")
     review_verified_base_weight: float = Field(default=2.0, validation_alias="REVIEW_VERIFIED_BASE_WEIGHT")
     review_weight_cap: float = Field(default=3.0, validation_alias="REVIEW_WEIGHT_CAP")
+    ai_llm_max_concurrency: int = Field(default=5, validation_alias="AI_LLM_MAX_CONCURRENCY")
+    ai_vision_max_concurrency: int = Field(default=2, validation_alias="AI_VISION_MAX_CONCURRENCY")
+    ai_speech_max_concurrency: int = Field(default=2, validation_alias="AI_SPEECH_MAX_CONCURRENCY")
+    ai_provider_timeout_seconds: float = Field(default=30.0, validation_alias="AI_PROVIDER_TIMEOUT_SECONDS")
+    capacity_retry_after_seconds: int = Field(default=5, validation_alias="CAPACITY_RETRY_AFTER_SECONDS")
+    chat_rate_limit_per_minute: int = Field(default=60, validation_alias="CHAT_RATE_LIMIT_PER_MINUTE")
+    vision_rate_limit_per_minute: int = Field(default=30, validation_alias="VISION_RATE_LIMIT_PER_MINUTE")
+    speech_rate_limit_per_minute: int = Field(default=30, validation_alias="SPEECH_RATE_LIMIT_PER_MINUTE")
+    upload_rate_limit_per_minute: int = Field(default=20, validation_alias="UPLOAD_RATE_LIMIT_PER_MINUTE")
 
     @property
     def chroma_persist_directory(self) -> str:
