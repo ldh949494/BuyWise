@@ -1,6 +1,6 @@
 # 设计：P2 多模态演示路径
 
-Status: Draft
+Status: Implemented
 
 ## 背景
 
@@ -28,6 +28,12 @@ BuyWise 已有上传、视觉识别和语音识别后端接口，但 Android 识
 - Android analyze 验证固定资源联调代码编译通过。
 - `auto_validate.ps1 -SkipDependencyInstall -SkipAndroidBuild` 验证后端主门禁。
 
+## 剩余边界/后续工作
+
+- Android 仍只使用内置演示图片和音频 bytes，不申请相机、相册、麦克风权限，也不做本地转码。
+- 真实 provider 需要公网可访问媒体 URL；`APP_ENV=prod` 且非 mock 多模态 provider 时，必须配置 `UPLOAD_PUBLIC_BASE_URL` 或使用 `UPLOAD_PROVIDER=cos`。
+- COS 上传生命周期不由应用脚本管理，生产环境应在 bucket 上配置生命周期规则。
+
 ## 最近检查
 
-2026-05-22
+2026-05-25

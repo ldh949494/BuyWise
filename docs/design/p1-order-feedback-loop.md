@@ -48,6 +48,13 @@ Android P1 只做最小闭环，不做完整订单中心。商品详情页增加
 - 文档验证运行 `python scripts/validate_docs.py`。
 - 后端或文档提交前运行 `powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1 -SkipDependencyInstall -SkipAndroidBuild`。
 
+## 实现进度/剩余边界
+
+- 后端交易影子模型、订单状态推进、待评价提示、已购评价提交/更新/撤回、归属校验和反馈权重聚合已实现。
+- 已购反馈信号已接入推荐、对比、商品详情和聊天分析，并保持预算、品类、库存、场景等主约束优先。
+- Android 已实现商品详情记录购买、首页待评价提示和一键提交固定内容评价。
+- Android 完整评价表单、可选标签/场景输入、反馈摘要展示和更完整的错误状态仍待补齐；完成前本设计保持 `Status: Approved`。
+
 ## 最近检查
 
-2026-05-23
+2026-05-25
