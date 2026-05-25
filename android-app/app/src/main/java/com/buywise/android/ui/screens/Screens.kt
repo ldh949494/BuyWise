@@ -2,6 +2,7 @@ package com.buywise.android.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,7 +16,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ShoppingBag
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -55,6 +58,7 @@ fun HomeScreen(
             HeroPanel(
                 title = state.heroTitle,
                 subtitle = state.heroSubtitle,
+                previewProducts = state.products.take(3),
                 onOpenGuide = onOpenGuide,
             )
         }
@@ -101,7 +105,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HeroPanel(title: String, subtitle: String, onOpenGuide: () -> Unit) {
+private fun HeroPanel(title: String, subtitle: String, previewProducts: List<Product>, onOpenGuide: () -> Unit) {
     Card(
         colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
         shape = RoundedCornerShape(8.dp),
@@ -124,6 +128,37 @@ private fun HeroPanel(title: String, subtitle: String, onOpenGuide: () -> Unit) 
             }
             Text(title, style = MaterialTheme.typography.headlineMedium, color = BuyWiseTheme.colors.ink)
             Text(subtitle, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("预算匹配", "需求结构化", "可解释推荐").forEach { label ->
+                    AssistChip(
+                        onClick = {},
+                        label = { Text(label) },
+                        leadingIcon = { Icon(Icons.Outlined.CheckCircle, contentDescription = null) },
+                    )
+                }
+            }
+            if (previewProducts.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("实时推荐预览", color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold)
+                    previewProducts.forEach { product ->
+                        Surface(color = BuyWiseTheme.colors.panelAlt, shape = RoundedCornerShape(8.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(
+                                    product.name,
+                                    modifier = Modifier.weight(1f),
+                                    color = BuyWiseTheme.colors.ink,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(product.price.displayPrice(), color = BuyWiseTheme.colors.primary, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
             Button(onClick = onOpenGuide, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Outlined.AutoAwesome, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
@@ -174,3 +209,8 @@ fun ErrorPanel(message: String, actionLabel: String? = null, onAction: (() -> Un
         }
     }
 }
+
+private fun Double?.displayPrice(): String = this?.let { "¥${formatNumber(it)}" } ?: "暂无价格"
+
+private fun formatNumber(value: Double): String =
+    if (value % 1.0 == 0.0) value.toInt().toString() else "%.1f".format(value)
