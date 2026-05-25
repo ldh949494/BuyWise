@@ -2,6 +2,7 @@ package com.buywise.android.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +18,8 @@ import androidx.compose.material.icons.automirrored.outlined.CompareArrows
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.ImageSearch
 import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.EmojiEvents
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -31,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.buywise.android.data.CompareRow
 import com.buywise.android.data.CompareState
@@ -54,16 +58,8 @@ fun CompareScreen(state: CompareState, onProductClick: (String) -> Unit) {
         state.errorMessage?.let { message ->
             item { ErrorPanel(message = message) }
         }
-        state.summary?.let { summary ->
-            item {
-                InfoPanel(
-                    icon = { Icon(Icons.AutoMirrored.Outlined.CompareArrows, contentDescription = null) },
-                    title = "对比结论",
-                    body = summary,
-                )
-            }
-        }
-        item { CompareTable(rows = state.rows) }
+        item { CompareDecisionCard(state = state) }
+        item { CompareTable(rows = state.rows, products = state.products) }
         item { SectionTitle("候选商品", "点击商品查看后端详情。") }
         if (!state.isLoading && state.products.isEmpty()) {
             item { Text("暂无可对比商品。", color = BuyWiseTheme.colors.muted) }
@@ -137,7 +133,48 @@ fun VisionScreen(
 }
 
 @Composable
-private fun CompareTable(rows: List<CompareRow>) {
+private fun CompareDecisionCard(state: CompareState) {
+    val winner = state.products.firstOrNull { it.id == state.winnerId }
+        ?: state.products.maxByOrNull { it.recommendationScore ?: -1.0 }
+    Card(
+        colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
+        shape = RoundedCornerShape(8.dp),
+        border = CardDefaults.outlinedCardBorder(),
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            androidx.compose.foundation.layout.Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(Icons.Outlined.EmojiEvents, contentDescription = null, tint = BuyWiseTheme.colors.accent)
+                Text("AI 对比结论", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
+            }
+            Text(
+                state.summary ?: "选择 2 个以上商品后，BuyWise 会结合价格、评分、推荐分和优缺点生成决策建议。",
+                color = BuyWiseTheme.colors.muted,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            winner?.let {
+                Surface(color = BuyWiseTheme.colors.secondarySoft, shape = RoundedCornerShape(8.dp)) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("优先推荐", color = BuyWiseTheme.colors.secondary, fontWeight = FontWeight.Bold)
+                        Text(it.name, color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold)
+                        Text(
+                            "推荐指数 ${it.recommendationScore.displayScore()}，${it.headline}",
+                            color = BuyWiseTheme.colors.muted,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompareTable(rows: List<CompareRow>, products: List<Product>) {
     Card(
         colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
         shape = RoundedCornerShape(8.dp),
@@ -160,11 +197,25 @@ private fun CompareTable(rows: List<CompareRow>) {
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(row.title, fontWeight = FontWeight.Bold, color = BuyWiseTheme.colors.ink)
-                        Text(
-                            row.values.joinToString("  |  "),
-                            color = BuyWiseTheme.colors.muted,
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            row.values.forEachIndexed { valueIndex, value ->
+                                AssistChip(
+                                    onClick = {},
+                                    label = {
+                                        Text(
+                                            value,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    },
+                                    leadingIcon = if (row.isBestValue(valueIndex, products)) {
+                                        { Icon(Icons.Outlined.EmojiEvents, contentDescription = null) }
+                                    } else {
+                                        null
+                                    },
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -215,3 +266,14 @@ private fun UploadPanel(
         }
     }
 }
+
+private fun CompareRow.isBestValue(index: Int, products: List<Product>): Boolean {
+    if (products.isEmpty() || index !in products.indices) return false
+    val bestScore = products.maxOfOrNull { it.recommendationScore ?: -1.0 } ?: return false
+    return title.contains("推荐") && (products[index].recommendationScore ?: -1.0) == bestScore
+}
+
+private fun Double?.displayScore(): String = this?.let { "${formatNumber(it)}分" } ?: "待分析"
+
+private fun formatNumber(value: Double): String =
+    if (value % 1.0 == 0.0) value.toInt().toString() else "%.1f".format(value)

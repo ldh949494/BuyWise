@@ -18,6 +18,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.CompareArrows
+import androidx.compose.material.icons.automirrored.outlined.TrendingUp
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -85,10 +87,65 @@ fun ProductDetailScreen(
             }
         }
         if (product != null) {
+            item { PurchaseAdviceCard(product = product) }
+            item { SignalSummaryCard(product = product) }
             item { DetailBlock("适合原因", product.advantages, BuyWiseTheme.colors.secondarySoft) }
             item { DetailBlock("注意事项", product.cautions, BuyWiseTheme.colors.dangerSoft) }
             item { DetailBlock("标签", product.tags, BuyWiseTheme.colors.primarySoft) }
         }
+    }
+}
+
+@Composable
+private fun PurchaseAdviceCard(product: Product) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
+        shape = RoundedCornerShape(8.dp),
+        border = CardDefaults.outlinedCardBorder(),
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = BuyWiseTheme.colors.primary)
+                Text("AI 购买建议", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
+            }
+            AdviceLine("适合人群", product.audienceAdvice())
+            AdviceLine("核心优势", product.advantages.take(2).joinToString(" / ").ifBlank { product.headline })
+            AdviceLine("不适合", product.cautions.take(2).joinToString(" / ").ifBlank { "暂未发现明显限制，建议结合预算和平台售后确认。" })
+            AdviceLine("购买建议", product.buyingAdvice())
+        }
+    }
+}
+
+@Composable
+private fun SignalSummaryCard(product: Product) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
+        shape = RoundedCornerShape(8.dp),
+        border = CardDefaults.outlinedCardBorder(),
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.AutoMirrored.Outlined.TrendingUp, contentDescription = null, tint = BuyWiseTheme.colors.secondary)
+                Text("价格与口碑信号", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                MetricPill("当前价格", product.price.displayPrice(), modifier = Modifier.weight(1f))
+                MetricPill("推荐指数", product.recommendationScore.displayScore(), modifier = Modifier.weight(1f))
+            }
+            Text(
+                product.reviewSummary ?: "后端暂未返回评论摘要，当前建议主要依据商品参数、标签和推荐分生成。",
+                color = BuyWiseTheme.colors.muted,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AdviceLine(label: String, value: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(label, color = BuyWiseTheme.colors.primary, fontWeight = FontWeight.Bold)
+        Text(value, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -162,6 +219,24 @@ private fun DetailBlock(title: String, items: List<String>, tone: androidx.compo
 private fun Double?.displayPrice(): String = this?.let { "¥${formatNumber(it)}" } ?: "暂无价格"
 
 private fun Double?.displayRating(): String = this?.let { formatNumber(it) } ?: "暂无"
+
+private fun Double?.displayScore(): String = this?.let { "${formatNumber(it)}分" } ?: "待分析"
+
+private fun Product.audienceAdvice(): String {
+    val scenes = tags.filter { it.length <= 8 }.take(2)
+    val categoryText = category ?: "数码产品"
+    return (scenes + categoryText).distinct().joinToString("、").ifBlank { "关注预算、实用性和购买确定性的用户" }
+}
+
+private fun Product.buyingAdvice(): String {
+    val score = recommendationScore ?: 0.0
+    return when {
+        score >= 90.0 -> "推荐指数很高，若价格符合预算，可以优先考虑入手。"
+        score >= 80.0 -> "整体匹配度较高，建议和同价位候选商品对比后决定。"
+        price != null -> "当前价格为 ${price.displayPrice()}，建议结合预算、评价摘要和售后再判断。"
+        else -> "价格信息不足，建议确认实时价格和平台售后后再购买。"
+    }
+}
 
 private fun formatNumber(value: Double): String =
     if (value % 1.0 == 0.0) value.toInt().toString() else "%.1f".format(value)
