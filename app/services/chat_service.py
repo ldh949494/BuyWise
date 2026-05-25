@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.ai.llm_client import LLMClient
 from app.ai.rag_pipeline import RAGPipeline
+from app.core.traffic import is_capacity_limited
 from app.repositories.chat_repo import ChatRepository
 from app.repositories.price_repo import PriceHistoryRepository
 from app.repositories.review_repo import ReviewRepository
@@ -162,16 +163,12 @@ class ChatService:
         db: Session,
     ) -> ChatResponse:
         top_products = await self._rank_recommendations(need, db)
-        reply = await self.llm_client.generate_recommendation(need, top_products)
-
+        reply, extra = await self._recommendation_reply(session_id, need, top_products)
         chat_repo.create_message(
             session_id,
             "assistant",
             reply,
-            structured_data={
-                "need": self._dump(need),
-                "products": [self._dump(product) for product in top_products],
-            },
+            structured_data=self._assistant_structured_data(need, top_products, extra),
         )
         chat_repo.create_recommendations(session_id, top_products)
         self._commit(chat_repo)
@@ -180,8 +177,39 @@ class ChatService:
             need_clarify=False,
             structured_need=need,
             products=top_products,
-            extra={"session_id": session_id},
+            extra=extra,
         )
+
+    async def _recommendation_reply(
+        self,
+        session_id: str,
+        need: Any,
+        top_products: list[Any],
+    ) -> tuple[str, dict[str, Any]]:
+        extra: dict[str, Any] = {"session_id": session_id}
+        try:
+            reply = await self.llm_client.generate_recommendation(need, top_products)
+            return reply, extra
+        except Exception as exc:
+            if not is_capacity_limited(exc, "llm"):
+                raise
+        extra.update({"degraded": True, "degraded_reason": "llm_capacity_limited"})
+        return self._fallback_recommendation_reply(top_products), extra
+
+    def _assistant_structured_data(
+        self,
+        need: Any,
+        top_products: list[Any],
+        extra: dict[str, Any],
+    ) -> dict[str, Any]:
+        structured_data = {
+            "need": self._dump(need),
+            "products": [self._dump(product) for product in top_products],
+        }
+        if extra.get("degraded"):
+            structured_data["degraded"] = True
+            structured_data["degraded_reason"] = extra["degraded_reason"]
+        return structured_data
 
     def _join_text(self, first: str, second: str) -> str:
         parts = [part.strip() for part in [first, second] if part and part.strip()]
@@ -215,6 +243,14 @@ class ChatService:
         if hasattr(db, "scalar") and hasattr(db, "add"):
             return ChatRepository(db)
         return NoopChatRepository(request.session_id)
+
+    def _fallback_recommendation_reply(self, products: list[Any]) -> str:
+        if not products:
+            return "暂时没有找到完全匹配的商品，可以放宽预算或调整条件。"
+        names = "、".join(str(getattr(product, "name", "")) for product in products[:3] if getattr(product, "name", None))
+        if names:
+            return f"当前 AI 总结暂时繁忙，先为你返回基础推荐：{names}。你可以先查看商品卡片。"
+        return "当前 AI 总结暂时繁忙，先为你返回基础推荐。你可以先查看商品卡片。"
 
     def _history_context(self, messages: list[Any]) -> dict[str, Any]:
         for message in reversed(messages):

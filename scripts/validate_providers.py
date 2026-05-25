@@ -15,6 +15,7 @@ ALLOWED_FILES = {
     Path("app/core/providers.py"),
     Path("app/core/logging.py"),
     Path("app/core/request_context.py"),
+    Path("app/core/traffic.py"),
     Path("app/utils/logging.py"),
 }
 FORBIDDEN_MODULES = {

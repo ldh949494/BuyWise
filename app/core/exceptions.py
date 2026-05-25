@@ -15,9 +15,11 @@ class AppError(Exception):
         status_code: int = 400,
         code: str = "app_error",
         extra: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         super().__init__(message)
         self.message = message
         self.status_code = status_code
         self.code = code
         self.extra = extra or {}
+        self.headers = headers or {}

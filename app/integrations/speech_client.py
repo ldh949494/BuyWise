@@ -9,6 +9,7 @@ from typing import Protocol
 from app.core.concurrency import run_blocking_io
 from app.core.config import settings
 from app.core.providers import AppError
+from app.core.traffic import run_with_capacity
 from app.integrations.media_url import resolve_public_media_url
 
 
@@ -26,7 +27,7 @@ class MockSpeechClient:
 class TencentSpeechClient:
     async def transcribe(self, audio_url: str) -> str:
         public_url = resolve_public_media_url(audio_url, field_name="audio_url")
-        return await run_blocking_io(self._transcribe_sync, public_url)
+        return await run_with_capacity("speech", lambda: run_blocking_io(self._transcribe_sync, public_url))
 
     def _transcribe_sync(self, audio_url: str) -> str:
         self._validate_settings()

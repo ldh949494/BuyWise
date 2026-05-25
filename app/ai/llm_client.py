@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator
 from typing import Any, Protocol
 
 from app.core.config import settings
+from app.core.traffic import run_with_capacity, stream_with_capacity
 
 
 class LLMProvider(Protocol):
@@ -96,15 +97,16 @@ class LLMClient:
             {"role": str(message.get("role", "user")), "content": str(message.get("content", ""))}
             for message in messages
         ]
-        return await self.provider.chat(normalized)
+        return await run_with_capacity("llm", lambda: self.provider.chat(normalized))
 
     async def stream_chat(self, messages: list[dict]) -> AsyncIterator[str]:
         normalized = [
             {"role": str(message.get("role", "user")), "content": str(message.get("content", ""))}
             for message in messages
         ]
-        async for chunk in self.provider.stream_chat(normalized):
-            yield chunk
+        async with stream_with_capacity("llm"):
+            async for chunk in self.provider.stream_chat(normalized):
+                yield chunk
 
     async def generate_recommendation(self, need: Any, products: list[Any]) -> str:
         if not products:

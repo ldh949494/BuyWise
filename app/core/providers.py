@@ -23,6 +23,7 @@ from app.core.request_context import (
     reset_request_id,
     set_request_id,
 )
+from app.core.traffic import rate_limit_response
 
 try:
     from prometheus_fastapi_instrumentator import Instrumentator
@@ -104,6 +105,10 @@ class MiddlewareProvider:
                 if size_response is not None:
                     status_code = size_response.status_code
                     return size_response
+                limited_response = rate_limit_response(request)
+                if limited_response is not None:
+                    status_code = limited_response.status_code
+                    return limited_response
                 response = await call_next(request)
                 status_code = response.status_code
                 return response
