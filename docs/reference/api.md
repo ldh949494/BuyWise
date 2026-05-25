@@ -4,7 +4,7 @@
 
 ## 路由分组
 
-- 健康检查：`/api/v1/health`
+- 健康检查：`/api/v1/health`、`/api/v1/ready`
 - 商品：`/api/v1/products`
 - 商品对比：`/api/v1/products/compare`
 - 模拟订单：`/api/v1/orders`
@@ -35,12 +35,14 @@
 - `POST /api/v1/upload` 需要 `Authorization: Bearer <token>`，并具备 `upload:write` scope。
 - `POST`、`PATCH` 和 `DELETE /api/v1/products...` 需要 `Authorization: Bearer <token>`，并具备 `products:write` scope。
 - `APP_ENV=prod` 时，订单、待评价提示和已购评价接口必须携带 `Authorization: Bearer <token>`；dev/test 仍允许无 token 使用 `DEMO_USER_REF` 演示身份。
+- `APP_ENV=prod` 时，`/api/v1/ready` 必须携带 `READINESS_TOKEN`，可通过 `Authorization: Bearer <token>` 或 `X-Readiness-Token` 传入。
 - 当前 Android 集成流程中，商品浏览、详情、对比和 AI 聊天保持公开访问。
 - 认证、请求上下文、错误、遥测和日志必须通过 `app.core.providers` 访问；`scripts/validate_providers.py` 会阻止直接导入 provider 实现模块。
 
 | 流程 | 方法 | 路径 | 身份 | 所需 scope |
 | --- | --- | --- | --- | --- |
 | 健康检查 | `GET` | `/api/v1/health` | 公开 | 无 |
+| Readiness | `GET` | `/api/v1/ready` | prod readiness token；dev/test 公开 | 无 |
 | 商品浏览 | `GET` | `/api/v1/products` | 公开 | 无 |
 | 商品详情 | `GET` | `/api/v1/products/{product_id}` | 公开 | 无 |
 | 商品创建 | `POST` | `/api/v1/products` | Bearer token | `products:write` |
@@ -50,7 +52,7 @@
 | 创建模拟订单 | `POST` | `/api/v1/orders` | prod Bearer token；dev/test 可选 | `orders:write` |
 | 订单列表 | `GET` | `/api/v1/orders` | prod Bearer token；dev/test 可选 | `orders:read` |
 | 订单详情 | `GET` | `/api/v1/orders/{order_id}` | prod Bearer token；dev/test 可选 | `orders:read` |
-| 推进模拟物流 | `POST` | `/api/v1/orders/{order_id}/advance` | prod Bearer token；dev/test 可选 | `orders:write` |
+| 推进模拟物流 | `POST` | `/api/v1/orders/{order_id}/advance` | prod Bearer token；dev/test 可选 | `orders:advance` |
 | 待评价提示 | `GET` | `/api/v1/feedback/prompts` | prod Bearer token；dev/test 可选 | `feedback:read` |
 | 忽略待评价提示 | `POST` | `/api/v1/feedback/prompts/{order_item_id}/dismiss` | prod Bearer token；dev/test 可选 | `feedback:write` |
 | 提交已购评价 | `POST` | `/api/v1/reviews/from-order-item` | prod Bearer token；dev/test 可选 | `feedback:write` |
@@ -70,7 +72,7 @@
 - 商品浏览：`GET /api/v1/products` 支持类目、关键词、价格和分页筛选；`GET /api/v1/products/{product_id}` 获取详情。
 - 商品维护：`POST /api/v1/products` 创建商品，`PATCH /api/v1/products/{product_id}` 更新商品，`DELETE /api/v1/products/{product_id}` 软下架商品。下架商品默认不进入公开浏览、详情、RAG、推荐和对比。
 - 商品对比：`POST /api/v1/products/compare`，请求体包含 `product_ids` 和可选 `user_need`。
-- 订单反馈闭环：`POST /api/v1/orders` 记录模拟购买，`POST /api/v1/orders/{order_id}/advance` 推进到发货/收货，`GET /api/v1/feedback/prompts` 获取待评价项，`POST /api/v1/reviews/from-order-item` 提交已购评价。
+- 订单反馈闭环：`POST /api/v1/orders` 记录购买，closed beta 外部购买记录带 `external_platform` 后可直接进入待评价；`POST /api/v1/orders/{order_id}/advance` 仅用于 demo、smoke 或管理推进；`GET /api/v1/feedback/prompts` 获取待评价项，`POST /api/v1/reviews/from-order-item` 提交已购评价。
 - AI 导购：`POST /api/v1/ai/chat` 返回 JSON，或 `POST /api/v1/ai/chat/stream` 返回 SSE token 流；请求包含 `session_id` 和 `message`，可选 `image_url` 和 `audio_url`。
 
 `app.scripts.seed_products.seed_android_contract_products` 提供这些流程使用的确定性商品数据。`tests/test_android_contract_api.py` 锁定 Android 使用的响应形状，后续真实 AI provider 可以调整排序和文案，但不能移除必需字段。

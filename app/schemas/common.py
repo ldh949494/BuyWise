@@ -12,6 +12,12 @@ class HealthResponse(BaseSchema):
     service: str
 
 
+class ReadinessResponse(BaseSchema):
+    status: str
+    service: str
+    checks: dict[str, str] = Field(default_factory=dict)
+
+
 class ErrorResponse(BaseSchema):
     detail: str
     code: str | None = None

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Request, status
 from app.api.v1.orders import user_ref_from_request
 from app.core.database import get_db
 from app.schemas.review import ReviewFromOrderItemCreate, ReviewRead, ReviewUpdate
-from app.services.order_service import ReviewWorkflowService
+from app.services.review_workflow_service import ReviewWorkflowService
 
 
 router = APIRouter(prefix="/reviews")

@@ -1,0 +1,43 @@
+services:
+  backend:
+    build:
+      context: .
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: true
+    environment:
+      APP_ENV: prod
+      APP_PORT: 8000
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      CHROMA_PERSIST_DIR: /app/vector_store/chroma
+      UPLOAD_DIR: /app/uploads
+    ports:
+      - "${BACKEND_BIND:-127.0.0.1}:${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ./vector_store:/app/vector_store
+      - ./uploads:/app/uploads
+
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD}"
+      MYSQL_USER: "${MYSQL_USER:-buywise}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD:?set MYSQL_PASSWORD}"
+      MYSQL_DATABASE: "${MYSQL_DATABASE:-buywise}"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$${MYSQL_USER} -p$${MYSQL_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  mysql_data:
