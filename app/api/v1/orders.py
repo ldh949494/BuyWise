@@ -57,4 +57,4 @@ def advance_order(
     request: Request,
     service: OrderService = Depends(get_order_service),
 ) -> OrderRead:
-    return service.update_order_progress(order_id, user_ref_from_request(request, ("orders:write",)))
+    return service.update_order_progress(order_id, user_ref_from_request(request, ("orders:advance",)))

@@ -33,6 +33,7 @@ def test_production_config_validation_rejects_insecure_settings() -> None:
         app_debug=True,
         mysql_password="change-me",
         auth_api_keys="api:change-me:upload:write",
+        readiness_token="change-me",
         cors_allowed_origins="",
         llm_provider="openai",
         llm_api_key="change-me",
@@ -48,6 +49,28 @@ def test_production_config_validation_rejects_insecure_settings() -> None:
     assert "APP_DEBUG" in message
     assert "AUTH_API_KEYS" in message
     assert "LLM_API_KEY" in message
+    assert "READINESS_TOKEN" in message
+
+
+def test_readiness_requires_token_in_prod(monkeypatch) -> None:
+    settings.app_env = "prod"
+    settings.app_debug = False
+    settings.mysql_password = "secret"
+    settings.auth_api_keys = "api:token:orders:read"
+    settings.readiness_token = "ready-token"
+    settings.allow_mock_providers_in_prod = True
+    monkeypatch.setattr(
+        "app.api.v1.health.validate_readiness",
+        lambda include_details=False: {"status": "ready", "service": "buywise-backend", "checks": {}},
+    )
+    client = TestClient(create_app())
+
+    missing = client.get("/api/v1/ready")
+    allowed = client.get("/api/v1/ready", headers={"X-Readiness-Token": "ready-token"})
+
+    assert missing.status_code == 401
+    assert allowed.status_code == 200
+    assert allowed.json()["status"] == "ready"
 
 
 def test_high_cost_android_contract_routes_remain_public() -> None:

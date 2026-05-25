@@ -136,6 +136,8 @@ docker compose exec backend python -m app.scripts.import_products
 docker compose exec backend python -m app.scripts.build_vector_index
 ```
 
+Closed beta 生产模式使用单独的 `docker-compose.prod.yml`、COS、HTTPS 反代、readiness 和 smoke 验证。部署、备份恢复和回滚步骤见 `docs/operations/closed-beta-runbook.md`。
+
 ## PR 环境
 
 启动隔离 PR 环境：
@@ -245,6 +247,7 @@ tests/            后端测试
 - API 参考：`docs/reference/api.md`
 - 配置参考：`docs/reference/configuration.md`
 - 脚本参考：`docs/reference/scripts.md`
+- Closed beta runbook：`docs/operations/closed-beta-runbook.md`
 
 ## 主要接口
 

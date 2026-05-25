@@ -2,7 +2,7 @@ from decimal import Decimal
 from types import SimpleNamespace
 
 from app.schemas.chat import ChatRequest, ChatResponse, ProductCard, StructuredNeed
-from app.schemas.common import HealthResponse
+from app.schemas.common import HealthResponse, ReadinessResponse
 from app.schemas.compare import CompareItem, CompareRequest, CompareResponse
 from app.schemas.product import (
     ProductCreate,
@@ -129,6 +129,7 @@ def test_compare_schemas() -> None:
 
 def test_return_models_enable_from_attributes() -> None:
     assert HealthResponse.model_config["from_attributes"] is True
+    assert ReadinessResponse.model_config["from_attributes"] is True
     assert ProductRead.model_config["from_attributes"] is True
     assert ProductListResponse.model_config["from_attributes"] is True
     assert ProductCard.model_config["from_attributes"] is True

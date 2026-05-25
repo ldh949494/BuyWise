@@ -67,6 +67,9 @@ class Settings(BaseSettings):
     tencent_asr_voice_format: str = Field(default="", validation_alias="TENCENT_ASR_VOICE_FORMAT")
     llm_provider: str = Field(default="mock", validation_alias="LLM_PROVIDER")
     auth_api_keys: str = Field(default="", validation_alias="AUTH_API_KEYS")
+    readiness_token: str = Field(default="", validation_alias="READINESS_TOKEN")
+    allow_mock_providers_in_prod: bool = Field(default=False, validation_alias="ALLOW_MOCK_PROVIDERS_IN_PROD")
+    external_purchase_feedback_mode: str = Field(default="delayed", validation_alias="EXTERNAL_PURCHASE_FEEDBACK_MODE")
     request_max_bytes: int = Field(default=20 * 1024 * 1024, validation_alias="REQUEST_MAX_BYTES")
     upload_provider: str = Field(default="local", validation_alias="UPLOAD_PROVIDER")
     upload_dir: str = Field(default="uploads", validation_alias="UPLOAD_DIR")
@@ -82,7 +85,10 @@ class Settings(BaseSettings):
     )
     cors_allow_credentials: bool = Field(default=False, validation_alias="CORS_ALLOW_CREDENTIALS")
     cors_allowed_methods: str = Field(default="GET,POST,OPTIONS", validation_alias="CORS_ALLOWED_METHODS")
-    cors_allowed_headers: str = Field(default="Authorization,Content-Type,X-Request-ID", validation_alias="CORS_ALLOWED_HEADERS")
+    cors_allowed_headers: str = Field(
+        default="Authorization,Content-Type,X-Request-ID",
+        validation_alias="CORS_ALLOWED_HEADERS",
+    )
     demo_user_ref: str = Field(default="demo-user", validation_alias="DEMO_USER_REF")
     feedback_delay_days: int = Field(default=7, validation_alias="FEEDBACK_DELAY_DAYS")
     review_imported_base_weight: float = Field(default=1.0, validation_alias="REVIEW_IMPORTED_BASE_WEIGHT")
@@ -159,6 +165,14 @@ class Settings(BaseSettings):
     def validate_production(self) -> None:
         if self.app_env != "prod":
             return
+        errors = self._production_base_errors()
+        errors.extend(self._production_provider_errors())
+        if self._contains_placeholder_auth_key():
+            errors.append("AUTH_API_KEYS must not contain placeholder tokens in prod.")
+        if errors:
+            raise ValueError("Invalid production configuration: " + " ".join(errors))
+
+    def _production_base_errors(self) -> list[str]:
         errors = []
         if self.app_debug:
             errors.append("APP_DEBUG must be false in prod.")
@@ -170,17 +184,43 @@ class Settings(BaseSettings):
             errors.append("CORS_ALLOWED_ORIGINS cannot be '*' when credentials are enabled.")
         if self._is_placeholder(self.mysql_password):
             errors.append("MYSQL_PASSWORD must not be a placeholder in prod.")
+        if self._is_placeholder(self.readiness_token):
+            errors.append("READINESS_TOKEN must be set in prod.")
+        if self.external_purchase_feedback_mode not in {"delayed", "immediate"}:
+            errors.append("EXTERNAL_PURCHASE_FEEDBACK_MODE must be 'delayed' or 'immediate'.")
+        return errors
+
+    def _production_provider_errors(self) -> list[str]:
+        errors = []
+        if not self.allow_mock_providers_in_prod and self.llm_provider == "mock":
+            errors.append("LLM_PROVIDER must not be mock in prod.")
+        if not self.allow_mock_providers_in_prod and self.vision_provider == "mock":
+            errors.append("VISION_PROVIDER must not be mock in prod.")
         if self.llm_provider != "mock" and self._is_placeholder(self.llm_api_key):
             errors.append("LLM_API_KEY must be set for non-mock LLM providers in prod.")
+        if self.vision_provider != "mock" and self._is_placeholder(self.effective_vision_api_key):
+            errors.append("VISION_API_KEY or LLM_API_KEY must be set for non-mock vision providers in prod.")
+        if self.upload_provider == "cos":
+            errors.extend(self._cos_configuration_errors())
         if self._uses_external_multimodal_provider() and not self._has_public_upload_url():
             errors.append(
                 "UPLOAD_PUBLIC_BASE_URL must be set, or UPLOAD_PROVIDER must be cos, "
                 "when VISION_PROVIDER or SPEECH_PROVIDER is non-mock in prod."
             )
-        if self._contains_placeholder_auth_key():
-            errors.append("AUTH_API_KEYS must not contain placeholder tokens in prod.")
-        if errors:
-            raise ValueError("Invalid production configuration: " + " ".join(errors))
+        return errors
+
+    def _cos_configuration_errors(self) -> list[str]:
+        required = {
+            "TENCENT_SECRET_ID": self.tencent_secret_id,
+            "TENCENT_SECRET_KEY": self.tencent_secret_key,
+            "COS_BUCKET": self.cos_bucket,
+            "COS_REGION": self.cos_region,
+        }
+        return [
+            f"{name} must be set when UPLOAD_PROVIDER=cos in prod."
+            for name, value in required.items()
+            if self._is_placeholder(value)
+        ]
 
     def _parse_auth_key(self, item: str) -> tuple[str, str, tuple[str, ...]]:
         parts = item.split(":", 2)
