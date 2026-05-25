@@ -35,6 +35,10 @@ class ReviewSource:
     POST_DELIVERY = "buywise_post_delivery"
 
 
+class PurchaseEvidence:
+    BUYWISE_RECORDED = "buywise_recorded"
+
+
 class ReviewStatus:
     ACTIVE = "active"
     WITHDRAWN = "withdrawn"
@@ -214,7 +218,8 @@ class ReviewWorkflowService:
             content=payload.content.strip(),
             sentiment=self._sentiment(payload.rating),
             source=ReviewSource.POST_DELIVERY,
-            verified_purchase=True,
+            verified_purchase=False,
+            purchase_evidence=PurchaseEvidence.BUYWISE_RECORDED,
             usage_context=payload.usage_context,
             pros_tags=payload.pros_tags,
             cons_tags=payload.cons_tags,

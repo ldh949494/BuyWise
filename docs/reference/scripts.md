@@ -21,7 +21,7 @@
 ## 运行时
 
 - `scripts/start_backend.ps1`：本机开发后端启动脚本。它加载 UTF-8 设置，执行数据库迁移，并启动 Uvicorn。如果 `.env` 中的 `MYSQL_HOST=mysql`，会在当前本机进程中使用 `127.0.0.1` 连接 Docker 暴露到宿主机的 MySQL。可用 `-Port <port>` 切换端口、`-NoReload` 关闭 reload、`-SkipMigration` 跳过迁移。
-- `scripts/release_prepare.ps1`：发版或首次部署前的显式准备脚本。默认只执行数据库迁移；使用 `-SeedProfile android-contract|demo` 写入确定性 seed 数据，使用 `-ImportCsv <path>` 导入商品 CSV，使用 `-BuildIndex -IndexMode upsert|rebuild` 构建向量索引，使用 `-CheckIndex` 检查索引健康。`-SeedProfile` 和 `-ImportCsv` 不能同时使用，避免混合演示数据和外部商品目录。
+- `scripts/release_prepare.ps1`：发版或首次部署前的显式准备脚本。默认只执行数据库迁移；使用 `-SeedProfile android-contract|demo` 写入确定性 seed 数据，使用 `-ImportCsv <path>` 导入商品 CSV，使用 `-RequireRealCatalog` 对 closed beta 真实目录启用真实商品链接、图片和库存字段校验，使用 `-BuildIndex -IndexMode upsert|rebuild` 构建向量索引，使用 `-CheckIndex` 检查索引健康。`-SeedProfile` 和 `-ImportCsv` 不能同时使用，避免混合演示数据和外部商品目录。
 - `scripts/start_pr_env.ps1`：创建或复用隔离 worktree，并用指定 project name 启动 Docker Compose。
 - `scripts/stop_pr_env.ps1`：停止隔离 compose project，可选择删除 volume 或 worktree。
 - `scripts/start_demo.ps1`：本地演示启动脚本。它检查 `.env` 的 LLM 配置，执行迁移、`seed_products --profile demo`、向量索引构建，并启动 Uvicorn。可用 `-SkipIndex` 跳过索引、`-Port <port>` 切换端口、`-AllowMockLlm` 做离线 smoke。
@@ -33,7 +33,7 @@
 - `app.scripts.migrate_database`：对配置的数据库执行 Alembic 迁移。
 - `app.scripts.create_tables`：兼容 wrapper，内部执行 Alembic 迁移。
 - `app.scripts.seed_products`：upsert 确定性商品种子数据。默认 profile 是 `android-contract`，用于 Android 合同流；演示时使用 `python -m app.scripts.seed_products --profile demo` 写入更适合固定提问和商品卡片展示的 demo 数据。旧 seed 数据如果曾以乱码写入，重新运行该脚本即可按固定商品 ID 更新。
-- `app.scripts.import_products`：从 CSV 导入商品。CSV 必须包含 `sku`、`name`、`category`、`price`、`tags`；脚本先整批校验，再按 `sku` upsert，输出 `inserted`、`updated`、`failed`。
+- `app.scripts.import_products`：从 CSV 导入商品。CSV 必须包含 `sku`、`name`、`category`、`price`、`tags`；脚本先整批校验，再按 `sku` upsert，输出 `inserted`、`updated`、`failed`。Closed beta 真实目录使用 `--require-real-assets`，要求每行包含真实 `product_url`、真实图片 URL，以及 `stock` 或 `stock_status`。
 - 推荐演示问题：`帮我推荐一个300以内适合宿舍写代码的低噪音无线机械键盘，最好性价比高`。demo profile 下该问题应首推 `Campus75 三模静音机械键盘`。
 - `scripts/set_utf8.ps1`：将 PowerShell 和 Python 进程编码设置为 UTF-8。如果终端查看 seed 数据时出现乱码，先点加载它：`. .\scripts\set_utf8.ps1`。
 - `app.scripts.build_vector_index`：重建或增量 upsert 持久化 ChromaDB 商品索引。`--mode rebuild` 会重置完整 collection，`--mode upsert` 会全量 upsert 但不重置，`--mode upsert --product-id <id>` 只更新指定商品。

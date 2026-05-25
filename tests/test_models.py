@@ -64,6 +64,7 @@ def test_review_table_schema() -> None:
     assert isinstance(column(Review, "content").type, Text)
     assert isinstance(column(Review, "sentiment").type, String)
     assert isinstance(column(Review, "source").type, String)
+    assert isinstance(column(Review, "purchase_evidence").type, String)
     assert isinstance(column(Review, "pros_tags").type, JSON)
     assert isinstance(column(Review, "cons_tags").type, JSON)
     assert isinstance(column(Review, "status").type, String)
@@ -72,6 +73,7 @@ def test_review_table_schema() -> None:
     assert isinstance(column(Review, "created_at").type, DateTime)
     assert ("product_id",) in index_columns(Review)
     assert ("order_item_id",) in index_columns(Review)
+    assert ("purchase_evidence",) in index_columns(Review)
     assert ("source",) in index_columns(Review)
     assert ("user_ref",) in index_columns(Review)
 

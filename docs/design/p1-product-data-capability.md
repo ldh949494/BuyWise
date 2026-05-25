@@ -12,6 +12,8 @@ BuyWise 需要补齐内部商品维护闭环，让演示和调试数据可以稳
 
 CSV 导入按 `sku` 作为幂等键，整批校验失败。必填字段为 `sku`、`name`、`category`、`price`、`tags`；`price` 必须非负，`tags` 必须是非空 JSON list，同一 CSV 内重复 sku 直接失败。
 
+Closed beta 真实商品目录在导入时启用额外校验：每行必须包含真实 `product_url`、真实图片 URL，以及 `stock` 或 `stock_status`。演示 seed 和 beta catalog 不得在同一次 release prepare 中混用。
+
 `price_history`、`review_summary` 和已购反馈聚合指标进入商品读取响应，用于 Android 合同流、商品详情、推荐解释和对比分析。商品维护入口包括受保护 API 和 CLI 脚本复用 service，不做 Web 管理后台、审批流或复杂权限。
 
 ## 影响

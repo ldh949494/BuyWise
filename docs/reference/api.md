@@ -25,7 +25,7 @@
 
 - 商品响应包含可选扩展电商字段：`sku`、`product_url`、`image_urls`、`stock_status`、`review_summary`、`feedback_metrics` 和 `price_history`。
 - 订单响应是 BuyWise 内部交易影子模型，只表达模拟付款、物流状态和订单项快照，不代表真实支付或真实履约。
-- 已购评价通过服务端校验订单项归属和已收货状态后写入 `reviews`，`verified_purchase` 由服务端判定。
+- 已购评价通过服务端校验订单项归属和已收货状态后写入 `reviews`。Closed beta 外部购买记录使用 `purchase_evidence=buywise_recorded`，不声明平台验真；未来接入平台验真后才使用 `platform_verified` 等级。
 - 聊天响应通过 `extra.session_id` 返回持久化会话标识。
 - 聊天流式响应使用 Server-Sent Events，事件包括 `meta`、`status`、`token`、`products`、`done` 和 `error`。
 - 聊天商品卡片包含解释字段：`budget_match`、`scenario_match`、`conflicts` 和 `alternatives`。
@@ -34,6 +34,7 @@
 
 - `POST /api/v1/upload` 需要 `Authorization: Bearer <token>`，并具备 `upload:write` scope。
 - `POST`、`PATCH` 和 `DELETE /api/v1/products...` 需要 `Authorization: Bearer <token>`，并具备 `products:write` scope。
+- `APP_ENV=prod` 时，订单、待评价提示和已购评价接口必须携带 `Authorization: Bearer <token>`；dev/test 仍允许无 token 使用 `DEMO_USER_REF` 演示身份。
 - 当前 Android 集成流程中，商品浏览、详情、对比和 AI 聊天保持公开访问。
 - 认证、请求上下文、错误、遥测和日志必须通过 `app.core.providers` 访问；`scripts/validate_providers.py` 会阻止直接导入 provider 实现模块。
 
@@ -46,15 +47,15 @@
 | 商品更新 | `PATCH` | `/api/v1/products/{product_id}` | Bearer token | `products:write` |
 | 商品下架 | `DELETE` | `/api/v1/products/{product_id}` | Bearer token | `products:write` |
 | 商品对比 | `POST` | `/api/v1/products/compare` | 公开 | 无 |
-| 创建模拟订单 | `POST` | `/api/v1/orders` | 可选 Bearer token | 无 |
-| 订单列表 | `GET` | `/api/v1/orders` | 可选 Bearer token | 无 |
-| 订单详情 | `GET` | `/api/v1/orders/{order_id}` | 可选 Bearer token | 无 |
-| 推进模拟物流 | `POST` | `/api/v1/orders/{order_id}/advance` | 可选 Bearer token | 无 |
-| 待评价提示 | `GET` | `/api/v1/feedback/prompts` | 可选 Bearer token | 无 |
-| 忽略待评价提示 | `POST` | `/api/v1/feedback/prompts/{order_item_id}/dismiss` | 可选 Bearer token | 无 |
-| 提交已购评价 | `POST` | `/api/v1/reviews/from-order-item` | 可选 Bearer token | 无 |
-| 更新已购评价 | `PUT` | `/api/v1/reviews/{review_id}` | 可选 Bearer token | 无 |
-| 撤回已购评价 | `POST` | `/api/v1/reviews/{review_id}/withdraw` | 可选 Bearer token | 无 |
+| 创建模拟订单 | `POST` | `/api/v1/orders` | prod Bearer token；dev/test 可选 | `orders:write` |
+| 订单列表 | `GET` | `/api/v1/orders` | prod Bearer token；dev/test 可选 | `orders:read` |
+| 订单详情 | `GET` | `/api/v1/orders/{order_id}` | prod Bearer token；dev/test 可选 | `orders:read` |
+| 推进模拟物流 | `POST` | `/api/v1/orders/{order_id}/advance` | prod Bearer token；dev/test 可选 | `orders:write` |
+| 待评价提示 | `GET` | `/api/v1/feedback/prompts` | prod Bearer token；dev/test 可选 | `feedback:read` |
+| 忽略待评价提示 | `POST` | `/api/v1/feedback/prompts/{order_item_id}/dismiss` | prod Bearer token；dev/test 可选 | `feedback:write` |
+| 提交已购评价 | `POST` | `/api/v1/reviews/from-order-item` | prod Bearer token；dev/test 可选 | `feedback:write` |
+| 更新已购评价 | `PUT` | `/api/v1/reviews/{review_id}` | prod Bearer token；dev/test 可选 | `feedback:write` |
+| 撤回已购评价 | `POST` | `/api/v1/reviews/{review_id}/withdraw` | prod Bearer token；dev/test 可选 | `feedback:write` |
 | AI 导购 | `POST` | `/api/v1/ai/chat` | 公开 | 无 |
 | AI 导购流式接口 | `POST` | `/api/v1/ai/chat/stream` | 公开 | 无 |
 | RAG 搜索 | `POST` | `/api/v1/rag/search` | 公开 | 无 |
@@ -77,6 +78,8 @@
 ## Android 本地联调
 
 Android 应用使用 `BuildConfig.BUYWISE_API_BASE_URL`，默认值是 `http://10.0.2.2:8000`，用于模拟器访问宿主机后端。
+
+Closed beta 构建使用 `BUYWISE_BETA_TOKEN` 注入受控用户 token。订单、待评价、评价和上传联调请求会带上该 token；未配置时，Android 会禁用或报错提示需要 beta token 的用户能力。
 
 本地联调步骤：
 

@@ -17,6 +17,7 @@ class Review(Base):
     __table_args__ = (
         Index("ix_reviews_product_id", "product_id"),
         Index("ix_reviews_order_item_id", "order_item_id"),
+        Index("ix_reviews_purchase_evidence", "purchase_evidence"),
         Index("ix_reviews_source", "source"),
         Index("ix_reviews_user_ref", "user_ref"),
     )
@@ -35,6 +36,7 @@ class Review(Base):
     sentiment: Mapped[Optional[str]] = mapped_column(String(32))
     source: Mapped[Optional[str]] = mapped_column(String(32))
     verified_purchase: Mapped[Optional[bool]] = mapped_column(Boolean)
+    purchase_evidence: Mapped[Optional[str]] = mapped_column(String(32))
     usage_context: Mapped[Optional[str]] = mapped_column(String(64))
     pros_tags: Mapped[Optional[list[str]]] = mapped_column(JSON)
     cons_tags: Mapped[Optional[list[str]]] = mapped_column(JSON)
