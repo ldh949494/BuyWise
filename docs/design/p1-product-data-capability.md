@@ -1,6 +1,6 @@
 # 设计：P1 商品数据能力
 
-Status: Draft
+Status: Implemented
 
 ## 背景
 
@@ -12,7 +12,7 @@ BuyWise 需要补齐内部商品维护闭环，让演示和调试数据可以稳
 
 CSV 导入按 `sku` 作为幂等键，整批校验失败。必填字段为 `sku`、`name`、`category`、`price`、`tags`；`price` 必须非负，`tags` 必须是非空 JSON list，同一 CSV 内重复 sku 直接失败。
 
-`price_history` 和 `reviews` 在 P1 中只参与推荐和对比评分及解释片段，不新增公开响应字段。商品维护入口包括受保护 API 和 CLI 脚本复用 service，不做 Web 管理后台、审批流或复杂权限。
+`price_history`、`review_summary` 和已购反馈聚合指标进入商品读取响应，用于 Android 合同流、商品详情、推荐解释和对比分析。商品维护入口包括受保护 API 和 CLI 脚本复用 service，不做 Web 管理后台、审批流或复杂权限。
 
 ## 影响
 
@@ -29,6 +29,12 @@ CSV 导入按 `sku` 作为幂等键，整批校验失败。必填字段为 `sku`
 - 推荐/对比测试覆盖价格历史和评论对排序及理由的影响。
 - 运行 `powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1 -SkipDependencyInstall -SkipAndroidBuild`。
 
+## 剩余边界/后续工作
+
+- 不建设完整 Web 管理后台、审批流或复杂权限；商品维护仍限定为受保护 API 和脚本。
+- 向量索引写入仍是 best-effort，索引失败不回滚 DB；需要通过索引健康检查和重建脚本兜底。
+- 价格历史和评论聚合已进入公开读取响应，后续新增字段时应继续同步 `docs/reference/api.md` 和 Android 合同测试。
+
 ## 最近检查
 
-2026-05-22
+2026-05-25
