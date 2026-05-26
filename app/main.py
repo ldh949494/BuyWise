@@ -1,4 +1,7 @@
+from pathlib import Path
+
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
@@ -33,9 +36,26 @@ def create_app() -> FastAPI:
     )
     get_middleware_provider().register_middleware(app)
     app.include_router(api_router, prefix=settings.api_v1_prefix)
+    mount_admin_web(app)
     get_error_provider().register_exception_handlers(app)
     get_telemetry_provider().instrument(app)
     return app
+
+
+def mount_admin_web(app: FastAPI) -> None:
+    admin_dist = Path("admin-web/dist")
+    index_file = admin_dist / "index.html"
+    if not index_file.exists():
+        return
+
+    @app.get("/admin", include_in_schema=False)
+    @app.get("/admin/{asset_path:path}", include_in_schema=False)
+    def serve_admin(asset_path: str = ""):
+        target = (admin_dist / asset_path).resolve()
+        root = admin_dist.resolve()
+        if target.is_file() and target.is_relative_to(root):
+            return FileResponse(target)
+        return FileResponse(index_file)
 
 
 app = create_app()

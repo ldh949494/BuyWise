@@ -28,8 +28,8 @@ class ProductService:
         self.review_repo = ReviewRepository(db)
         self.index_updater = index_updater
 
-    def get_product(self, product_id: int) -> Product:
-        product = self.repo.get_by_id(product_id)
+    def get_product(self, product_id: int, *, include_inactive: bool = False) -> Product:
+        product = self.repo.get_by_id(product_id, include_inactive=include_inactive)
         if product is None:
             raise AppError(
                 "Product not found",
@@ -54,6 +54,7 @@ class ProductService:
         price_max: float | None = None,
         page: int = 1,
         page_size: int = 20,
+        include_inactive: bool = False,
     ) -> tuple[list[Product], int]:
         page = max(page, 1)
         page_size = min(max(page_size, 1), 100)
@@ -64,6 +65,7 @@ class ProductService:
             price_max=price_max,
             page=page,
             page_size=page_size,
+            include_inactive=include_inactive,
         )
         for product in items:
             self._normalize_product(product)

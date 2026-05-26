@@ -13,6 +13,7 @@ from app.ai.rag_pipeline import RAGPipeline
 from app.core.database import get_db
 from app.services.chat_service import ChatService
 from app.services.compare_service import CompareService
+from app.services.admin_auth_service import AdminAuthService
 from app.services.product_service import ProductService
 from app.services.rag_service import RagService
 from app.services.speech_service import SpeechService
@@ -82,6 +83,10 @@ def get_rag_pipeline(request: Request) -> RAGPipeline:
 
 def get_product_service(db: Session = Depends(get_db)) -> ProductService:
     return ProductService(db)
+
+
+def get_admin_auth_service(db: Session = Depends(get_db)) -> AdminAuthService:
+    return AdminAuthService(db)
 
 
 def get_compare_service(request: Request) -> CompareService:
