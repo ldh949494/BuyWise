@@ -10,6 +10,13 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
 
+function Assert-LastExitCode {
+    param([string]$StepName)
+    if ($LASTEXITCODE -ne 0) {
+        throw "$StepName failed with exit code $LASTEXITCODE."
+    }
+}
+
 Write-Host "Agent map: AGENTS.md"
 
 $pytestBaseTemp = Join-Path $repoRoot ".pytest_tmp\auto-validate"
@@ -25,22 +32,28 @@ Write-Host "========== Backend Validation =========="
 
 if (-not $SkipDependencyInstall) {
     & $python -m pip install --upgrade pip
+    Assert-LastExitCode "pip upgrade"
     & $python -m pip install -r requirements-dev.txt
+    Assert-LastExitCode "dependency installation"
 } else {
     Write-Host "Dependency installation skipped."
 }
 
 Write-Host "========== Documentation Validation =========="
 & $python scripts/validate_docs.py
+Assert-LastExitCode "documentation validation"
 
 Write-Host "========== Provider Validation =========="
 & $python scripts/validate_providers.py
+Assert-LastExitCode "provider validation"
 
 Write-Host "========== Custom Repository Lint =========="
 & $python scripts/validate_repo_lint.py
+Assert-LastExitCode "custom repository lint"
 
 Write-Host "========== Entropy Validation =========="
 & $python scripts/validate_entropy.py
+Assert-LastExitCode "entropy validation"
 
 @'
 from app.api.v1.health import health_check
@@ -56,6 +69,7 @@ if payload.status != "ok" or payload.service != "buywise-backend":
 
 print("Backend smoke check passed.")
 '@ | & $python -
+Assert-LastExitCode "backend smoke check"
 
 $testFiles = @()
 if (Test-Path -LiteralPath "tests") {
@@ -71,6 +85,7 @@ if ($testFiles.Count -gt 0) {
         $env:TMP = $pytestBaseTemp
         $env:TEMP = $pytestBaseTemp
         & $python -m pytest -q -p no:cacheprovider --basetemp $pytestBaseTemp
+        Assert-LastExitCode "pytest"
     } finally {
         if ($null -eq $previousLlmProvider) {
             [System.Environment]::SetEnvironmentVariable("LLM_PROVIDER", $null, "Process")

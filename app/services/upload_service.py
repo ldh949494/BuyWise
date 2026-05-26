@@ -9,6 +9,7 @@ from urllib.parse import urljoin
 from uuid import uuid4
 
 from app.core.config import settings
+from app.core.metrics import count_upload_failure
 from app.core.providers import AppError
 from app.integrations.cos_storage_client import ObjectStorageClient, TencentCosStorageClient
 from app.utils.logging import get_logger
@@ -51,14 +52,21 @@ class UploadService:
         self.storage_client = storage_client
 
     def create_upload(self, file: UploadInput) -> dict[str, str]:
-        suffix = self._validate_upload_metadata(file)
-        filename = self._build_storage_name(suffix)
-        if self._upload_provider() == "cos":
-            return self._save_to_cos(file, filename)
+        try:
+            suffix = self._validate_upload_metadata(file)
+            filename = self._build_storage_name(suffix)
+            if self._upload_provider() == "cos":
+                return self._save_to_cos(file, filename)
 
-        upload_root = self._upload_root()
-        target = self._safe_target(upload_root, filename)
-        written = self._write_file(file, target)
+            upload_root = self._upload_root()
+            target = self._safe_target(upload_root, filename)
+            written = self._write_file(file, target)
+        except AppError as exc:
+            count_upload_failure(self._upload_failure_reason(exc.code))
+            raise
+        except Exception:
+            count_upload_failure("storage_error")
+            raise
 
         logger.info(
             "Upload saved",
@@ -69,6 +77,14 @@ class UploadService:
             },
         )
         return {"url": self._local_url(filename), "filename": filename}
+
+    def _upload_failure_reason(self, code: str | None) -> str:
+        return {
+            "upload_too_large": "too_large",
+            "unsupported_upload_type": "unsupported_type",
+            "unsafe_upload_path": "unsafe_path",
+            "invalid_upload_filename": "validation",
+        }.get(code or "", "validation")
 
     def _save_to_cos(self, file: UploadInput, filename: str) -> dict[str, str]:
         body, written = self._read_upload_to_memory(file)

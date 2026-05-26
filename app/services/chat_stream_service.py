@@ -3,12 +3,22 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+import time
 from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.core.metrics import count_llm_failure, observe_chat_latency
 from app.core.traffic import is_capacity_limited
-from app.schemas.chat import ChatRequest
+from app.schemas.chat import ChatRequest, ProductCard, StructuredNeed
+from app.schemas.chat_stream import (
+    ChatStreamDoneEventData,
+    ChatStreamErrorEventData,
+    ChatStreamMetaEventData,
+    ChatStreamProductsEventData,
+    ChatStreamStatusEventData,
+    ChatStreamTokenEventData,
+)
 from app.utils.logging import get_logger
 
 
@@ -24,16 +34,23 @@ class ChatStreamRunner:
         request: ChatRequest,
         db: Session,
     ) -> AsyncIterator[dict[str, Any]]:
+        started_at = time.perf_counter()
         context = self._build_context(request, db)
         try:
             async for event in self._generate_from_context(context, request, db):
                 yield event
+            observe_chat_latency("sse", "success", time.perf_counter() - started_at)
         except RuntimeError:
             logger.exception("Streaming chat handling failed", extra={"session_id": context["session_id"]})
             self.chat_service._rollback(context["chat_repo"])
+            observe_chat_latency("sse", "error", time.perf_counter() - started_at)
             yield self._event(
                 "error",
-                {"message": "chat_stream_failed", "session_id": context["session_id"]},
+                ChatStreamErrorEventData(
+                    code="chat_stream_failed",
+                    message="chat_stream_failed",
+                    session_id=context["session_id"],
+                ),
             )
 
     def _build_context(self, request: ChatRequest, db: Session) -> dict[str, Any]:
@@ -53,8 +70,8 @@ class ChatStreamRunner:
         request: ChatRequest,
         db: Session,
     ) -> AsyncIterator[dict[str, Any]]:
-        yield self._event("meta", {"session_id": context["session_id"]})
-        yield self._event("status", {"stage": "intent", "message": "intent"})
+        yield self._event("meta", ChatStreamMetaEventData(session_id=context["session_id"]))
+        yield self._event("status", ChatStreamStatusEventData(stage="intent", message="intent"))
         need = await self._extract_need(context, request)
         if need.need_clarify:
             async for event in self._stream_clarify(context, need):
@@ -81,15 +98,15 @@ class ChatStreamRunner:
         context: dict[str, Any],
         need: Any,
     ) -> AsyncIterator[dict[str, Any]]:
-        yield self._event("status", {"stage": "generation", "message": "generation"})
+        yield self._event("status", ChatStreamStatusEventData(stage="generation", message="generation"))
         chunks = []
         async for chunk in self.chat_service.llm_client.stream_clarify_question(need):
             chunks.append(chunk)
-            yield self._event("token", {"text": chunk})
+            yield self._event("token", ChatStreamTokenEventData(text=chunk))
         reply = "".join(chunks)
         self._save_assistant(context, reply, need, [], need_clarify=True)
         yield self._event("products", self._products_payload(need, [], need_clarify=True))
-        yield self._event("done", {"reply": reply})
+        yield self._event("done", ChatStreamDoneEventData(reply=reply))
 
     async def _stream_recommendation(
         self,
@@ -97,10 +114,10 @@ class ChatStreamRunner:
         need: Any,
         db: Session,
     ) -> AsyncIterator[dict[str, Any]]:
-        yield self._event("status", {"stage": "retrieval", "message": "retrieval"})
+        yield self._event("status", ChatStreamStatusEventData(stage="retrieval", message="retrieval"))
         top_products = await self._rank_products(need, db)
         yield self._event("products", self._products_payload(need, top_products, need_clarify=False))
-        yield self._event("status", {"stage": "generation", "message": "generation"})
+        yield self._event("status", ChatStreamStatusEventData(stage="generation", message="generation"))
         async for event in self._stream_generation(context, need, top_products):
             yield event
 
@@ -114,16 +131,17 @@ class ChatStreamRunner:
         try:
             async for chunk in self.chat_service.llm_client.stream_recommendation(need, top_products):
                 chunks.append(chunk)
-                yield self._event("token", {"text": chunk})
+                yield self._event("token", ChatStreamTokenEventData(text=chunk))
         except Exception as exc:
             if not is_capacity_limited(exc, "llm"):
                 raise
+            count_llm_failure("recommendation", "capacity_limited")
             async for event in self._stream_fallback(context, need, top_products):
                 yield event
             return
         reply = "".join(chunks)
         self._save_assistant(context, reply, need, top_products, need_clarify=False)
-        yield self._event("done", {"reply": reply})
+        yield self._event("done", ChatStreamDoneEventData(reply=reply))
 
     async def _stream_fallback(
         self,
@@ -140,8 +158,11 @@ class ChatStreamRunner:
             need_clarify=False,
             degraded_reason="llm_capacity_limited",
         )
-        yield self._event("fallback", {"reason": "llm_capacity_limited", "reply": reply})
-        yield self._event("done", {"reply": reply, "degraded": True})
+        yield self._event("status", ChatStreamStatusEventData(stage="fallback", message="llm_capacity_limited"))
+        yield self._event(
+            "done",
+            ChatStreamDoneEventData(reply=reply, degraded=True, degraded_reason="llm_capacity_limited"),
+        )
 
     async def _rank_products(self, need: Any, db: Session) -> list[Any]:
         return await self.chat_service._rank_recommendations(need, db)
@@ -168,11 +189,13 @@ class ChatStreamRunner:
         self.chat_service._commit(chat_repo)
 
     def _products_payload(self, need: Any, products: list[Any], *, need_clarify: bool) -> dict[str, Any]:
-        return {
-            "need_clarify": need_clarify,
-            "structured_need": self.chat_service._dump(need),
-            "items": [self.chat_service._dump(product) for product in products],
-        }
+        return ChatStreamProductsEventData(
+            need_clarify=need_clarify,
+            structured_need=StructuredNeed.model_validate(self.chat_service._dump(need)),
+            items=[ProductCard.model_validate(self.chat_service._dump(product)) for product in products],
+        )
 
-    def _event(self, event: str, data: dict[str, Any]) -> dict[str, Any]:
+    def _event(self, event: str, data: Any) -> dict[str, Any]:
+        if hasattr(data, "model_dump"):
+            data = data.model_dump(mode="json")
         return {"event": event, "data": data}

@@ -8,6 +8,7 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.metrics import count_feedback_prompted, count_order_created
 from app.core.providers import AppError
 from app.models.order import Order, OrderItem
 from app.models.product import Product
@@ -36,6 +37,7 @@ class OrderService:
             order = self.orders.create(order, item)
             self.db.commit()
             self.db.refresh(order)
+            count_order_created("api")
             return self._read_order(order)
         except Exception:
             self.db.rollback()
@@ -152,6 +154,8 @@ class OrderService:
                     delivered_at=order.delivered_at,
                 )
             )
+        if prompts:
+            count_feedback_prompted("api", len(prompts))
         return prompts
 
     def _purchasable_product(self, product_id: int) -> Product:

@@ -121,6 +121,7 @@ async def test_search_products_falls_back_to_repository_when_vector_store_empty(
     results = await pipeline.search_products(need, db, top_k=20)
 
     assert [product.name for product in results] == ["K87 静音红轴机械键盘"]
+    assert pipeline.last_diagnostics["source"] == "database"
 
 
 @pytest.mark.anyio
@@ -178,3 +179,4 @@ async def test_search_products_uses_adjacent_category_after_strict_category_fail
     results = await pipeline.search_products(need, db, top_k=1)
 
     assert [product.name for product in results] == ["FocusLamp 护眼台灯"]
+    assert pipeline.last_diagnostics["fallback_stage"] == "fallback_adjacent"

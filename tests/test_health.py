@@ -30,6 +30,12 @@ def test_metrics_route_is_registered_when_instrumentation_is_available() -> None
         assert "/metrics" in paths
 
 
+def test_business_metrics_helpers_register_prometheus_series() -> None:
+    from app.core.metrics import observe_chat_latency
+
+    observe_chat_latency("json", "success", 0.01)
+
+
 def test_health_check_payload() -> None:
     payload = health_check()
 
