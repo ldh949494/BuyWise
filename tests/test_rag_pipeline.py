@@ -99,9 +99,11 @@ async def test_search_products_uses_vector_results_then_filters_rules() -> None:
 
     results = await pipeline.search_products(need, db, top_k=20)
 
-    assert store.queries[0]["top_k"] == 20
+    assert store.queries[0]["top_k"] == 60
     assert "机械键盘" in store.queries[0]["query"]
     assert [product.name for product in results] == ["K87 静音红轴机械键盘"]
+    assert pipeline.last_diagnostics["retrieved_ids"] == [products[2].id, products[1].id, products[3].id, products[0].id]
+    assert pipeline.last_diagnostics["final_ids"] == [products[0].id]
 
 
 @pytest.mark.anyio

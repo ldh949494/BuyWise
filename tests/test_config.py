@@ -19,6 +19,9 @@ def test_settings_reads_new_env_names() -> None:
         "LLM_API_KEY": "key-123",
         "LLM_MODEL": "gpt-4.1-mini",
         "EMBEDDING_MODEL": "text-embedding-3-large",
+        "EMBEDDING_PROVIDER": "openai-compatible",
+        "EMBEDDING_BASE_URL": "https://embedding.example.com/v1",
+        "EMBEDDING_API_KEY": "embedding-key-123",
         "TENCENT_SECRET_ID": "sid",
         "TENCENT_SECRET_KEY": "skey",
         "COS_BUCKET": "bucket",
@@ -65,6 +68,11 @@ def test_settings_reads_new_env_names() -> None:
     assert settings.llm_api_key == "key-123"
     assert settings.llm_model == "gpt-4.1-mini"
     assert settings.embedding_model == "text-embedding-3-large"
+    assert settings.embedding_provider == "openai-compatible"
+    assert settings.embedding_base_url == "https://embedding.example.com/v1"
+    assert settings.embedding_api_key == "embedding-key-123"
+    assert settings.effective_embedding_base_url == "https://embedding.example.com/v1"
+    assert settings.effective_embedding_api_key == "embedding-key-123"
     assert settings.tencent_secret_id == "sid"
     assert settings.tencent_secret_key == "skey"
     assert settings.cos_bucket == "bucket"
@@ -138,6 +146,30 @@ def test_vision_settings_fall_back_to_llm_settings() -> None:
     assert settings.effective_vision_base_url == "https://llm.example.com/v1"
     assert settings.effective_vision_api_key == "llm-key"
     assert settings.effective_vision_model == "deepseek-chat"
+
+
+def test_embedding_settings_fall_back_to_llm_settings() -> None:
+    import os
+
+    env = {
+        "LLM_BASE_URL": "https://llm.example.com/v1",
+        "LLM_API_KEY": "llm-key",
+        "EMBEDDING_BASE_URL": "",
+        "EMBEDDING_API_KEY": "",
+    }
+    previous = {key: os.environ.get(key) for key in env}
+    os.environ.update(env)
+    try:
+        settings = Settings(_env_file=None)
+    finally:
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+    assert settings.effective_embedding_base_url == "https://llm.example.com/v1"
+    assert settings.effective_embedding_api_key == "llm-key"
 
 
 def test_settings_accepts_supported_app_env_values() -> None:
@@ -220,3 +252,33 @@ def test_prod_non_mock_multimodal_allows_cos_upload_provider() -> None:
     )
 
     settings.validate_production()
+
+
+def test_prod_requires_non_mock_embedding_provider_by_default() -> None:
+    settings = Settings(
+        _env_file=None,
+        APP_ENV="prod",
+        APP_DEBUG=False,
+        MYSQL_PASSWORD="secret",
+        AUTH_API_KEYS="api:prod-token:upload:write",
+        READINESS_TOKEN="ready-token",
+        ADMIN_JWT_SECRET="admin-jwt-secret",
+        LLM_PROVIDER="openai-compatible",
+        LLM_API_KEY="llm-key",
+        VISION_PROVIDER="llm",
+        UPLOAD_PROVIDER="cos",
+        TENCENT_SECRET_ID="sid",
+        TENCENT_SECRET_KEY="skey",
+        COS_BUCKET="bucket",
+        COS_REGION="ap-shanghai",
+        EMBEDDING_PROVIDER="mock",
+    )
+
+    try:
+        settings.validate_production()
+    except ValueError as exc:
+        message = str(exc)
+    else:
+        message = ""
+
+    assert "EMBEDDING_PROVIDER must not be mock in prod." in message

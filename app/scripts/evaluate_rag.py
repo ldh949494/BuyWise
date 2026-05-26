@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -14,21 +15,23 @@ from sqlalchemy.pool import StaticPool
 
 from app.ai.rag_pipeline import RAGPipeline
 from app.core.database import Base
+from app.scripts.import_products import import_products
+from app.scripts.rag_eval_profiles import (
+    DEFAULT_DATASET_PATH,
+    DEFAULT_PROFILE,
+    PROFILE_ERROR,
+    PROFILE_PRODUCT_FIXTURES,
+    dataset_path_for_profile,
+    known_seed_product_ids,
+)
 from app.scripts.seed_products import (
-    ANDROID_CONTRACT_PRODUCTS,
     seed_demo_products,
     seed_android_contract_products,
 )
-from app.scripts.demo_products import DEMO_SHOWCASE_PRODUCTS
+from app.services.product_index_service import build_vector_index
+from app.services.rag_pipeline_factory import build_rag_pipeline
+from app.vectorstore.chroma_client import ChromaProductStore
 from app.schemas.chat import StructuredNeed
-
-RAG_EVAL_DIR = Path(__file__).resolve().parents[2] / "data" / "rag_eval"
-PROFILE_DATASETS = {
-    "android-contract": RAG_EVAL_DIR / "shopping_needs.jsonl",
-    "demo": RAG_EVAL_DIR / "demo_shopping_needs.jsonl",
-}
-DEFAULT_PROFILE = "android-contract"
-DEFAULT_DATASET_PATH = PROFILE_DATASETS[DEFAULT_PROFILE]
 
 
 class EmptyProductStore:
@@ -69,20 +72,22 @@ async def evaluate_cases(
     db: Session | None = None,
     pipeline: RAGPipeline | None = None,
     profile: str = DEFAULT_PROFILE,
+    retrieval: str = "fallback",
 ) -> dict[str, Any]:
     owns_db = db is None
+    session_factory = None
     if db is None:
         session_factory = _make_session_factory()
         db = session_factory()
-        _seed_profile(db, profile)
+        _seed_profile(db, profile, session_factory)
 
-    pipeline = pipeline or RAGPipeline(product_store=EmptyProductStore())
+    pipeline = pipeline or _build_pipeline(retrieval, session_factory if owns_db else None, profile)
     try:
         rows = []
         for case in cases:
             results = await pipeline.search_products(_structured_need(case), db, top_k=top_k)
             retrieved_ids = [product.id for product in results]
-            rows.append(_score_case(case, retrieved_ids))
+            rows.append(_score_case(case, retrieved_ids, getattr(pipeline, "last_diagnostics", {})))
         return _summarize(rows, top_k, profile)
     finally:
         if owns_db:
@@ -94,31 +99,17 @@ async def evaluate_dataset(
     *,
     top_k: int = 5,
     profile: str = DEFAULT_PROFILE,
+    retrieval: str = "fallback",
 ) -> dict[str, Any]:
     path = dataset_path or dataset_path_for_profile(profile)
-    return await evaluate_cases(load_eval_cases(path), top_k=top_k, profile=profile)
-
-
-def dataset_path_for_profile(profile: str) -> Path:
-    try:
-        return PROFILE_DATASETS[profile]
-    except KeyError as exc:
-        raise ValueError("profile must be 'android-contract' or 'demo'.") from exc
-
-
-def known_seed_product_ids(profile: str = DEFAULT_PROFILE) -> set[int]:
-    if profile == "android-contract":
-        return {int(product["id"]) for product in ANDROID_CONTRACT_PRODUCTS}
-    if profile == "demo":
-        return {int(product["id"]) for product in DEMO_SHOWCASE_PRODUCTS}
-    raise ValueError("profile must be 'android-contract' or 'demo'.")
+    return await evaluate_cases(load_eval_cases(path), top_k=top_k, profile=profile, retrieval=retrieval)
 
 
 def main() -> None:
     args = _parse_args()
     import asyncio
 
-    report = asyncio.run(evaluate_dataset(args.dataset, top_k=args.top_k, profile=args.profile))
+    report = asyncio.run(evaluate_dataset(args.dataset, top_k=args.top_k, profile=args.profile, retrieval=args.retrieval))
     print(_format_report(report))
     if args.output_json:
         output_path = Path(args.output_json)
@@ -165,21 +156,37 @@ def _make_session_factory():
     return sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
-def _seed_profile(db: Session, profile: str) -> None:
+def _seed_profile(db: Session, profile: str, session_factory: Any) -> None:
     if profile == "android-contract":
         seed_android_contract_products(db)
         return
     if profile == "demo":
         seed_demo_products(db)
         return
-    raise ValueError("profile must be 'android-contract' or 'demo'.")
+    if profile == "beta-fixture":
+        import_products(PROFILE_PRODUCT_FIXTURES[profile], session_factory=session_factory, index_updater=None)
+        return
+    raise ValueError(PROFILE_ERROR)
 
 
 def _structured_need(case: RagEvalCase) -> StructuredNeed:
     return StructuredNeed(**case.structured_need)
 
 
-def _score_case(case: RagEvalCase, retrieved_ids: list[int]) -> dict[str, Any]:
+def _build_pipeline(retrieval: str, session_factory: Any | None, profile: str) -> RAGPipeline:
+    if retrieval == "fallback":
+        return RAGPipeline(product_store=EmptyProductStore())
+    if retrieval != "vector":
+        raise ValueError("retrieval must be 'fallback' or 'vector'.")
+    if session_factory is None:
+        return RAGPipeline()
+    temp_dir = tempfile.mkdtemp(prefix="buywise-rag-eval-")
+    store = ChromaProductStore(persist_directory=temp_dir, collection_name=f"rag_eval_{profile.replace('-', '_')}")
+    build_vector_index(session_factory=session_factory, store=store, mode="rebuild")
+    return build_rag_pipeline(product_store=store)
+
+
+def _score_case(case: RagEvalCase, retrieved_ids: list[int], diagnostics: dict[str, Any]) -> dict[str, Any]:
     expected = set(case.expected_product_ids)
     hits = [product_id for product_id in retrieved_ids if product_id in expected]
     top_id = retrieved_ids[0] if retrieved_ids else None
@@ -195,6 +202,7 @@ def _score_case(case: RagEvalCase, retrieved_ids: list[int]) -> dict[str, Any]:
         "mrr": reciprocal_rank,
         "ranking_reason": case.ranking_reason,
         "failure_notes": case.failure_notes,
+        "diagnostics": diagnostics,
     }
 
 
@@ -260,9 +268,15 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--profile",
-        choices=["android-contract", "demo"],
+        choices=["android-contract", "demo", "beta-fixture"],
         default=DEFAULT_PROFILE,
         help="Seed/eval profile to use.",
+    )
+    parser.add_argument(
+        "--retrieval",
+        choices=["fallback", "vector"],
+        default="fallback",
+        help="Use fallback DB retrieval or a rebuilt vector index for the eval run.",
     )
     parser.add_argument("--top-k", type=int, default=5, help="Number of products to retrieve per case.")
     parser.add_argument("--output-json", help="Optional path for a JSON report.")

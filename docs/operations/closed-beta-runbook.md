@@ -20,6 +20,7 @@ Required stage 1 settings:
 - `APP_ENV=prod`
 - `APP_DEBUG=false`
 - `LLM_PROVIDER=openai` or `openai-compatible`
+- `EMBEDDING_PROVIDER=openai-compatible` or `dashscope`
 - `VISION_PROVIDER=llm` or `dashscope`
 - `SPEECH_PROVIDER=mock`
 - `UPLOAD_PROVIDER=cos`

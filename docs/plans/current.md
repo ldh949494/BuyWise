@@ -11,7 +11,8 @@
 - [x] 真实商品目录：定义 beta catalog CSV 规则，要求真实商品链接和图片，固定发布流程为 import CSV、rebuild index 和 check index，禁止与 demo seed 混用。
 - [ ] Android beta 体验：记录外部购买表单、完整反馈表单、待评价错误状态、反馈摘要展示和缺 token 禁用状态。
 - [x] 部署与运维：补充 prod-mode closed beta env、单机 Compose、COS、HTTPS 反代、readiness、MySQL 备份恢复、Chroma rebuild 和回滚 runbook。
-- [ ] AI provider 策略：closed beta 默认真实化文本导购和识图，语音保持可选实验能力，并补充失败兜底和第三方处理说明。
+- [x] AI provider 策略：closed beta 默认真实化文本导购、embedding 和识图，语音保持可选实验能力，并补充失败兜底和第三方处理说明。
+- [x] 真实 RAG 召回：embedding provider 化、真实目录 rebuild/check 门禁、beta fixture eval、二阶段 rerank 和 diagnostics。
 - [ ] 公共端点、环境变量、脚本、Android 行为或部署流程变化时，同步参考文档和架构文档。
 - [ ] 修改文档后运行 `python scripts/validate_docs.py`。
 - [ ] 重大结构变化后运行 `python scripts/doc_gardening.py`。

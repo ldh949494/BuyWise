@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import Counter
 from decimal import Decimal
+import time
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -22,14 +23,15 @@ class RagService:
         self.product_store = product_store or ChromaProductStore()
 
     def search(self, request: RagSearchRequest, db: Session) -> RagSearchResponse:
+        started_at = time.perf_counter()
         vector_items, diagnostics = self._valid_vector_items(request, db)
         if vector_items:
             items = vector_items[: request.top_k]
-            self._log_search("vector", request, len(items), diagnostics)
+            self._log_search("vector", request, items, diagnostics, started_at)
             return RagSearchResponse(query=request.query, items=items, total=len(items))
 
         fallback_items = self._search_database(request, db)
-        self._log_search("database", request, len(fallback_items), diagnostics)
+        self._log_search("database", request, fallback_items, diagnostics, started_at)
         return RagSearchResponse(
             query=request.query,
             items=fallback_items,
@@ -40,20 +42,38 @@ class RagService:
         self,
         source: str,
         request: RagSearchRequest,
-        result_count: int,
+        items: list[dict[str, Any]],
         diagnostics: dict[str, Any],
+        started_at: float,
     ) -> None:
         logger.info(
             "RAG search completed",
-            extra={
-                "source": source,
-                "top_k": request.top_k,
-                "vector_result_count": diagnostics["vector_result_count"],
-                "candidate_count": diagnostics["candidate_count"],
-                "result_count": result_count,
-                "filter_reasons": diagnostics["filter_reasons"],
-            },
+            extra=self._log_extra(source, request, items, diagnostics, started_at),
         )
+
+    def _log_extra(
+        self,
+        source: str,
+        request: RagSearchRequest,
+        items: list[dict[str, Any]],
+        diagnostics: dict[str, Any],
+        started_at: float,
+    ) -> dict[str, Any]:
+        return {
+            "source": source,
+            "fallback_stage": "none" if source == "vector" else "database",
+            "top_k": request.top_k,
+            "vector_result_count": diagnostics["vector_result_count"],
+            "candidate_count": diagnostics["candidate_count"],
+            "result_count": len(items),
+            "filter_reasons": diagnostics["filter_reasons"],
+            "retrieved_ids": diagnostics["retrieved_ids"],
+            "final_ids": self._item_product_ids(items),
+            "latency_ms": round((time.perf_counter() - started_at) * 1000, 2),
+        }
+
+    def _item_product_ids(self, items: list[dict[str, Any]]) -> list[int]:
+        return [int(item["product_id"]) for item in items if item.get("product_id") is not None]
 
     def _valid_vector_items(
         self,
@@ -61,11 +81,7 @@ class RagService:
         db: Session,
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         vector_items = self._search_vector_store(request)
-        diagnostics = {
-            "vector_result_count": len(vector_items),
-            "candidate_count": 0,
-            "filter_reasons": {},
-        }
+        diagnostics = self._initial_diagnostics(vector_items)
         if not vector_items:
             return [], diagnostics
         repo = ProductRepository(db)
@@ -85,6 +101,14 @@ class RagService:
             valid_items.append(item)
         diagnostics["filter_reasons"] = dict(reasons)
         return valid_items, diagnostics
+
+    def _initial_diagnostics(self, vector_items: list[dict[str, Any]]) -> dict[str, Any]:
+        return {
+            "vector_result_count": len(vector_items),
+            "candidate_count": 0,
+            "filter_reasons": {},
+            "retrieved_ids": self._item_product_ids(vector_items),
+        }
 
     def _search_vector_store(self, request: RagSearchRequest) -> list[dict[str, Any]]:
         results = self.product_store.search(request.query, top_k=request.top_k)

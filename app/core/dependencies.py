@@ -16,6 +16,7 @@ from app.services.compare_service import CompareService
 from app.services.admin_auth_service import AdminAuthService
 from app.services.product_service import ProductService
 from app.services.rag_service import RagService
+from app.services.rag_pipeline_factory import build_rag_pipeline
 from app.services.speech_service import SpeechService
 from app.services.upload_service import UploadService
 from app.services.vision_service import VisionService
@@ -37,7 +38,7 @@ async def lifespan(app: FastAPI):
 def build_app_dependencies() -> dict[str, Any]:
     product_store = ChromaProductStore()
     llm_client = LLMClient()
-    rag_pipeline = RAGPipeline(product_store=product_store)
+    rag_pipeline = build_rag_pipeline(product_store=product_store)
     return {
         "llm_client": llm_client,
         "product_store": product_store,
@@ -77,7 +78,7 @@ def get_rag_pipeline(request: Request) -> RAGPipeline:
     return get_cached_dependency(
         request,
         "rag_pipeline",
-        lambda: RAGPipeline(product_store=get_product_store(request)),
+        lambda: build_rag_pipeline(product_store=get_product_store(request)),
     )
 
 

@@ -59,3 +59,26 @@ async def test_demo_rag_eval_runner_reports_profile_metrics() -> None:
     assert report["case_count"] == len(load_eval_cases(dataset_path_for_profile("demo")))
     assert report["metrics"]["recall@5"] >= 0.70
     assert "mrr@5" in report["metrics"]
+
+
+def test_beta_fixture_rag_eval_dataset_is_bound_to_fixture_products() -> None:
+    cases = load_eval_cases(dataset_path_for_profile("beta-fixture"))
+    seed_ids = known_seed_product_ids("beta-fixture")
+
+    assert 5 <= len(cases) <= 20
+    for case in cases:
+        assert "beta" in case.tags
+        assert set(case.expected_product_ids).issubset(seed_ids)
+        assert case.ideal_top_id in case.expected_product_ids
+
+
+@pytest.mark.anyio
+async def test_beta_fixture_vector_eval_reports_case_diagnostics() -> None:
+    report = await evaluate_dataset(top_k=5, profile="beta-fixture", retrieval="vector")
+
+    assert report["profile"] == "beta-fixture"
+    assert report["case_count"] == len(load_eval_cases(dataset_path_for_profile("beta-fixture")))
+    assert "mrr@5" in report["metrics"]
+    assert "diagnostics" in report["cases"][0]
+    assert "retrieved_ids" in report["cases"][0]["diagnostics"]
+    assert "final_ids" in report["cases"][0]["diagnostics"]

@@ -49,6 +49,10 @@ if ($RequireRealCatalog -and -not $ImportCsv) {
     throw "-RequireRealCatalog requires -ImportCsv."
 }
 
+if ($RequireRealCatalog -and (-not $BuildIndex -or $IndexMode -ne "rebuild" -or -not $CheckIndex)) {
+    throw "-RequireRealCatalog requires -BuildIndex -IndexMode rebuild -CheckIndex."
+}
+
 $python = ".\.venv\Scripts\python.exe"
 if (-not (Test-Path $python)) {
     $python = "python"

@@ -1,8 +1,6 @@
 package com.buywise.android.data
 
 import com.buywise.android.BuildConfig
-import java.io.IOException
-import okhttp3.MultipartBody
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -30,6 +28,7 @@ class ShopRepository(
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
     private val betaToken = BuildConfig.BUYWISE_BETA_TOKEN.takeIf { it.isNotBlank() }
     private val uploadToken = betaToken ?: BuildConfig.BUYWISE_UPLOAD_TOKEN.takeIf { it.isNotBlank() }
+    private val apiClient = BuyWiseApiClient(httpClient, baseUrl, betaToken, uploadToken)
 
     fun homeState(): HomeState = HomeState(
         heroTitle = "更快找到适合你的商品",
@@ -56,16 +55,16 @@ class ShopRepository(
 
     @Throws(IOException::class)
     fun runVisionDemo(): VisionResult {
-        val upload = uploadDemoFile(
+        val upload = apiClient.uploadDemoFile(
             filename = "buywise-demo.png",
-            contentType = "image/png",
+            contentType = "image/png".toMediaType(),
             bytes = DEMO_PNG_BYTES,
         )
         val payload = JSONObject()
             .put("image_url", upload.url)
             .toString()
             .toRequestBody(jsonMediaType)
-        val json = postJson("$baseUrl/api/v1/vision/recognize", payload)
+        val json = apiClient.postJson("/api/v1/vision/recognize", payload)
         val category = json.optStringOrNull("category") ?: "识别结果"
         val features = json.optJSONArray("features").toStringList()
         val query = json.optStringOrNull("query") ?: listOf(features.joinToString(" "), category).joinToString(" ").trim()
@@ -79,21 +78,21 @@ class ShopRepository(
 
     @Throws(IOException::class)
     fun runSpeechDemo(): String {
-        val upload = uploadDemoFile(
+        val upload = apiClient.uploadDemoFile(
             filename = "buywise-demo.wav",
-            contentType = "audio/wav",
+            contentType = "audio/wav".toMediaType(),
             bytes = DEMO_WAV_BYTES,
         )
         val payload = JSONObject()
             .put("audio_url", upload.url)
             .toString()
             .toRequestBody(jsonMediaType)
-        return postJson("$baseUrl/api/v1/speech/asr", payload).optString("text")
+        return apiClient.postJson("/api/v1/speech/asr", payload).optString("text")
     }
 
     @Throws(IOException::class)
     fun fetchProducts(page: Int = 1, pageSize: Int = 20): List<Product> {
-        val json = getJson("$baseUrl/api/v1/products?page=$page&page_size=$pageSize")
+        val json = apiClient.getJson("/api/v1/products?page=$page&page_size=$pageSize")
         val items = json.optJSONArray("items") ?: JSONArray()
         return (0 until items.length()).mapNotNull { index ->
             items.optJSONObject(index)?.let(::parseProductRead)
@@ -102,7 +101,7 @@ class ShopRepository(
 
     @Throws(IOException::class)
     fun fetchProductDetail(productId: String): Product {
-        return parseProductRead(getJson("$baseUrl/api/v1/products/$productId"))
+        return parseProductRead(apiClient.getJson("/api/v1/products/$productId"))
     }
 
     @Throws(IOException::class)
@@ -112,16 +111,16 @@ class ShopRepository(
             .put("quantity", 1)
             .toString()
             .toRequestBody(jsonMediaType)
-        val created = postJson("$baseUrl/api/v1/orders", payload, requireAuth = true)
+        val created = apiClient.postJson("/api/v1/orders", payload, requireAuth = true)
         val orderId = created.optInt("id")
-        val shipped = postJson("$baseUrl/api/v1/orders/$orderId/advance", "{}".toRequestBody(jsonMediaType), requireAuth = true)
-        val delivered = postJson("$baseUrl/api/v1/orders/$orderId/advance", "{}".toRequestBody(jsonMediaType), requireAuth = true)
+        val shipped = apiClient.postJson("/api/v1/orders/$orderId/advance", "{}".toRequestBody(jsonMediaType), requireAuth = true)
+        val delivered = apiClient.postJson("/api/v1/orders/$orderId/advance", "{}".toRequestBody(jsonMediaType), requireAuth = true)
         return delivered.optString("fulfillment_status", shipped.optString("fulfillment_status"))
     }
 
     @Throws(IOException::class)
     fun fetchFeedbackPrompts(): List<FeedbackPrompt> {
-        val json = getJson("$baseUrl/api/v1/feedback/prompts", requireAuth = true)
+        val json = apiClient.getJson("/api/v1/feedback/prompts", requireAuth = true)
         val items = json.optJSONArray("items") ?: JSONArray()
         return (0 until items.length()).mapNotNull { index ->
             items.optJSONObject(index)?.let { item ->
@@ -146,7 +145,7 @@ class ShopRepository(
             .put("cons_tags", JSONArray())
             .toString()
             .toRequestBody(jsonMediaType)
-        postJson("$baseUrl/api/v1/reviews/from-order-item", payload, requireAuth = true)
+        apiClient.postJson("/api/v1/reviews/from-order-item", payload, requireAuth = true)
     }
 
     @Throws(IOException::class)
@@ -165,7 +164,7 @@ class ShopRepository(
             .put("user_need", userNeed ?: "对比这些商品的价格、评分、优点和注意事项")
             .toString()
             .toRequestBody(jsonMediaType)
-        val json = postJson("$baseUrl/api/v1/products/compare", payload)
+        val json = apiClient.postJson("/api/v1/products/compare", payload)
         val items = json.optJSONArray("items") ?: JSONArray()
         val products = (0 until items.length()).mapNotNull { index ->
             items.optJSONObject(index)?.let(::parseCompareItem)
@@ -204,53 +203,6 @@ class ShopRepository(
                 }
             },
         )
-    }
-
-    private fun getJson(url: String, requireAuth: Boolean = false): JSONObject {
-        val request = authorized(Request.Builder().url(url).get(), requireAuth).build()
-        return executeJson(request)
-    }
-
-    private fun postJson(url: String, body: okhttp3.RequestBody, requireAuth: Boolean = false): JSONObject {
-        val request = authorized(Request.Builder().url(url).post(body), requireAuth).build()
-        return executeJson(request)
-    }
-
-    private fun uploadDemoFile(filename: String, contentType: String, bytes: ByteArray): UploadResult {
-        val body = MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart("file", filename, bytes.toRequestBody(contentType.toMediaType()))
-            .build()
-        val request = Request.Builder()
-            .url("$baseUrl/api/v1/upload")
-            .apply {
-                uploadToken?.let { header("Authorization", "Bearer $it") }
-            }
-            .post(body)
-            .build()
-        val json = executeJson(request)
-        return UploadResult(
-            url = json.optString("url"),
-            filename = json.optString("filename"),
-        )
-    }
-
-    private fun executeJson(request: Request): JSONObject {
-        httpClient.newCall(request).execute().use { response ->
-            val body = response.body?.string().orEmpty()
-            if (!response.isSuccessful) {
-                throw IOException("HTTP ${response.code}: ${body.ifBlank { response.message }}")
-            }
-            return JSONObject(body)
-        }
-    }
-
-    private fun authorized(builder: Request.Builder, requireAuth: Boolean): Request.Builder {
-        if (!requireAuth) {
-            return builder
-        }
-        val token = betaToken ?: throw IOException("需要配置 BUYWISE_BETA_TOKEN 才能使用 beta 用户能力")
-        return builder.header("Authorization", "Bearer $token")
     }
 
     private fun parseStreamEvent(type: String?, data: String): ChatStreamEvent {
@@ -302,7 +254,5 @@ class ShopRepository(
 
     private fun JSONObject.optIntOrNull(name: String): Int? =
         if (has(name) && !isNull(name)) optInt(name) else null
-
-    private data class UploadResult(val url: String, val filename: String)
 
 }
