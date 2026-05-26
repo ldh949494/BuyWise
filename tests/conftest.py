@@ -14,6 +14,7 @@ def isolate_mutable_settings():
         "cors_allow_credentials": settings.cors_allow_credentials,
         "external_purchase_feedback_mode": settings.external_purchase_feedback_mode,
         "feedback_delay_days": settings.feedback_delay_days,
+        "embedding_provider": settings.embedding_provider,
         "llm_provider": settings.llm_provider,
         "mysql_password": settings.mysql_password,
         "readiness_token": settings.readiness_token,
@@ -26,6 +27,7 @@ def isolate_mutable_settings():
         "vision_provider": settings.vision_provider,
     }
     settings.auth_api_keys = ""
+    settings.embedding_provider = "mock"
     settings.llm_provider = "mock"
     settings.speech_provider = "mock"
     settings.upload_provider = "local"

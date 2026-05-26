@@ -4,13 +4,17 @@ from __future__ import annotations
 
 from collections import Counter
 from decimal import Decimal
+import time
+from collections.abc import Callable
 from typing import Any
 
 from sqlalchemy.orm import Session
 
 from app.core.concurrency import run_blocking_io
 from app.models.product import Product
+from app.repositories.price_repo import PriceHistoryRepository
 from app.repositories.product_repo import ProductRepository
+from app.repositories.review_repo import ReviewRepository
 from app.utils.logging import get_logger
 from app.utils.text_builder import build_query_from_need
 from app.vectorstore.chroma_client import ChromaProductStore
@@ -31,8 +35,16 @@ FALLBACK_BUDGET_DELTA = Decimal("50")
 
 
 class RAGPipeline:
-    def __init__(self, product_store: ChromaProductStore | None = None) -> None:
+    def __init__(
+        self,
+        product_store: ChromaProductStore | None = None,
+        reranker: Any | None = None,
+        feedback_metrics_builder: Callable[[Session, list[int]], dict[int, dict[str, object]]] | None = None,
+    ) -> None:
         self.product_store = product_store or ChromaProductStore()
+        self.reranker = reranker
+        self.feedback_metrics_builder = feedback_metrics_builder
+        self.last_diagnostics: dict[str, Any] = {}
 
     async def search_products(
         self,
@@ -48,17 +60,26 @@ class RAGPipeline:
         db: Session,
         top_k: int = 20,
     ) -> list[Product]:
+        started_at = time.perf_counter()
         repo = ProductRepository(db)
-        search_results = self._search_vector_store(need, top_k)
+        search_results = self._search_vector_store(need, self._candidate_top_k(top_k))
         candidates = self._build_candidates(repo, need, search_results, top_k)
         filtered, filter_reasons = self._filter_products(candidates, need)
         fallback_stage = "strict"
         if not filtered:
             filtered, fallback_stage, fallback_reasons = self._fallback_products(repo, need, top_k)
             filter_reasons.update(fallback_reasons)
-        filtered = filtered[:top_k]
-        self._log_search(search_results, top_k, candidates, filtered, filter_reasons, fallback_stage)
-        return filtered
+        reranked = self._rerank_products(filtered, need, db)[:top_k]
+        self.last_diagnostics = self._build_diagnostics(
+            search_results,
+            candidates,
+            reranked,
+            filter_reasons,
+            fallback_stage,
+            started_at,
+        )
+        self._log_search(top_k)
+        return reranked
 
     def _search_vector_store(self, need: Any, top_k: int) -> list[dict]:
         query = build_query_from_need(need)
@@ -107,26 +128,37 @@ class RAGPipeline:
 
     def _log_search(
         self,
-        search_results: list[dict],
         top_k: int,
-        candidates: list[Product],
-        filtered: list[Product],
-        filter_reasons: Counter[str],
-        fallback_stage: str,
     ) -> None:
         logger.info(
             "RAG pipeline search completed",
             extra={
-                "source": "vector" if search_results else "database",
                 "top_k": top_k,
-                "vector_result_count": len(search_results),
-                "candidate_count": len(candidates),
-                "result_count": len(filtered),
-                "filtered_count": max(len(candidates) - len(filtered), 0),
-                "filter_reasons": dict(filter_reasons),
-                "fallback_stage": fallback_stage,
+                **self.last_diagnostics,
             },
         )
+
+    def _build_diagnostics(
+        self,
+        search_results: list[dict],
+        candidates: list[Product],
+        final_products: list[Product],
+        filter_reasons: Counter[str],
+        fallback_stage: str,
+        started_at: float,
+    ) -> dict[str, Any]:
+        return {
+            "source": "vector" if search_results else "database",
+            "fallback_stage": fallback_stage,
+            "filter_reasons": dict(filter_reasons),
+            "retrieved_ids": self._extract_product_ids(search_results),
+            "candidate_ids": [product.id for product in candidates],
+            "final_ids": [product.id for product in final_products],
+            "vector_result_count": len(search_results),
+            "candidate_count": len(candidates),
+            "result_count": len(final_products),
+            "latency_ms": round((time.perf_counter() - started_at) * 1000, 2),
+        }
 
     def _extract_product_ids(self, search_results: list[dict]) -> list[int]:
         product_ids = []
@@ -214,6 +246,36 @@ class RAGPipeline:
                 continue
             filtered.append(product)
         return filtered, reasons
+
+    def _rerank_products(self, products: list[Product], need: Any, db: Session) -> list[Product]:
+        if not products:
+            return []
+        self._attach_quality_signals(products, db)
+        if self.reranker is None:
+            return products
+        products_by_id = {product.id: product for product in products}
+        ranked_cards = self.reranker.rank(products, need)
+        ranked_ids = [card.id for card in ranked_cards if card.id in products_by_id]
+        return [products_by_id[product_id] for product_id in ranked_ids]
+
+    def _attach_quality_signals(self, products: list[Product], db: Session) -> None:
+        product_ids = [product.id for product in products]
+        review_repo = ReviewRepository(db)
+        sentiment_counts = review_repo.get_sentiment_counts_by_product_ids(product_ids)
+        feedback_metrics = self._feedback_metrics(db, product_ids)
+        price_averages = PriceHistoryRepository(db).get_average_by_product_ids(product_ids)
+        for product in products:
+            product.review_sentiment_counts = sentiment_counts.get(product.id, {})
+            product.feedback_metrics = feedback_metrics.get(product.id, {})
+            product.price_history_average = price_averages.get(product.id)
+
+    def _feedback_metrics(self, db: Session, product_ids: list[int]) -> dict[int, dict[str, object]]:
+        if self.feedback_metrics_builder is None:
+            return {}
+        return self.feedback_metrics_builder(db, product_ids)
+
+    def _candidate_top_k(self, top_k: int) -> int:
+        return max(top_k * 3, 30)
 
     def _exceeds_budget(self, product: Product, budget_max: Any, *, stage: str) -> bool:
         if budget_max is None or product.price is None:

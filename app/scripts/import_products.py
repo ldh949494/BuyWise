@@ -18,7 +18,7 @@ from app.services.product_service import IndexUpdater, ProductService
 DEFAULT_CSV_PATH = Path(__file__).resolve().parents[2] / "data" / "products.csv"
 JSON_FIELDS = {"specs", "tags", "suitable_scene", "image_urls"}
 DECIMAL_FIELDS = {"price", "original_price", "rating"}
-INT_FIELDS = {"sales", "stock"}
+INT_FIELDS = {"id", "sales", "stock"}
 REQUIRED_FIELDS = {"sku", "name", "category", "price", "tags"}
 PLACEHOLDER_HOSTS = {"example.com", "example.test", "localhost", "127.0.0.1"}
 

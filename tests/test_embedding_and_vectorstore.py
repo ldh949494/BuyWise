@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.ai.embedding_client import EmbeddingClient
+from app.ai.embedding_client import EmbeddingClient, OpenAICompatibleEmbeddingProvider
 from app.core.database import Base
 from app.models import Product
 from app.scripts.build_vector_index import build_vector_index
@@ -66,6 +66,30 @@ def test_mock_embedding_client_returns_stable_fixed_dimension_vectors() -> None:
     assert len(batch) == 2
     assert all(len(vector) == 16 for vector in batch)
     assert batch[0] != batch[1]
+
+
+def test_openai_compatible_embedding_provider_uses_embeddings_api() -> None:
+    class FakeEmbeddings:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def create(self, *, model, input):
+            self.calls.append({"model": model, "input": input})
+            return type(
+                "Response",
+                (),
+                {"data": [type("Embedding", (), {"embedding": [0.1, 0.2]})()]},
+            )()
+
+    class FakeClient:
+        def __init__(self) -> None:
+            self.embeddings = FakeEmbeddings()
+
+    client = FakeClient()
+    provider = OpenAICompatibleEmbeddingProvider(model="embedding-test", client=client)
+
+    assert provider.embed_texts(["quiet keyboard"]) == [[0.1, 0.2]]
+    assert client.embeddings.calls == [{"model": "embedding-test", "input": ["quiet keyboard"]}]
 
 
 def test_chroma_product_store_persists_documents_across_instances(tmp_path) -> None:

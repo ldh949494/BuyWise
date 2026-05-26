@@ -49,6 +49,9 @@ class Settings(BaseSettings):
         default="text-embedding-3-small",
         validation_alias="EMBEDDING_MODEL",
     )
+    embedding_provider: str = Field(default="mock", validation_alias="EMBEDDING_PROVIDER")
+    embedding_base_url: str = Field(default="", validation_alias="EMBEDDING_BASE_URL")
+    embedding_api_key: str = Field(default="", validation_alias="EMBEDDING_API_KEY")
     tencent_secret_id: str = Field(default="", validation_alias="TENCENT_SECRET_ID")
     tencent_secret_key: str = Field(default="", validation_alias="TENCENT_SECRET_KEY")
     cos_bucket: str = Field(default="", validation_alias="COS_BUCKET")
@@ -164,6 +167,14 @@ class Settings(BaseSettings):
     def effective_vision_model(self) -> str:
         return self.vision_model.strip() or self.llm_model
 
+    @property
+    def effective_embedding_base_url(self) -> str:
+        return self.embedding_base_url.strip() or self.llm_base_url
+
+    @property
+    def effective_embedding_api_key(self) -> str:
+        return self.embedding_api_key.strip() or self.llm_api_key
+
     def validate_production(self) -> None:
         if self.app_env != "prod":
             return
@@ -200,10 +211,14 @@ class Settings(BaseSettings):
             errors.append("LLM_PROVIDER must not be mock in prod.")
         if not self.allow_mock_providers_in_prod and self.vision_provider == "mock":
             errors.append("VISION_PROVIDER must not be mock in prod.")
+        if not self.allow_mock_providers_in_prod and self.embedding_provider == "mock":
+            errors.append("EMBEDDING_PROVIDER must not be mock in prod.")
         if self.llm_provider != "mock" and self._is_placeholder(self.llm_api_key):
             errors.append("LLM_API_KEY must be set for non-mock LLM providers in prod.")
         if self.vision_provider != "mock" and self._is_placeholder(self.effective_vision_api_key):
             errors.append("VISION_API_KEY or LLM_API_KEY must be set for non-mock vision providers in prod.")
+        if self.embedding_provider != "mock" and self._is_placeholder(self.effective_embedding_api_key):
+            errors.append("EMBEDDING_API_KEY or LLM_API_KEY must be set for non-mock embedding providers in prod.")
         if self.upload_provider == "cos":
             errors.extend(self._cos_configuration_errors())
         if self._uses_external_multimodal_provider() and not self._has_public_upload_url():

@@ -81,6 +81,8 @@ fun ProductDetailScreen(
                 ProductHeader(
                     product = product,
                     isInCompareBasket = isInCompareBasket(product.id),
+                    canRecordPurchase = state.canRecordPurchase,
+                    tokenRequiredMessage = state.tokenRequiredMessage,
                     onToggleCompare = { onToggleCompare(product) },
                     onRecordPurchase = { onRecordPurchase(product.id) },
                 )
@@ -153,6 +155,8 @@ private fun AdviceLine(label: String, value: String) {
 private fun ProductHeader(
     product: Product,
     isInCompareBasket: Boolean,
+    canRecordPurchase: Boolean,
+    tokenRequiredMessage: String?,
     onToggleCompare: () -> Unit,
     onRecordPurchase: () -> Unit,
 ) {
@@ -177,10 +181,17 @@ private fun ProductHeader(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(if (isInCompareBasket) "已加入对比" else "加入对比")
             }
-            Button(onClick = onRecordPurchase, modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = onRecordPurchase, enabled = canRecordPurchase, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Outlined.ShoppingBag, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("记录购买")
+            }
+            if (!canRecordPurchase) {
+                Text(
+                    tokenRequiredMessage ?: "当前构建未配置 beta token，无法记录购买。",
+                    color = BuyWiseTheme.colors.danger,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
             }
         }
     }

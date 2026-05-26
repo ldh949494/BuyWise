@@ -20,7 +20,7 @@ Closed beta 运行模式使用 `APP_ENV=prod`，不新增 `APP_ENV=beta`。beta 
 
 购买后反馈必须区分购买证据等级，不能把用户声明的外部购买称为平台验证购买。现有 `verified_purchase` 保留用于兼容，closed beta 使用 `purchase_evidence` 表达证据等级：`claimed`、`buywise_recorded`、`platform_verified`。推荐、对比和商品反馈权重按 evidence level 计算。Android 和 API 文案使用“已购反馈”或“购买后反馈”，不展示“验证购买”。
 
-AI provider 第一阶段优先真实化文本导购和识图。`LLM_PROVIDER` 使用 `openai` 或 `openai-compatible`，`VISION_PROVIDER` 使用 `llm` 或 `dashscope`。`SPEECH_PROVIDER` 默认保持 `mock`，语音作为可选实验能力，等腾讯 ASR、公网音频 URL、成本、失败率和隐私提示都明确后再开启。AI 调用失败时，系统应保留规则抽取、RAG fallback 和可读错误文案，避免 Android 白屏。
+AI provider 第一阶段优先真实化文本导购、embedding 和识图。`LLM_PROVIDER` 使用 `openai` 或 `openai-compatible`，`EMBEDDING_PROVIDER` 使用 `openai-compatible` 或 `dashscope`，`VISION_PROVIDER` 使用 `llm` 或 `dashscope`。`EMBEDDING_BASE_URL` 和 `EMBEDDING_API_KEY` 可单独配置，默认复用 LLM provider 配置。`SPEECH_PROVIDER` 默认保持 `mock`，语音作为可选实验能力，等腾讯 ASR、公网音频 URL、成本、失败率和隐私提示都明确后再开启。AI 调用失败时，系统应保留规则抽取、RAG fallback 和可读错误文案，避免 Android 白屏。
 
 部署第一阶段使用单机 Docker Compose、COS 和 HTTPS 反向代理。后端、MySQL、Prometheus、Loki、Promtail 和 Grafana 可在同一受控云主机上运行；上传长期存储走 COS；Chroma 使用本地持久化目录，closed beta 只运行单副本。后续再评估托管 MySQL、独立向量库和容器平台。
 
