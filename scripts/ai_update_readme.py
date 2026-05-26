@@ -72,7 +72,7 @@ def normalize_readme_output(content: str) -> str:
         lines = stripped.splitlines()
         if lines and lines[0].startswith("```"):
             lines = lines[1:]
-        if lines and lines[-1].strip() == "```"):
+        if lines and lines[-1].strip() == "```":
             lines = lines[:-1]
         stripped = "\n".join(lines).strip()
 
