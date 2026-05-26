@@ -32,6 +32,8 @@ def test_settings_reads_new_env_names() -> None:
         "TENCENT_ASR_ENGINE_MODEL_TYPE": "16k_zh",
         "TENCENT_ASR_VOICE_FORMAT": "wav",
         "READINESS_TOKEN": "ready-token",
+        "ADMIN_JWT_SECRET": "admin-jwt-secret",
+        "ADMIN_JWT_EXPIRE_MINUTES": "120",
         "ALLOW_MOCK_PROVIDERS_IN_PROD": "true",
         "EXTERNAL_PURCHASE_FEEDBACK_MODE": "immediate",
         "UPLOAD_PROVIDER": "cos",
@@ -79,6 +81,8 @@ def test_settings_reads_new_env_names() -> None:
     assert settings.tencent_asr_engine_model_type == "16k_zh"
     assert settings.tencent_asr_voice_format == "wav"
     assert settings.readiness_token == "ready-token"
+    assert settings.admin_jwt_secret == "admin-jwt-secret"
+    assert settings.admin_jwt_expire_minutes == 120
     assert settings.allow_mock_providers_in_prod is True
     assert settings.external_purchase_feedback_mode == "immediate"
     assert settings.upload_provider == "cos"
@@ -175,6 +179,7 @@ def test_prod_non_mock_multimodal_requires_public_upload_url() -> None:
         MYSQL_PASSWORD="secret",
         AUTH_API_KEYS="api:prod-token:upload:write",
         READINESS_TOKEN="ready-token",
+        ADMIN_JWT_SECRET="admin-jwt-secret",
         ALLOW_MOCK_PROVIDERS_IN_PROD=True,
         LLM_PROVIDER="mock",
         LLM_API_KEY="llm-key",
@@ -202,6 +207,7 @@ def test_prod_non_mock_multimodal_allows_cos_upload_provider() -> None:
         MYSQL_PASSWORD="secret",
         AUTH_API_KEYS="api:prod-token:upload:write",
         READINESS_TOKEN="ready-token",
+        ADMIN_JWT_SECRET="admin-jwt-secret",
         ALLOW_MOCK_PROVIDERS_IN_PROD=True,
         LLM_PROVIDER="mock",
         VISION_PROVIDER="mock",

@@ -16,6 +16,7 @@
 - 上传：`/api/v1/upload`
 - 视觉识别：`/api/v1/vision/recognize`
 - 语音识别：`/api/v1/speech/asr`
+- 内部后台：`/api/v1/admin/...`
 
 ## 生成式参考
 
@@ -36,6 +37,7 @@
 - `POST`、`PATCH` 和 `DELETE /api/v1/products...` 需要 `Authorization: Bearer <token>`，并具备 `products:write` scope。
 - `APP_ENV=prod` 时，订单、待评价提示和已购评价接口必须携带 `Authorization: Bearer <token>`；dev/test 仍允许无 token 使用 `DEMO_USER_REF` 演示身份。
 - `APP_ENV=prod` 时，`/api/v1/ready` 必须携带 `READINESS_TOKEN`，可通过 `Authorization: Bearer <token>` 或 `X-Readiness-Token` 传入。
+- `/api/v1/admin/...` 使用管理员账号登录后签发的 JWT access token，不复用 `AUTH_API_KEYS` scope。
 - 当前 Android 集成流程中，商品浏览、详情、对比和 AI 聊天保持公开访问。
 - 认证、请求上下文、错误、遥测和日志必须通过 `app.core.providers` 访问；`scripts/validate_providers.py` 会阻止直接导入 provider 实现模块。
 
@@ -48,6 +50,13 @@
 | 商品创建 | `POST` | `/api/v1/products` | Bearer token | `products:write` |
 | 商品更新 | `PATCH` | `/api/v1/products/{product_id}` | Bearer token | `products:write` |
 | 商品下架 | `DELETE` | `/api/v1/products/{product_id}` | Bearer token | `products:write` |
+| 管理员登录 | `POST` | `/api/v1/admin/auth/login` | 公开 | 无 |
+| 后台商品列表 | `GET` | `/api/v1/admin/products` | Admin JWT | 无 |
+| 后台商品详情 | `GET` | `/api/v1/admin/products/{product_id}` | Admin JWT | 无 |
+| 后台商品创建 | `POST` | `/api/v1/admin/products` | Admin JWT | 无 |
+| 后台商品更新 | `PATCH` | `/api/v1/admin/products/{product_id}` | Admin JWT | 无 |
+| 后台商品下架 | `DELETE` | `/api/v1/admin/products/{product_id}` | Admin JWT | 无 |
+| 后台上传 | `POST` | `/api/v1/admin/upload` | Admin JWT | 无 |
 | 商品对比 | `POST` | `/api/v1/products/compare` | 公开 | 无 |
 | 创建模拟订单 | `POST` | `/api/v1/orders` | prod Bearer token；dev/test 可选 | `orders:write` |
 | 订单列表 | `GET` | `/api/v1/orders` | prod Bearer token；dev/test 可选 | `orders:read` |

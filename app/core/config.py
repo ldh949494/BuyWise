@@ -68,6 +68,8 @@ class Settings(BaseSettings):
     llm_provider: str = Field(default="mock", validation_alias="LLM_PROVIDER")
     auth_api_keys: str = Field(default="", validation_alias="AUTH_API_KEYS")
     readiness_token: str = Field(default="", validation_alias="READINESS_TOKEN")
+    admin_jwt_secret: str = Field(default="", validation_alias="ADMIN_JWT_SECRET")
+    admin_jwt_expire_minutes: int = Field(default=480, validation_alias="ADMIN_JWT_EXPIRE_MINUTES")
     allow_mock_providers_in_prod: bool = Field(default=False, validation_alias="ALLOW_MOCK_PROVIDERS_IN_PROD")
     external_purchase_feedback_mode: str = Field(default="delayed", validation_alias="EXTERNAL_PURCHASE_FEEDBACK_MODE")
     request_max_bytes: int = Field(default=20 * 1024 * 1024, validation_alias="REQUEST_MAX_BYTES")
@@ -186,6 +188,8 @@ class Settings(BaseSettings):
             errors.append("MYSQL_PASSWORD must not be a placeholder in prod.")
         if self._is_placeholder(self.readiness_token):
             errors.append("READINESS_TOKEN must be set in prod.")
+        if self._is_placeholder(self.admin_jwt_secret):
+            errors.append("ADMIN_JWT_SECRET must be set in prod.")
         if self.external_purchase_feedback_mode not in {"delayed", "immediate"}:
             errors.append("EXTERNAL_PURCHASE_FEEDBACK_MODE must be 'delayed' or 'immediate'.")
         return errors
