@@ -4,25 +4,13 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
+from app.utils.subprocess_tools import run
 
 ROOT = Path(__file__).resolve().parents[1]
 README_PATH = ROOT / "README.md"
 DIFF_PATHS = ("app", "android-app", "scripts", ".github", "requirements.txt", "README.md")
 AUTO_DOCS_START = "<!-- AUTO-DOCS:START -->"
 AUTO_DOCS_END = "<!-- AUTO-DOCS:END -->"
-
-
-def run(cmd: list[str], *, check: bool = False) -> str:
-    result = subprocess.run(
-        cmd,
-        cwd=ROOT,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=check,
-    )
-    output = "\n".join(part.strip() for part in (result.stdout, result.stderr) if part.strip())
-    return output.strip()
 
 
 def run_with_input(cmd: list[str], stdin: str) -> str:
@@ -84,7 +72,7 @@ def normalize_readme_output(content: str) -> str:
         lines = stripped.splitlines()
         if lines and lines[0].startswith("```"):
             lines = lines[1:]
-        if lines and lines[-1].strip() == "```":
+        if lines and lines[-1].strip() == "```"):
             lines = lines[:-1]
         stripped = "\n".join(lines).strip()
 
