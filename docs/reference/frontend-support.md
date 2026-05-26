@@ -255,6 +255,27 @@ Content-Type: application/json
 - `structured_need.missing_fields` 可用于展示缺失条件，如预算、用途、偏好。
 - `products` 可作为聊天消息中的商品卡片。
 
+### AI 导购 SSE
+
+```http
+POST /api/v1/ai/chat/stream
+Content-Type: application/json
+Accept: text/event-stream
+```
+
+SSE 事件类型固定为 `meta`、`status`、`token`、`products`、`done` 和 `error`。客户端不应依赖其他事件类型。
+
+| 事件 | payload |
+| --- | --- |
+| `meta` | `{"session_id": "..."}` |
+| `status` | `{"stage": "intent|retrieval|generation|fallback", "message": "..."}` |
+| `token` | `{"text": "..."}` |
+| `products` | `{"need_clarify": false, "structured_need": {...}, "items": [...]}` |
+| `done` | `{"reply": "...", "degraded": false, "degraded_reason": null}` |
+| `error` | `{"code": "chat_stream_failed", "message": "chat_stream_failed", "session_id": "..."}` |
+
+降级不使用独立 `fallback` 事件；通过 `status.stage=fallback` 和 `done.degraded=true` 表达。`done.reply` 始终是最终完整回复。
+
 ## 上传
 
 ```http
@@ -356,12 +377,24 @@ Content-Type: application/json
 ```json
 {
   "query": "宿舍 静音 机械键盘 300以内",
-  "items": [],
-  "total": 0
+  "items": [
+    {
+      "product_id": 1001,
+      "name": "K87 静音红轴机械键盘",
+      "price": 269.0,
+      "score": 0.92,
+      "reason": "向量召回结果",
+      "category": "机械键盘",
+      "platform": "BuyWise",
+      "product_url": "https://example.com/products/android-keyboard-k87",
+      "stock_status": "in_stock"
+    }
+  ],
+  "total": 1
 }
 ```
 
-`items` 当前是开放字典数组，前端不要假设强类型字段稳定；生产页面优先使用 `/products`、`/products/compare` 和 `/ai/chat`。
+`items` 是 `RagItem[]`，长期承诺字段为 `product_id`、`name`、`price`、`score`、`reason`、`category`、`platform`、`product_url` 和 `stock_status`。生产页面仍优先使用 `/products`、`/products/compare` 和 `/ai/chat`。
 
 ## 前端接入优先级
 

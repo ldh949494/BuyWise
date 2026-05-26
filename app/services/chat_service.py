@@ -3,18 +3,21 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+import time
 from typing import Any
 
 from sqlalchemy.orm import Session
 
 from app.ai.llm_client import LLMClient
 from app.ai.rag_pipeline import RAGPipeline
+from app.core.metrics import count_llm_failure, observe_chat_latency
 from app.core.traffic import is_capacity_limited
 from app.repositories.chat_repo import ChatRepository
 from app.repositories.price_repo import PriceHistoryRepository
 from app.repositories.review_repo import ReviewRepository
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.services.intent_service import IntentService
+from app.services.noop_chat_repo import NoopChatRepository
 from app.services.recommend_service import RecommendService
 from app.services.speech_service import SpeechService
 from app.services.vision_service import VisionService
@@ -22,32 +25,6 @@ from app.utils.logging import get_logger
 
 
 logger = get_logger(__name__)
-
-
-class NoopChatRepository:
-    def __init__(self, session_id: str | None) -> None:
-        self.session_id = session_id or "mock-session"
-
-    def get_or_create_session(self, session_id: str | None = None, title: str | None = None):
-        return type("ChatSessionStub", (), {"session_id": session_id or self.session_id})()
-
-    def create_message(self, *args: Any, **kwargs: Any) -> None:
-        return None
-
-    def create_recommendations(self, *args: Any, **kwargs: Any) -> list[Any]:
-        return []
-
-    def list_messages(self, *args: Any, **kwargs: Any) -> list[Any]:
-        return []
-
-    def update_commit(self) -> None:
-        return None
-
-    def update_rollback(self) -> None:
-        return None
-
-    def generate_session_id(self) -> str:
-        return self.session_id
 
 
 class ChatService:
@@ -68,28 +45,19 @@ class ChatService:
         self.recommend_service = recommend_service or RecommendService()
 
     async def handle_chat(self, request: ChatRequest, db: Session) -> ChatResponse:
+        started_at = time.perf_counter()
         chat_repo = self._chat_repo(request, db)
         chat_session = chat_repo.get_or_create_session(request.session_id, title=self._session_title(request))
         session_id = chat_session.session_id or chat_repo.generate_session_id()
 
         try:
-            text = await self._build_user_text(request)
-            image_info = await self._build_image_info(request)
-            history_context = self._load_history_context(chat_repo, session_id)
-            self._save_user_message(chat_repo, session_id, request, text, image_info)
-
-            need = await self.intent_service.extract(
-                text,
-                image_info=image_info,
-                history_context=history_context,
-            )
-
-            if need.need_clarify:
-                return await self._handle_clarify(chat_repo, session_id, need)
-            return await self._handle_recommendation(chat_repo, session_id, need, db)
+            response = await self._handle_chat_checked(request, chat_repo, session_id, db)
+            self._observe_chat_response(response, started_at)
+            return response
         except RuntimeError:
             logger.exception("Chat handling failed", extra={"session_id": session_id})
             self._rollback(chat_repo)
+            observe_chat_latency("json", "error", time.perf_counter() - started_at)
             return ChatResponse(
                 reply="抱歉，当前暂时无法完成推荐，请稍后再试或换个条件。",
                 need_clarify=False,
@@ -97,6 +65,41 @@ class ChatService:
                 products=[],
                 extra={"session_id": session_id},
             )
+
+    async def _handle_chat_checked(
+        self,
+        request: ChatRequest,
+        chat_repo: Any,
+        session_id: str,
+        db: Session,
+    ) -> ChatResponse:
+        text = await self._build_user_text(request)
+        image_info = await self._build_image_info(request)
+        history_context = self._load_history_context(chat_repo, session_id)
+        self._save_user_message(chat_repo, session_id, request, text, image_info)
+        need = await self._extract_need(text, image_info, history_context)
+        if need.need_clarify:
+            return await self._handle_clarify(chat_repo, session_id, need)
+        return await self._handle_recommendation(chat_repo, session_id, need, db)
+
+    async def _extract_need(
+        self,
+        text: str,
+        image_info: dict | None,
+        history_context: dict[str, Any],
+    ) -> Any:
+        return await self.intent_service.extract(
+            text,
+            image_info=image_info,
+            history_context=history_context,
+        )
+
+    def _observe_chat_response(self, response: ChatResponse, started_at: float) -> None:
+        if response.need_clarify:
+            outcome = "clarify"
+        else:
+            outcome = "degraded" if response.extra.get("degraded") else "success"
+        observe_chat_latency("json", outcome, time.perf_counter() - started_at)
 
     def generate_chat_stream(self, request: ChatRequest, db: Session) -> AsyncIterator[dict[str, Any]]:
         from app.services.chat_stream_service import ChatStreamRunner
@@ -193,6 +196,7 @@ class ChatService:
         except Exception as exc:
             if not is_capacity_limited(exc, "llm"):
                 raise
+            count_llm_failure("recommendation", "capacity_limited")
         extra.update({"degraded": True, "degraded_reason": "llm_capacity_limited"})
         return self._fallback_recommendation_reply(top_products), extra
 

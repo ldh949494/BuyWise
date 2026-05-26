@@ -49,6 +49,22 @@ docker compose up --build
 
 后端通过 provider 配置结构化日志和全局错误处理。请求中的 `X-Request-ID` 会进入响应和日志，方便前后端联合排查。
 
+## 业务指标
+
+`/metrics` 暴露默认 HTTP 指标和 BuyWise 业务指标。业务指标只使用低基数标签，禁止把 `session_id`、用户输入、商品 ID 或 query 放入 Prometheus label；这些细节保留在结构化日志中。
+
+当前业务指标：
+
+- `buywise_chat_latency_seconds`：聊天端到端耗时，标签 `mode=json|sse`、`outcome=success|error|degraded|clarify`。
+- `buywise_llm_failures_total`：LLM 失败计数，标签 `operation` 和 `reason`。
+- `buywise_rag_fallback_total`：RAG fallback 计数，标签 `entrypoint=rag_search|chat` 和 `stage`。
+- `buywise_rag_empty_results_total`：RAG 空结果计数，标签 `entrypoint` 和 `source`。
+- `buywise_upload_failures_total`：上传失败计数，标签 `reason`。
+- `buywise_order_created_total`、`buywise_feedback_prompted_total`、`buywise_feedback_submit_success_total`：订单到反馈漏斗计数。
+- `buywise_feedback_submit_failures_total`：反馈提交失败计数，标签 `reason`。
+
+订单到反馈转化率口径为 `buywise_feedback_submit_success_total / buywise_feedback_prompted_total`。上传和反馈提交失败率先按服务端响应失败口径统计，客户端取消、网络错误和超时由客户端日志或埋点补充。
+
 ## 后台维护
 
 后台维护任务采用脚本加外部调度，不在 FastAPI 进程内运行常驻 scheduler。上传 TTL 清理使用 `python -m app.scripts.cleanup_uploads --max-age-hours 24`；向量索引健康检查使用 `python -m app.scripts.check_vector_index`，必要时再运行 `python -m app.scripts.build_vector_index --mode upsert` 或 `--mode rebuild`。生产调度由 cron、Windows Task Scheduler、CI/CD scheduled job 或容器平台 CronJob 承载。
@@ -59,4 +75,10 @@ docker compose up --build
 
 ```powershell
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1 -SkipDependencyInstall -SkipAndroidBuild
+```
+
+发版前运行：
+
+```powershell
+.\scripts\release_check.ps1 -SkipDependencyInstall -CheckIndex -IndexProfile demo
 ```

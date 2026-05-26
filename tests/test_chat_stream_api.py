@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 
 from app.core.dependencies import get_chat_service
 from app.main import create_app
+from app.schemas.chat import ProductCard, StructuredNeed
 
 
 class FakeStreamChatService:
@@ -13,11 +14,11 @@ class FakeStreamChatService:
             "event": "products",
             "data": {
                 "need_clarify": False,
-                "structured_need": {"intent": "商品推荐", "category": "机械键盘"},
-                "items": [{"id": 1001, "name": "K87", "price": 269.0}],
+                "structured_need": StructuredNeed(intent="商品推荐", category="机械键盘"),
+                "items": [ProductCard(id=1001, name="K87", price=269.0)],
             },
         }
-        yield {"event": "done", "data": {"reply": "hello"}}
+        yield {"event": "done", "data": {"reply": "hello", "degraded": False, "degraded_reason": None}}
 
 
 def test_chat_stream_endpoint_returns_sse_events() -> None:
@@ -40,3 +41,4 @@ def test_chat_stream_endpoint_returns_sse_events() -> None:
     assert 'data: {"text":"hello"}' in body
     assert "event: products" in body
     assert "event: done" in body
+    assert "degraded_reason" in body

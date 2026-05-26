@@ -3,6 +3,7 @@
 import json
 
 from fastapi import APIRouter, Depends
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -38,5 +39,5 @@ async def stream_chat(
 
 
 def _format_sse(event: str, data: dict) -> str:
-    payload = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+    payload = json.dumps(jsonable_encoder(data), ensure_ascii=False, separators=(",", ":"))
     return f"event: {event}\ndata: {payload}\n\n"

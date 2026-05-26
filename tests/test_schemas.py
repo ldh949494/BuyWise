@@ -10,7 +10,7 @@ from app.schemas.product import (
     ProductRead,
     ProductUpdate,
 )
-from app.schemas.rag import RagSearchRequest, RagSearchResponse
+from app.schemas.rag import RagItem, RagSearchRequest, RagSearchResponse
 
 
 def test_chat_request_accepts_optional_multimodal_fields() -> None:
@@ -101,13 +101,14 @@ def test_rag_schemas() -> None:
     request = RagSearchRequest(query="轻量无线键盘", top_k=3)
     response = RagSearchResponse(
         query=request.query,
-        items=[{"id": 1, "score": 0.9}],
+        items=[RagItem(product_id=1, name="K87", score=0.9)],
         total=1,
     )
 
     assert request.query == "轻量无线键盘"
     assert request.top_k == 3
-    assert response.items[0]["score"] == 0.9
+    assert response.items[0].product_id == 1
+    assert response.items[0].score == 0.9
 
 
 def test_compare_schemas() -> None:

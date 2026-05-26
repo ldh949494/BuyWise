@@ -10,6 +10,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.core.concurrency import run_blocking_io
+from app.core.metrics import count_rag_empty_results, count_rag_fallback
 from app.models.product import Product
 from app.repositories.price_repo import PriceHistoryRepository
 from app.repositories.product_repo import ProductRepository
@@ -63,6 +64,10 @@ class RAGPipeline:
         if not filtered:
             filtered, fallback_stage, fallback_reasons = self._fallback_products(repo, need, top_k)
             filter_reasons.update(fallback_reasons)
+            if fallback_stage != "none":
+                count_rag_fallback("chat", fallback_stage)
+            if not filtered:
+                count_rag_empty_results("chat", "vector")
         reranked = self._rerank_products(filtered, need, db)[:top_k]
         self.last_diagnostics = self._build_diagnostics(
             search_results,

@@ -8,6 +8,7 @@ from decimal import Decimal
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.core.metrics import count_feedback_submit_failure, count_feedback_submit_success
 from app.core.providers import AppError
 from app.models.order import Order, OrderItem
 from app.models.review import Review
@@ -37,10 +38,18 @@ class ReviewWorkflowService:
         self.reviews = ReviewRepository(db)
 
     def create_from_order_item(self, payload: ReviewFromOrderItemCreate, user_ref: str) -> Review:
-        item, _ = self._delivered_item(payload.order_item_id, user_ref)
-        if self.reviews.get_active_for_order_item(item.id) is not None:
-            raise AppError("Feedback already exists for this order item", status_code=409, code="duplicate_feedback")
-        return self._create_review(payload, item, user_ref)
+        try:
+            item, _ = self._delivered_item(payload.order_item_id, user_ref)
+            if self.reviews.get_active_for_order_item(item.id) is not None:
+                raise AppError(
+                    "Feedback already exists for this order item",
+                    status_code=409,
+                    code="duplicate_feedback",
+                )
+            return self._create_review(payload, item, user_ref)
+        except AppError as exc:
+            count_feedback_submit_failure(self._submit_failure_reason(exc.code))
+            raise
 
     def _create_review(self, payload: ReviewFromOrderItemCreate, item: OrderItem, user_ref: str) -> Review:
         now = datetime.utcnow()
@@ -50,9 +59,11 @@ class ReviewWorkflowService:
             item.feedback_submitted_at = now
             self.db.commit()
             self.db.refresh(review)
+            count_feedback_submit_success("api")
             return review
         except SQLAlchemyError:
             self.db.rollback()
+            count_feedback_submit_failure("db")
             raise
 
     def _build_review(
@@ -131,3 +142,10 @@ class ReviewWorkflowService:
         if rating == 3:
             return "neutral"
         return "negative"
+
+    def _submit_failure_reason(self, code: str | None) -> str:
+        return {
+            "not_found": "not_found",
+            "not_delivered": "validation",
+            "duplicate_feedback": "validation",
+        }.get(code or "", "unknown")

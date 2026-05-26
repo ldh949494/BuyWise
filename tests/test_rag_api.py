@@ -81,15 +81,13 @@ def test_rag_search_route_falls_back_to_product_table_filters() -> None:
     payload = response.json()
     assert payload["query"] == "\u5bbf\u820d \u9759\u97f3 \u673a\u68b0\u952e\u76d8 300\u4ee5\u5185"
     assert payload["total"] == 1
-    assert payload["items"] == [
-        {
-            "product_id": 1,
-            "name": KEYBOARD_NAME,
-            "price": 269.0,
-            "score": 1.0,
-            "reason": "\u6570\u636e\u5e93 fallback \u7ed3\u679c",
-        }
-    ]
+    item = payload["items"][0]
+    assert item["product_id"] == 1
+    assert item["name"] == KEYBOARD_NAME
+    assert item["price"] == 269.0
+    assert item["score"] == 1.0
+    assert item["reason"] == "\u6570\u636e\u5e93 fallback \u7ed3\u679c"
+    assert "stock_status" in item
 
 
 def test_rag_search_route_is_registered() -> None:
@@ -125,4 +123,4 @@ def test_rag_service_filters_stale_vector_product_ids() -> None:
         db,
     )
 
-    assert [item["product_id"] for item in response.items] == [1]
+    assert [item.product_id for item in response.items] == [1]

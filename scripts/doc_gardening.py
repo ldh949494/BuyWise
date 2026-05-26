@@ -11,6 +11,10 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from app.utils.subprocess_tools import run  # noqa: E402
+
 ARTIFACTS_DIR = ROOT / "artifacts" / "doc-gardening"
 DEFAULT_MODEL = "openai/gpt-4.1"
 CONTEXT_PATHS = [
@@ -25,19 +29,6 @@ CONTEXT_PATHS = [
     "scripts/auto_validate.ps1",
     "scripts/validate_docs.py",
 ]
-
-
-def run(cmd: list[str], *, check: bool = False) -> str:
-    result = subprocess.run(
-        cmd,
-        cwd=ROOT,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=check,
-    )
-    output = "\n".join(part.strip() for part in (result.stdout, result.stderr) if part.strip())
-    return output.strip()
 
 
 def run_with_input(cmd: list[str], stdin: str) -> str:

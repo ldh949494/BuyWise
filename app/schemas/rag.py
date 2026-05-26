@@ -13,7 +13,19 @@ class RagSearchRequest(BaseSchema):
     filters: dict[str, Any] = Field(default_factory=dict)
 
 
+class RagItem(BaseSchema):
+    product_id: int
+    name: str
+    price: float | None = None
+    score: float | None = None
+    reason: str | None = None
+    category: str | None = None
+    platform: str | None = None
+    product_url: str | None = None
+    stock_status: str | None = None
+
+
 class RagSearchResponse(BaseSchema):
     query: str
-    items: list[dict[str, Any]] = Field(default_factory=list)
+    items: list[RagItem] = Field(default_factory=list)
     total: int = 0
