@@ -32,6 +32,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.buywise.android.data.FeedbackDraft
+import com.buywise.android.data.FeedbackPrompt
+import com.buywise.android.data.FeedbackUiState
 import com.buywise.android.data.HomeState
 import com.buywise.android.data.Product
 import com.buywise.android.ui.BuyWiseTheme
@@ -46,7 +49,10 @@ fun HomeScreen(
     isInCompareBasket: (String) -> Boolean,
     onToggleCompare: (Product) -> Unit,
     onOpenGuide: () -> Unit,
-    onSubmitFeedback: (com.buywise.android.data.FeedbackPrompt) -> Unit,
+    feedbackState: FeedbackUiState,
+    onToggleFeedbackForm: (FeedbackPrompt) -> Unit,
+    onFeedbackDraftChange: (FeedbackPrompt, FeedbackDraft) -> Unit,
+    onSubmitFeedback: (FeedbackPrompt) -> Unit,
     onRetry: () -> Unit,
 ) {
     LazyColumn(
@@ -76,13 +82,32 @@ fun HomeScreen(
                 ErrorPanel(message = message, actionLabel = "重试", onAction = onRetry)
             }
         }
-        if (state.feedbackPrompts.isNotEmpty()) {
+        if (!state.canUseFeedback) {
+            item {
+                InfoPanel(
+                    icon = { Icon(Icons.Outlined.ShoppingBag, contentDescription = null) },
+                    title = "购买后反馈",
+                    body = state.tokenRequiredMessage ?: "配置 beta token 后可查看待评价和提交反馈。",
+                )
+            }
+        } else if (state.feedbackPrompts.isNotEmpty()) {
             item {
                 SectionTitle("待评价", "收货后的真实反馈会进入商品分析")
             }
+            feedbackState.successMessage?.let { message ->
+                item { InfoPanel(icon = { Icon(Icons.Outlined.CheckCircle, contentDescription = null) }, title = "反馈", body = message) }
+            }
             items(state.feedbackPrompts) { prompt ->
                 FeedbackPromptCard(
-                    productName = prompt.productName,
+                    prompt = prompt,
+                    draft = feedbackState.draftFor(prompt),
+                    expanded = feedbackState.activePromptId == prompt.orderItemId,
+                    isSubmitting = prompt.orderItemId in feedbackState.submittingIds,
+                    errorMessage = feedbackState.submitErrors[prompt.orderItemId],
+                    canUseFeedback = feedbackState.canUseFeedback,
+                    tokenRequiredMessage = feedbackState.tokenRequiredMessage,
+                    onToggle = { onToggleFeedbackForm(prompt) },
+                    onDraftChange = { onFeedbackDraftChange(prompt, it) },
                     onSubmit = { onSubmitFeedback(prompt) },
                 )
             }

@@ -1,0 +1,130 @@
+package com.buywise.android.data
+
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class ProductListResponseDto(
+    val items: List<ProductDto> = emptyList(),
+)
+
+@Serializable
+data class ProductDto(
+    val id: Int,
+    val name: String = "未命名商品",
+    val brand: String? = null,
+    val category: String? = null,
+    val platform: String? = null,
+    val price: Double? = null,
+    val rating: Double? = null,
+    val description: String? = null,
+    val tags: List<String> = emptyList(),
+    @SerialName("suitable_scene") val suitableScene: List<String> = emptyList(),
+    @SerialName("image_url") val imageUrl: String? = null,
+    @SerialName("product_url") val productUrl: String? = null,
+    @SerialName("stock_status") val stockStatus: String? = null,
+    @SerialName("review_summary") val reviewSummary: String? = null,
+)
+
+@Serializable
+data class ProductCardDto(
+    val id: Int,
+    val name: String = "未命名商品",
+    val price: Double? = null,
+    val rating: Double? = null,
+    val score: Double? = null,
+    val reason: String? = null,
+    val description: String? = null,
+    val tags: List<String> = emptyList(),
+    val conflicts: List<String> = emptyList(),
+    @SerialName("image_url") val imageUrl: String? = null,
+)
+
+@Serializable
+data class CompareRequestDto(
+    @SerialName("product_ids") val productIds: List<Int>,
+    @SerialName("user_need") val userNeed: String,
+)
+
+@Serializable
+data class CompareResponseDto(
+    val items: List<CompareItemDto> = emptyList(),
+    val summary: String? = null,
+    @SerialName("winner_id") val winnerId: Int? = null,
+)
+
+@Serializable
+data class CompareItemDto(
+    val id: Int? = null,
+    @SerialName("product_id") val productId: Int? = null,
+    val name: String = "未命名商品",
+    val price: Double? = null,
+    val rating: Double? = null,
+    val score: Double? = null,
+    val pros: List<String> = emptyList(),
+    val cons: List<String> = emptyList(),
+    @SerialName("image_url") val imageUrl: String? = null,
+)
+
+@Serializable
+data class OrderCreateRequestDto(
+    @SerialName("product_id") val productId: Int,
+    val quantity: Int = 1,
+)
+
+@Serializable
+data class OrderResponseDto(
+    val id: Int,
+    @SerialName("fulfillment_status") val fulfillmentStatus: String? = null,
+)
+
+@Serializable
+data class FeedbackPromptListResponseDto(
+    val items: List<FeedbackPromptDto> = emptyList(),
+)
+
+@Serializable
+data class FeedbackPromptDto(
+    @SerialName("order_id") val orderId: Int,
+    @SerialName("order_item_id") val orderItemId: Int,
+    @SerialName("product_id") val productId: Int,
+    @SerialName("product_name") val productName: String = "已购商品",
+)
+
+@Serializable
+data class FeedbackSubmitRequestDto(
+    @SerialName("order_item_id") val orderItemId: Int,
+    val rating: Int,
+    val content: String,
+    @SerialName("pros_tags") val prosTags: List<String>,
+    @SerialName("cons_tags") val consTags: List<String>,
+    @SerialName("met_expectation") val metExpectation: Boolean,
+)
+
+@Serializable
+data class GuideStreamRequestDto(
+    @SerialName("session_id") val sessionId: String? = null,
+    val message: String,
+)
+
+@Serializable
+data class VisionRequestDto(
+    @SerialName("image_url") val imageUrl: String,
+)
+
+@Serializable
+data class VisionResponseDto(
+    val category: String? = null,
+    val features: List<String> = emptyList(),
+    val query: String? = null,
+)
+
+@Serializable
+data class SpeechRequestDto(
+    @SerialName("audio_url") val audioUrl: String,
+)
+
+@Serializable
+data class SpeechResponseDto(
+    val text: String = "",
+)

@@ -40,6 +40,8 @@ data class HomeState(
     val heroSubtitle: String,
     val products: List<Product>,
     val feedbackPrompts: List<FeedbackPrompt> = emptyList(),
+    val canUseFeedback: Boolean = true,
+    val tokenRequiredMessage: String? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
 )
@@ -101,6 +103,8 @@ data class VisionState(
 
 data class ProductDetailState(
     val product: Product? = null,
+    val canRecordPurchase: Boolean = true,
+    val tokenRequiredMessage: String? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val orderStatusMessage: String? = null,
@@ -112,3 +116,34 @@ data class FeedbackPrompt(
     val productId: String,
     val productName: String,
 )
+
+data class FeedbackDraft(
+    val rating: Int = 5,
+    val content: String = "",
+    val prosTags: List<String> = emptyList(),
+    val consTags: List<String> = emptyList(),
+    val metExpectation: Boolean = true,
+)
+
+data class FeedbackUiState(
+    val activePromptId: String? = null,
+    val drafts: Map<String, FeedbackDraft> = emptyMap(),
+    val submittingIds: Set<String> = emptySet(),
+    val submitErrors: Map<String, String> = emptyMap(),
+    val successMessage: String? = null,
+    val canUseFeedback: Boolean = true,
+    val tokenRequiredMessage: String? = null,
+) {
+    fun draftFor(prompt: FeedbackPrompt): FeedbackDraft =
+        drafts[prompt.orderItemId] ?: FeedbackDraft()
+}
+
+data class BetaCapability(
+    val canUseUserFeatures: Boolean,
+    val message: String? = null,
+) {
+    companion object {
+        val Enabled = BetaCapability(canUseUserFeatures = true)
+        const val TOKEN_REQUIRED_MESSAGE = "当前构建未配置 BUYWISE_BETA_TOKEN，无法记录购买或提交反馈。"
+    }
+}

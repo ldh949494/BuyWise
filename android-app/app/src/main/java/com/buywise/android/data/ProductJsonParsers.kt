@@ -63,19 +63,6 @@ internal fun parseCompareItem(json: JSONObject): Product {
     )
 }
 
-internal fun buildCompareRows(products: List<Product>): List<CompareRow> {
-    if (products.isEmpty()) {
-        return emptyList()
-    }
-    return listOf(
-        CompareRow("价格", products.map { it.price.displayPrice() }),
-        CompareRow("评分", products.map { it.rating.displayRating() }),
-        CompareRow("推荐分", products.map { it.recommendationScore.displayScore() }),
-        CompareRow("优点", products.map { it.advantages.take(2).joinToString(" / ").ifBlank { "暂无" } }),
-        CompareRow("注意事项", products.map { it.cautions.take(2).joinToString(" / ").ifBlank { "暂无" } }),
-    )
-}
-
 private fun JSONArray?.toStringList(): List<String> {
     if (this == null) {
         return emptyList()
@@ -94,12 +81,3 @@ private fun JSONObject.optDoubleOrNull(name: String): Double? =
 
 private fun JSONObject.optIntOrNull(name: String): Int? =
     if (has(name) && !isNull(name)) optInt(name) else null
-
-private fun Double?.displayPrice(): String = this?.let { "¥${formatNumber(it)}" } ?: "暂无"
-
-private fun Double?.displayRating(): String = this?.let { formatNumber(it) } ?: "暂无"
-
-private fun Double?.displayScore(): String = this?.let { formatNumber(it) } ?: "暂无"
-
-private fun formatNumber(value: Double): String =
-    if (value % 1.0 == 0.0) value.toInt().toString() else "%.1f".format(value)
