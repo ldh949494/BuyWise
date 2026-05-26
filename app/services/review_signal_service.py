@@ -3,17 +3,22 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from datetime import datetime
 from decimal import Decimal
 
 from app.core.config import settings
 from app.models.review import Review
 from app.repositories.review_repo import ReviewRepository
+from app.services.policies.review_weight_policy import ReviewWeightPolicy
 
 
 class ReviewSignalService:
-    def __init__(self, review_repo: ReviewRepository) -> None:
+    def __init__(self, review_repo: ReviewRepository, weight_policy: ReviewWeightPolicy | None = None) -> None:
         self.review_repo = review_repo
+        self.weight_policy = weight_policy or ReviewWeightPolicy(
+            imported_base_weight=settings.review_imported_base_weight,
+            verified_base_weight=settings.review_verified_base_weight,
+            weight_cap=settings.review_weight_cap,
+        )
 
     def get_metrics_for_products(self, product_ids: list[int]) -> dict[int, dict[str, object]]:
         reviews = self.review_repo.list_active_for_product_ids(product_ids)
@@ -24,22 +29,7 @@ class ReviewSignalService:
         return {product_id: self._metrics(reviews) for product_id, reviews in grouped.items()}
 
     def get_weight(self, review: Review) -> float:
-        base = self._base_weight(review)
-        timing = self._timing_multiplier(review)
-        content = self._content_multiplier(review)
-        return min(base * timing * content, settings.review_weight_cap)
-
-    def _base_weight(self, review: Review) -> float:
-        evidence = (review.purchase_evidence or "").strip().lower()
-        if evidence == "platform_verified":
-            return settings.review_verified_base_weight
-        if evidence == "buywise_recorded":
-            return (settings.review_imported_base_weight + settings.review_verified_base_weight) / 2
-        if evidence == "claimed":
-            return settings.review_imported_base_weight * 1.2
-        if review.verified_purchase:
-            return settings.review_verified_base_weight
-        return settings.review_imported_base_weight
+        return self.weight_policy.get_weight(review)
 
     def _metrics(self, reviews: list[Review]) -> dict[str, object]:
         state = self._empty_metrics_state()
@@ -147,22 +137,3 @@ class ReviewSignalService:
         if review.met_expectation is None:
             return known, met
         return known + 1, met + int(review.met_expectation)
-
-    def _timing_multiplier(self, review: Review) -> float:
-        if not review.submitted_at:
-            return 1.0
-        age_days = (datetime.utcnow() - review.submitted_at).days
-        if age_days <= 2:
-            return 0.8
-        if age_days <= 30:
-            return 1.2
-        if age_days <= 180:
-            return 1.0
-        return 0.7
-
-    def _content_multiplier(self, review: Review) -> float:
-        content = (review.content or "").strip()
-        multiplier = 0.7 if len(content) < 10 else 1.0
-        if review.pros_tags or review.cons_tags:
-            multiplier *= 1.1
-        return multiplier
