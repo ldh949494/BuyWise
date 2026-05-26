@@ -8,6 +8,7 @@ def isolate_mutable_settings():
     saved = {
         "auth_api_keys": settings.auth_api_keys,
         "allow_mock_providers_in_prod": settings.allow_mock_providers_in_prod,
+        "admin_jwt_secret": settings.admin_jwt_secret,
         "app_debug": settings.app_debug,
         "app_env": settings.app_env,
         "cors_allowed_origins": settings.cors_allowed_origins,
@@ -27,6 +28,7 @@ def isolate_mutable_settings():
         "vision_provider": settings.vision_provider,
     }
     settings.auth_api_keys = ""
+    settings.admin_jwt_secret = "test-admin-secret"
     settings.embedding_provider = "mock"
     settings.llm_provider = "mock"
     settings.speech_provider = "mock"
