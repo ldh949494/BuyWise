@@ -133,6 +133,8 @@ private fun BuyWiseRoot(
                         isInCompareBasket = viewModel::isInCompareBasket,
                         onToggleCompare = { viewModel.toggleCompareBasket(it) },
                         onOpenGuide = { navController.navigate("guide") },
+                        onOpenCompare = { navController.navigate("compare") },
+                        onOpenVision = { navController.navigate("vision") },
                         feedbackState = viewModel.feedbackState,
                         onToggleFeedbackForm = viewModel::toggleFeedbackForm,
                         onFeedbackDraftChange = viewModel::updateFeedbackDraft,

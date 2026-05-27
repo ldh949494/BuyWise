@@ -26,6 +26,10 @@ android {
             .orElse(providers.environmentVariable("BUYWISE_BETA_TOKEN"))
             .orElse("")
         buildConfigField("String", "BUYWISE_BETA_TOKEN", "\"${betaToken.get()}\"")
+        val showDebugInfo = providers.gradleProperty("BUYWISE_SHOW_DEBUG_INFO")
+            .orElse(providers.environmentVariable("BUYWISE_SHOW_DEBUG_INFO"))
+            .orElse("false")
+        buildConfigField("Boolean", "BUYWISE_SHOW_DEBUG_INFO", showDebugInfo.get())
     }
 
     buildFeatures {

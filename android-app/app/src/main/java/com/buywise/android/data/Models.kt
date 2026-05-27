@@ -144,6 +144,7 @@ data class BetaCapability(
 ) {
     companion object {
         val Enabled = BetaCapability(canUseUserFeatures = true)
-        const val TOKEN_REQUIRED_MESSAGE = "当前构建未配置 BUYWISE_BETA_TOKEN，无法记录购买或提交反馈。"
+        const val TOKEN_REQUIRED_MESSAGE = "购买后反馈功能暂未开启。"
+        const val DEBUG_TOKEN_REQUIRED_MESSAGE = "当前构建未配置 BUYWISE_BETA_TOKEN，无法记录购买或提交反馈。"
     }
 }

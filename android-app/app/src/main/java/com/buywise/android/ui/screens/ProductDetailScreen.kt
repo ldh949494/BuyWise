@@ -36,8 +36,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.buywise.android.data.Product
 import com.buywise.android.data.ProductDetailState
+import com.buywise.android.ui.BuyWiseDimens
 import com.buywise.android.ui.BuyWiseTheme
+import com.buywise.android.ui.displayBrandCategory
+import com.buywise.android.ui.displayFitTags
+import com.buywise.android.ui.displayMatchPercent
+import com.buywise.android.ui.displayPlatform
+import com.buywise.android.ui.displayPrice
+import com.buywise.android.ui.displayRating
+import com.buywise.android.ui.displayRecommendationReason
+import com.buywise.android.ui.displaySales
 import com.buywise.android.ui.components.MetricPill
+import com.buywise.android.ui.components.SoftTag
 
 @Composable
 fun ProductDetailScreen(
@@ -59,8 +69,8 @@ fun ProductDetailScreen(
                 onClick = onBack,
                 modifier = Modifier
                     .size(42.dp)
-                    .background(BuyWiseTheme.colors.panel, RoundedCornerShape(8.dp))
-                    .border(1.dp, BuyWiseTheme.colors.border, RoundedCornerShape(8.dp)),
+                    .background(BuyWiseTheme.colors.panel, RoundedCornerShape(12.dp))
+                    .border(1.dp, BuyWiseTheme.colors.border, RoundedCornerShape(12.dp)),
             ) {
                 Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
             }
@@ -102,8 +112,9 @@ fun ProductDetailScreen(
 private fun PurchaseAdviceCard(product: Product) {
     Card(
         colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
         border = CardDefaults.outlinedCardBorder(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -122,8 +133,9 @@ private fun PurchaseAdviceCard(product: Product) {
 private fun SignalSummaryCard(product: Product) {
     Card(
         colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
         border = CardDefaults.outlinedCardBorder(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -132,10 +144,10 @@ private fun SignalSummaryCard(product: Product) {
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                 MetricPill("当前价格", product.price.displayPrice(), modifier = Modifier.weight(1f))
-                MetricPill("推荐指数", product.recommendationScore.displayScore(), modifier = Modifier.weight(1f))
+                MetricPill("AI 匹配度", product.displayMatchPercent(), modifier = Modifier.weight(1f))
             }
             Text(
-                product.reviewSummary ?: "后端暂未返回评论摘要，当前建议主要依据商品参数、标签和推荐分生成。",
+                product.reviewSummary ?: "当前建议主要依据商品参数、标签、价格和口碑信号生成。",
                 color = BuyWiseTheme.colors.muted,
                 style = MaterialTheme.typography.bodyMedium,
             )
@@ -162,24 +174,30 @@ private fun ProductHeader(
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
         border = CardDefaults.outlinedCardBorder(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text(product.brand ?: "BuyWise", color = BuyWiseTheme.colors.secondary, fontWeight = FontWeight.Bold)
+            Text(product.displayBrandCategory(), color = BuyWiseTheme.colors.secondary, fontWeight = FontWeight.Bold)
             Text(product.name, style = MaterialTheme.typography.headlineMedium, color = BuyWiseTheme.colors.ink)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                 MetricPill("价格", product.price.displayPrice(), modifier = Modifier.weight(1f))
                 MetricPill("评分", product.rating.displayRating(), modifier = Modifier.weight(1f))
             }
-            Text(product.headline, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SoftTag(product.displayPlatform())
+                SoftTag(product.displaySales())
+                product.displayFitTags().take(2).forEach { SoftTag(it) }
+            }
+            Text(product.displayRecommendationReason(), color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
             product.reviewSummary?.let {
                 Text(it, color = BuyWiseTheme.colors.ink, style = MaterialTheme.typography.bodyMedium)
             }
             Button(onClick = onToggleCompare, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.AutoMirrored.Outlined.CompareArrows, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(if (isInCompareBasket) "已加入对比" else "加入对比")
+                Text(if (isInCompareBasket) "已加入对比" else "+ 加入对比")
             }
             Button(onClick = onRecordPurchase, enabled = canRecordPurchase, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Outlined.ShoppingBag, contentDescription = null)
@@ -188,7 +206,7 @@ private fun ProductHeader(
             }
             if (!canRecordPurchase) {
                 Text(
-                    tokenRequiredMessage ?: "当前构建未配置 beta token，无法记录购买。",
+                    tokenRequiredMessage ?: "购买后反馈功能暂未开启。",
                     color = BuyWiseTheme.colors.danger,
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -201,8 +219,9 @@ private fun ProductHeader(
 private fun DetailBlock(title: String, items: List<String>, tone: androidx.compose.ui.graphics.Color) {
     Card(
         colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
         border = CardDefaults.outlinedCardBorder(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
@@ -227,12 +246,6 @@ private fun DetailBlock(title: String, items: List<String>, tone: androidx.compo
     }
 }
 
-private fun Double?.displayPrice(): String = this?.let { "¥${formatNumber(it)}" } ?: "暂无价格"
-
-private fun Double?.displayRating(): String = this?.let { formatNumber(it) } ?: "暂无"
-
-private fun Double?.displayScore(): String = this?.let { "${formatNumber(it)}分" } ?: "待分析"
-
 private fun Product.audienceAdvice(): String {
     val scenes = tags.filter { it.length <= 8 }.take(2)
     val categoryText = category ?: "数码产品"
@@ -240,14 +253,11 @@ private fun Product.audienceAdvice(): String {
 }
 
 private fun Product.buyingAdvice(): String {
-    val score = recommendationScore ?: 0.0
+    val score = displayMatchPercent().removeSuffix("%").toIntOrNull() ?: 0
     return when {
-        score >= 90.0 -> "推荐指数很高，若价格符合预算，可以优先考虑入手。"
-        score >= 80.0 -> "整体匹配度较高，建议和同价位候选商品对比后决定。"
+        score >= 90 -> "AI 匹配度很高，若价格符合预算，可以优先考虑入手。"
+        score >= 80 -> "整体匹配度较高，建议和同价位候选商品对比后决定。"
         price != null -> "当前价格为 ${price.displayPrice()}，建议结合预算、评价摘要和售后再判断。"
         else -> "价格信息不足，建议确认实时价格和平台售后后再购买。"
     }
 }
-
-private fun formatNumber(value: Double): String =
-    if (value % 1.0 == 0.0) value.toInt().toString() else "%.1f".format(value)

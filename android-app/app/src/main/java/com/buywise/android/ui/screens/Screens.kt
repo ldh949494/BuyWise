@@ -2,23 +2,18 @@ package com.buywise.android.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ShoppingBag
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -30,15 +25,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.buywise.android.data.FeedbackDraft
 import com.buywise.android.data.FeedbackPrompt
 import com.buywise.android.data.FeedbackUiState
 import com.buywise.android.data.HomeState
 import com.buywise.android.data.Product
+import com.buywise.android.ui.BuyWiseDimens
 import com.buywise.android.ui.BuyWiseTheme
-import com.buywise.android.ui.components.MetricPill
 import com.buywise.android.ui.components.ProductCard
 import com.buywise.android.ui.components.SectionTitle
 
@@ -49,6 +43,8 @@ fun HomeScreen(
     isInCompareBasket: (String) -> Boolean,
     onToggleCompare: (Product) -> Unit,
     onOpenGuide: () -> Unit,
+    onOpenCompare: () -> Unit,
+    onOpenVision: () -> Unit,
     feedbackState: FeedbackUiState,
     onToggleFeedbackForm: (FeedbackPrompt) -> Unit,
     onFeedbackDraftChange: (FeedbackPrompt, FeedbackDraft) -> Unit,
@@ -69,10 +65,11 @@ fun HomeScreen(
             )
         }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                MetricPill("导购模式", "MVP", modifier = Modifier.weight(1f))
-                MetricPill("后端地址", "10.0.2.2", modifier = Modifier.weight(1f))
-            }
+            QuickEntryPanel(
+                onOpenGuide = onOpenGuide,
+                onOpenCompare = onOpenCompare,
+                onOpenVision = onOpenVision,
+            )
         }
         if (state.isLoading) {
             item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
@@ -87,7 +84,7 @@ fun HomeScreen(
                 InfoPanel(
                     icon = { Icon(Icons.Outlined.ShoppingBag, contentDescription = null) },
                     title = "购买后反馈",
-                    body = state.tokenRequiredMessage ?: "配置 beta token 后可查看待评价和提交反馈。",
+                    body = state.tokenRequiredMessage ?: "购买后反馈功能暂未开启。",
                 )
             }
         } else if (state.feedbackPrompts.isNotEmpty()) {
@@ -113,7 +110,7 @@ fun HomeScreen(
             }
         }
         item {
-            SectionTitle("精选商品", "来自 BuyWise 后端的商品列表")
+            SectionTitle("精选商品", "为你精选的候选商品")
         }
         if (!state.isLoading && state.products.isEmpty() && state.errorMessage == null) {
             item { Text("暂无商品。", color = BuyWiseTheme.colors.muted) }
@@ -130,75 +127,12 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HeroPanel(title: String, subtitle: String, previewProducts: List<Product>, onOpenGuide: () -> Unit) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
-        shape = RoundedCornerShape(8.dp),
-        border = CardDefaults.outlinedCardBorder(),
-    ) {
-        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Surface(color = BuyWiseTheme.colors.primarySoft, shape = RoundedCornerShape(8.dp)) {
-                    Icon(
-                        Icons.Outlined.ShoppingBag,
-                        contentDescription = null,
-                        tint = BuyWiseTheme.colors.primary,
-                        modifier = Modifier.padding(9.dp),
-                    )
-                }
-                Column {
-                    Text("BuyWise", color = BuyWiseTheme.colors.primary, fontWeight = FontWeight.Bold)
-                    Text("智能购物决策助手", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
-                }
-            }
-            Text(title, style = MaterialTheme.typography.headlineMedium, color = BuyWiseTheme.colors.ink)
-            Text(subtitle, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("预算匹配", "需求结构化", "可解释推荐").forEach { label ->
-                    AssistChip(
-                        onClick = {},
-                        label = { Text(label) },
-                        leadingIcon = { Icon(Icons.Outlined.CheckCircle, contentDescription = null) },
-                    )
-                }
-            }
-            if (previewProducts.isNotEmpty()) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("实时推荐预览", color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold)
-                    previewProducts.forEach { product ->
-                        Surface(color = BuyWiseTheme.colors.panelAlt, shape = RoundedCornerShape(8.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                            ) {
-                                Text(
-                                    product.name,
-                                    modifier = Modifier.weight(1f),
-                                    color = BuyWiseTheme.colors.ink,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Text(product.price.displayPrice(), color = BuyWiseTheme.colors.primary, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-            }
-            Button(onClick = onOpenGuide, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Outlined.AutoAwesome, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("打开 AI 导购")
-            }
-        }
-    }
-}
-
-@Composable
 fun InfoPanel(icon: @Composable () -> Unit, title: String, body: String) {
     Card(
         colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
         border = CardDefaults.outlinedCardBorder(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -221,7 +155,7 @@ fun InfoPanel(icon: @Composable () -> Unit, title: String, body: String) {
 fun ErrorPanel(message: String, actionLabel: String? = null, onAction: (() -> Unit)? = null) {
     Card(
         colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.dangerSoft),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
         border = CardDefaults.outlinedCardBorder(),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -234,8 +168,3 @@ fun ErrorPanel(message: String, actionLabel: String? = null, onAction: (() -> Un
         }
     }
 }
-
-private fun Double?.displayPrice(): String = this?.let { "¥${formatNumber(it)}" } ?: "暂无价格"
-
-private fun formatNumber(value: Double): String =
-    if (value % 1.0 == 0.0) value.toInt().toString() else "%.1f".format(value)

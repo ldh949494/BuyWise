@@ -28,7 +28,7 @@ class UploadViewModel(
             }.onSuccess { result ->
                 state = state.copy(result = result, recognizedQuery = result.title, isLoading = false)
             }.onFailure { throwable ->
-                state = state.copy(isLoading = false, errorMessage = throwable.userMessage("图像识别联调失败"))
+                state = state.copy(isLoading = false, errorMessage = throwable.userMessage("图片识别失败"))
             }
         }
     }
@@ -41,7 +41,7 @@ class UploadViewModel(
             }.onSuccess { text ->
                 state = state.copy(speechText = text, recognizedQuery = text, isLoading = false)
             }.onFailure { throwable ->
-                state = state.copy(isLoading = false, errorMessage = throwable.userMessage("语音识别联调失败"))
+                state = state.copy(isLoading = false, errorMessage = throwable.userMessage("语音识别失败"))
             }
         }
     }

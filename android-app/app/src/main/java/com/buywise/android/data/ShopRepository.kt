@@ -24,8 +24,8 @@ class ShopRepository(
     val uploadRepository = UploadRepository(apiClient)
 
     fun homeState(): HomeState = HomeState(
-        heroTitle = "更快找到适合你的商品",
-        heroSubtitle = "连接 BuyWise 后端，按预算、场景和偏好生成导购建议。",
+        heroTitle = "AI 智能购物决策助手",
+        heroSubtitle = "告诉我预算、场景和偏好，我帮你找到更适合的商品。",
         products = emptyList(),
         canUseFeedback = betaCapability.canUseUserFeatures,
         tokenRequiredMessage = betaCapability.message,
@@ -33,7 +33,7 @@ class ShopRepository(
 
     fun guideState(query: String): GuideState = GuideState(
         query = query,
-        intentSummary = "输入预算、使用场景和偏好后，BuyWise 会从后端生成推荐。",
+        intentSummary = "",
         recommendations = emptyList(),
     )
 
@@ -41,9 +41,9 @@ class ShopRepository(
 
     fun visionState(): VisionState = VisionState(
         result = VisionResult(
-            title = "后端多模态联调",
+            title = "等待识别商品",
             confidence = 0,
-            labels = listOf("等待联调"),
+            labels = emptyList(),
             similarProducts = emptyList(),
         ),
     )

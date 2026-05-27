@@ -1,5 +1,6 @@
 package com.buywise.android.data
 
+import com.buywise.android.BuildConfig
 import java.io.IOException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -20,7 +21,16 @@ internal class BuyWiseApiClient(
 ) {
     val hasBetaToken: Boolean = betaToken != null
     val betaCapability: BetaCapability =
-        if (hasBetaToken) BetaCapability.Enabled else BetaCapability(false, BetaCapability.TOKEN_REQUIRED_MESSAGE)
+        if (hasBetaToken) {
+            BetaCapability.Enabled
+        } else {
+            val message = if (BuildConfig.BUYWISE_SHOW_DEBUG_INFO) {
+                BetaCapability.DEBUG_TOKEN_REQUIRED_MESSAGE
+            } else {
+                BetaCapability.TOKEN_REQUIRED_MESSAGE
+            }
+            BetaCapability(false, message)
+        }
 
     @PublishedApi
     internal val json = Json {
@@ -109,7 +119,7 @@ internal class BuyWiseApiClient(
         if (!requireAuth) {
             return builder
         }
-        val token = betaToken ?: throw IOException("需要配置 BUYWISE_BETA_TOKEN 才能使用 beta 用户能力")
+        val token = betaToken ?: throw IOException(BetaCapability.TOKEN_REQUIRED_MESSAGE)
         return builder.header("Authorization", "Bearer $token")
     }
 }
