@@ -3,26 +3,18 @@
   "description": "Existing entropy debt. CI fails only on new issues not listed here.",
   "issues": [
     {
-      "key": "duplicate-function|scripts/ai_update_readme.py|e4f7b79fb857",
-      "rule": "duplicate-function",
-      "path": "scripts/ai_update_readme.py",
-      "line": 15,
-      "symbol": "e4f7b79fb857",
-      "detail": "Duplicate function implementation detected across 2 functions: scripts/ai_update_readme.py:15:run, scripts/doc_gardening.py:30:run."
-    },
-    {
       "key": "duplicate-function|scripts/ai_update_readme.py|25f69bc0ef64",
       "rule": "duplicate-function",
       "path": "scripts/ai_update_readme.py",
-      "line": 28,
+      "line": 16,
       "symbol": "25f69bc0ef64",
-      "detail": "Duplicate function implementation detected across 3 functions: scripts/ai_update_readme.py:28:run_with_input, scripts/doc_gardening.py:43:run_with_input, scripts/entropy_gc.py:22:run_with_input."
+      "detail": "Duplicate function implementation detected across 3 functions: scripts/ai_update_readme.py:16:run_with_input, scripts/doc_gardening.py:34:run_with_input, scripts/entropy_gc.py:22:run_with_input."
     },
     {
       "key": "function-length|scripts/ai_update_readme.py|update_readme_with_ai",
       "rule": "function-length",
       "path": "scripts/ai_update_readme.py",
-      "line": 106,
+      "line": 94,
       "symbol": "update_readme_with_ai",
       "detail": "Function exceeds 30 lines limit; found 42."
     },
@@ -30,7 +22,7 @@
       "key": "function-length|scripts/ai_update_readme.py|main",
       "rule": "function-length",
       "path": "scripts/ai_update_readme.py",
-      "line": 150,
+      "line": 138,
       "symbol": "main",
       "detail": "Function exceeds 30 lines limit; found 34."
     },
@@ -46,7 +38,7 @@
       "key": "function-length|scripts/doc_gardening.py|main",
       "rule": "function-length",
       "path": "scripts/doc_gardening.py",
-      "line": 194,
+      "line": 185,
       "symbol": "main",
       "detail": "Function exceeds 30 lines limit; found 31."
     },
