@@ -4,16 +4,20 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.CompareArrows
 import androidx.compose.material.icons.outlined.AutoAwesome
@@ -35,11 +39,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import com.buywise.android.data.Product
 import com.buywise.android.ui.BuyWiseDimens
 import com.buywise.android.ui.BuyWiseTheme
@@ -93,9 +101,13 @@ fun ProductCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            ProductImagePreview(
+                product = product,
+                modifier = Modifier.fillMaxWidth().aspectRatio(1.45f),
+            )
             Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(
@@ -169,6 +181,44 @@ fun ProductCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun ProductImagePreview(product: Product, modifier: Modifier = Modifier) {
+    val shape = RoundedCornerShape(12.dp)
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .background(BuyWiseTheme.colors.panelAlt)
+            .border(1.dp, BuyWiseTheme.colors.border, shape),
+        contentAlignment = Alignment.Center,
+    ) {
+        val imageUrl = product.imageUrl?.takeIf { it.isNotBlank() }
+        if (imageUrl == null) {
+            ImagePlaceholder(product = product)
+        } else {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = product.name,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ImagePlaceholder(product: Product) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Icon(Icons.Outlined.Image, contentDescription = null, tint = BuyWiseTheme.colors.muted)
+        Text(
+            product.brand ?: product.category ?: "商品图片",
+            color = BuyWiseTheme.colors.muted,
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

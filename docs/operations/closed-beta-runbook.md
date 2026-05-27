@@ -109,16 +109,26 @@ server {
 
 ## Catalog Import And Index
 
-Use a real closed beta CSV. Do not mix demo seed data with the beta catalog.
+Use a real closed beta CSV. Do not mix demo seed data with the beta catalog. Keep the production file as a local ignored beta catalog CSV on the deployment host and do not commit it to Git; the repository only carries `data/beta-catalog.template.csv`.
+
+Stage 1 catalog rules:
+
+- Start with 5 categories and 10 real SKUs per category.
+- Use manually curated public product pages; do not use crawler output as the source of truth.
+- Treat `price`, `stock_status`, `rating`, and `sales` as an import-time snapshot.
+- Use stable custom `sku` values such as `beta-keyboard-keynova-k75`; do not use platform item IDs as the only identity.
+- Replace every template URL with a real `http(s)` product URL and a real image URL that opens without login.
+- Fill `tags` and `suitable_scene` from `docs/reference/beta-catalog-taxonomy.md` so RAG recall stays predictable.
 
 ```powershell
+python -m app.scripts.validate_beta_catalog --csv .\data\beta-catalog.csv
 .\scripts\release_prepare.ps1 -ImportCsv .\data\beta-catalog.csv -RequireRealCatalog -BuildIndex -IndexMode rebuild -CheckIndex
 ```
 
 In Compose:
 
 ```powershell
-docker compose -f docker-compose.prod.yml exec backend python -m app.scripts.import_products --path /app/data/beta-catalog.csv --require-real-assets
+docker compose -f docker-compose.prod.yml exec backend python -m app.scripts.import_products --csv /app/data/beta-catalog.csv --require-real-assets
 docker compose -f docker-compose.prod.yml exec backend python -m app.scripts.build_vector_index --mode rebuild
 docker compose -f docker-compose.prod.yml exec backend python -m app.scripts.check_vector_index
 ```
