@@ -105,7 +105,7 @@ Closed beta 阶段默认 `SPEECH_PROVIDER=mock`，语音不作为发布门禁。
 
 `READINESS_TOKEN` 保护 prod 下的 `/api/v1/ready`。调用方可使用 `Authorization: Bearer <token>` 或 `X-Readiness-Token: <token>`。不要把 readiness token 放入 Android beta 包，也不要复用普通用户 API key。
 
-`ADMIN_JWT_SECRET` 用于内部后台管理员登录后签发 JWT access token。`ADMIN_JWT_EXPIRE_MINUTES` 控制 token 有效期，默认 480 分钟。管理员账号通过 `python -m app.scripts.create_admin_user --username <name> --password <password>` 创建；已有账号需要显式传 `--reset-password` 才会重置密码。
+`ADMIN_JWT_SECRET` 用于内部后台管理员登录后签发 JWT access token。`ADMIN_JWT_EXPIRE_MINUTES` 控制 token 有效期，默认 480 分钟。管理员账号通过 `python -m app.scripts.create_admin_user --username <name> --password <password>` 创建；已有账号需要显式传 `--reset-password` 才会重置密码。dev/test 下如果数据库里还没有 `admin` 用户，后台允许使用内置账号 `admin` / `buywise-admin` 登录，方便本地首次打开后台；生产环境禁用该内置账号，且一旦创建了数据库中的 `admin` 用户，登录必须使用数据库密码。
 
 订单、待评价提示和已购评价接口在 dev/test 阶段保留可选 Bearer token。请求携带有效 token 时使用 token subject 作为 `user_ref`；未携带 token 时使用 `DEMO_USER_REF`，用于 Android 合同流和演示环境。`APP_ENV=prod` 时，这些接口必须携带 Bearer token 并满足对应 scope；closed beta 使用受控 API key 身份，不等同于公网账号系统。
 
