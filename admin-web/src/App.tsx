@@ -11,6 +11,7 @@ import {
   updateProduct,
   uploadImage
 } from "./api";
+import { OpsPage } from "./OpsPage";
 import type { Product, ProductPayload } from "./types";
 
 type FormState = {
@@ -94,6 +95,7 @@ function Shell({ onSignOut }: { onSignOut: () => void }) {
         </Link>
         <nav>
           <Link to="/">商品</Link>
+          <Link to="/ops">运维</Link>
           <button type="button" className="ghost-button" onClick={onSignOut}>
             退出
           </button>
@@ -102,6 +104,7 @@ function Shell({ onSignOut }: { onSignOut: () => void }) {
       <main>
         <Routes>
           <Route path="/" element={<ProductListPage />} />
+          <Route path="/ops" element={<OpsPage />} />
           <Route path="/products/new" element={<ProductFormPage mode="create" />} />
           <Route path="/products/:productId" element={<ProductFormPage mode="edit" />} />
         </Routes>

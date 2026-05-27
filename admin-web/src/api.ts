@@ -1,4 +1,4 @@
-import type { AdminProductWriteResponse, Product, ProductListResponse, ProductPayload } from "./types";
+import type { AdminProductWriteResponse, OpsSummary, Product, ProductListResponse, ProductPayload } from "./types";
 
 const TOKEN_KEY = "buywise_admin_token";
 
@@ -58,6 +58,10 @@ export async function uploadImage(file: File): Promise<{ url: string; filename: 
     method: "POST",
     body: form
   });
+}
+
+export async function getOpsSummary(): Promise<OpsSummary> {
+  return request<OpsSummary>("/api/v1/admin/ops/summary");
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {

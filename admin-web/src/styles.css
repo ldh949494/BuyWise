@@ -145,6 +145,121 @@ main {
   margin: 4px 0 0;
 }
 
+.metric-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.metric-card,
+.ops-card {
+  background: #ffffff;
+  border: 1px solid #d9dddf;
+  border-radius: 8px;
+}
+
+.metric-card {
+  display: grid;
+  gap: 8px;
+  min-height: 96px;
+  padding: 16px;
+}
+
+.metric-card span {
+  color: #687174;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.metric-card strong {
+  color: #222222;
+  font-size: 24px;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.metric-card.ok {
+  border-color: #9acdb5;
+}
+
+.metric-card.warn {
+  border-color: #e0c069;
+}
+
+.ops-card {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.ops-card h2 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.section-heading {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.check-grid,
+.key-value-grid,
+.token-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.check-item,
+.key-value-grid > div,
+.token-card,
+.operation-list article {
+  background: #f6f7f8;
+  border: 1px solid #eef0f1;
+  border-radius: 6px;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.check-item span,
+.key-value-grid span,
+.operation-list span,
+.token-card span {
+  color: #687174;
+  font-size: 13px;
+}
+
+.check-item small,
+.token-card small {
+  color: #687174;
+  overflow-wrap: anywhere;
+}
+
+.key-value-grid strong {
+  overflow-wrap: anywhere;
+}
+
+.operation-list {
+  display: grid;
+  gap: 10px;
+}
+
+.operation-list code {
+  color: #42484b;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.empty-state {
+  color: #687174;
+  margin: 0;
+}
+
 .toolbar {
   display: grid;
   gap: 12px;
@@ -336,6 +451,13 @@ legend {
   .page-header {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .metric-grid,
+  .check-grid,
+  .key-value-grid,
+  .token-grid {
+    grid-template-columns: 1fr;
   }
 
   .toolbar,
