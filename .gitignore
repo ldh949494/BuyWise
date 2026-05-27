@@ -10,6 +10,7 @@ __pycache__/
 storage/
 artifacts/
 uploads/
+data/beta-catalog.csv
 vector_store/chroma/*
 !vector_store/chroma/.gitkeep
 .chrome-agent/

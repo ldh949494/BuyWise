@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -47,6 +48,7 @@ import com.buywise.android.ui.displayRating
 import com.buywise.android.ui.displayRecommendationReason
 import com.buywise.android.ui.displaySales
 import com.buywise.android.ui.components.MetricPill
+import com.buywise.android.ui.components.ProductImagePreview
 import com.buywise.android.ui.components.SoftTag
 
 @Composable
@@ -179,6 +181,10 @@ private fun ProductHeader(
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            ProductImagePreview(
+                product = product,
+                modifier = Modifier.fillMaxWidth().aspectRatio(1.35f),
+            )
             Text(product.displayBrandCategory(), color = BuyWiseTheme.colors.secondary, fontWeight = FontWeight.Bold)
             Text(product.name, style = MaterialTheme.typography.headlineMedium, color = BuyWiseTheme.colors.ink)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
