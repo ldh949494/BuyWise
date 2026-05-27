@@ -28,7 +28,7 @@ Recommended local command:
 Closed beta command with smoke:
 
 ```powershell
-.\scripts\release_check.ps1 -CheckIndex -Token <smoke-token> -ReadinessToken <readiness-token> -BaseUrl https://api.buywise-beta.example.com -IncludeAiSmoke
+.\scripts\release_check.ps1 -CheckIndex -ExpectedActiveProducts 50 -Token <smoke-token> -ReadinessToken <readiness-token> -BaseUrl https://api.buywise-beta.example.com -IncludeAiSmoke
 ```
 
 ## Deploy
@@ -36,6 +36,7 @@ Closed beta command with smoke:
 - [ ] Run release preparation for the exact catalog source.
 - [ ] Deploy the backend image and Android build configured for the target base URL.
 - [ ] Confirm `/api/v1/ready` passes with the readiness token.
+- [ ] Confirm detailed readiness passes inside the backend container with `--expected-active-products 50`.
 - [ ] Confirm `/metrics` is exposed to the observability stack.
 
 Closed beta real catalog preparation:
@@ -49,7 +50,7 @@ Closed beta real catalog preparation:
 - [ ] Run closed beta smoke against the deployed base URL.
 - [ ] Check business metrics: chat latency, LLM failure rate, RAG fallback rate, RAG empty result rate, upload failure rate, order to feedback conversion, and feedback submit failure rate.
 - [ ] Check structured logs for request IDs on failed smoke or tester reports.
-- [ ] Record release notes, tag, smoke result, index health output, and rollback target.
+- [ ] Record release notes, tag, smoke result, readiness JSON, index health output, and rollback target.
 
 ## Rollback Readiness
 

@@ -89,6 +89,8 @@ fun CompareScreen(state: CompareState, onProductClick: (String) -> Unit) {
 @Composable
 fun VisionScreen(
     state: VisionState,
+    onTakePhoto: () -> Unit,
+    onPickImage: () -> Unit,
     onRunVisionDemo: () -> Unit,
     onRunSpeechDemo: () -> Unit,
     onUseQuery: () -> Unit,
@@ -106,6 +108,9 @@ fun VisionScreen(
             UploadPanel(
                 isLoading = state.isLoading,
                 hasQuery = !state.recognizedQuery.isNullOrBlank(),
+                selectedImageName = state.selectedImageName,
+                onTakePhoto = onTakePhoto,
+                onPickImage = onPickImage,
                 onRunVisionDemo = onRunVisionDemo,
                 onRunSpeechDemo = onRunSpeechDemo,
                 onUseQuery = onUseQuery,

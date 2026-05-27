@@ -7,10 +7,19 @@ class UploadRepository internal constructor(
 ) {
     @Throws(IOException::class)
     fun runVisionDemo(): VisionResult {
-        val upload = apiClient.uploadDemoFile(
+        return recognizeImage(
             filename = "buywise-demo.png",
             contentType = mediaType("image/png"),
             bytes = DEMO_PNG_BYTES,
+        )
+    }
+
+    @Throws(IOException::class)
+    fun recognizeImage(filename: String, contentType: okhttp3.MediaType, bytes: ByteArray): VisionResult {
+        val upload = apiClient.uploadFile(
+            filename = filename,
+            contentType = contentType,
+            bytes = bytes,
         )
         val response: VisionResponseDto = apiClient.post("/api/v1/vision/recognize", VisionRequestDto(upload.url))
         val category = response.category ?: "识别结果"
@@ -25,7 +34,7 @@ class UploadRepository internal constructor(
 
     @Throws(IOException::class)
     fun runSpeechDemo(): String {
-        val upload = apiClient.uploadDemoFile(
+        val upload = apiClient.uploadFile(
             filename = "buywise-demo.wav",
             contentType = mediaType("audio/wav"),
             bytes = DEMO_WAV_BYTES,

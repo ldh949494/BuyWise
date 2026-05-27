@@ -99,6 +99,7 @@ data class VisionState(
     val errorMessage: String? = null,
     val recognizedQuery: String? = null,
     val speechText: String? = null,
+    val selectedImageName: String? = null,
 )
 
 data class ProductDetailState(

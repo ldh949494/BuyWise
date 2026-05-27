@@ -135,6 +135,14 @@ docker compose -f docker-compose.prod.yml exec backend python -m app.scripts.che
 
 ## Readiness
 
+Runtime config summary:
+
+```powershell
+docker compose -f docker-compose.prod.yml exec backend python -m app.scripts.print_runtime_config_summary
+```
+
+Confirm the summary shows `app_env=prod`, `app_debug=false`, `allow_mock_providers_in_prod=false`, non-mock LLM/embedding/vision providers, the expected MySQL database, and the expected Chroma collection. The summary intentionally omits API keys, passwords, tokens, and other secrets.
+
 HTTP readiness:
 
 ```powershell
@@ -144,23 +152,32 @@ curl.exe -H "X-Readiness-Token: <readiness-token>" https://api.buywise-beta.exam
 Detailed CLI readiness:
 
 ```powershell
-docker compose -f docker-compose.prod.yml exec backend python -m app.scripts.readiness_check
+docker compose -f docker-compose.prod.yml exec backend python -m app.scripts.readiness_check --expected-active-products 50
 ```
 
-Readiness checks config, MySQL connectivity, active product count, Chroma collection access, and active product index coverage.
+Readiness checks config, MySQL connectivity, active product count, Chroma collection access, and active product index coverage. Closed beta requires exactly 50 active SKUs; the HTTP `/ready` endpoint remains the generic runtime probe and does not enforce that catalog-size gate.
+
+Save the index and readiness evidence with the release record:
+
+```powershell
+$stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+docker compose -f docker-compose.prod.yml exec backend python -m app.scripts.print_runtime_config_summary | Tee-Object ".\artifacts\runtime-config-$stamp.json"
+docker compose -f docker-compose.prod.yml exec backend python -m app.scripts.check_vector_index | Tee-Object ".\artifacts\vector-index-$stamp.json"
+docker compose -f docker-compose.prod.yml exec backend python -m app.scripts.readiness_check --expected-active-products 50 | Tee-Object ".\artifacts\readiness-$stamp.json"
+```
 
 ## Smoke Test
 
 Run the post-deploy verification entrypoint:
 
 ```powershell
-.\scripts\closed_beta_verify.ps1 -BaseUrl https://api.buywise-beta.example.com -Token <smoke-token> -ReadinessToken <readiness-token>
+.\scripts\closed_beta_verify.ps1 -BaseUrl https://api.buywise-beta.example.com -Token <smoke-token> -ReadinessToken <readiness-token> -ExpectedActiveProducts 50
 ```
 
 Include real AI provider checks when the gateway and model keys are expected to be available:
 
 ```powershell
-.\scripts\closed_beta_verify.ps1 -BaseUrl https://api.buywise-beta.example.com -Token <smoke-token> -ReadinessToken <readiness-token> -IncludeAi
+.\scripts\closed_beta_verify.ps1 -BaseUrl https://api.buywise-beta.example.com -Token <smoke-token> -ReadinessToken <readiness-token> -ExpectedActiveProducts 50 -IncludeAi
 ```
 
 The smoke subject is intentionally retained for audit. Use `external_platform=smoke` and a `smoke-*` order ref so reports can filter it out.
@@ -197,7 +214,7 @@ Then rebuild and verify Chroma:
 ```powershell
 docker compose -f docker-compose.prod.yml exec backend python -m app.scripts.build_vector_index --mode rebuild
 docker compose -f docker-compose.prod.yml exec backend python -m app.scripts.check_vector_index
-docker compose -f docker-compose.prod.yml exec backend python -m app.scripts.readiness_check
+docker compose -f docker-compose.prod.yml exec backend python -m app.scripts.readiness_check --expected-active-products 50
 ```
 
 Run smoke after restore.
@@ -223,7 +240,7 @@ Do not restore MySQL for a simple application image rollback unless data was cha
 ## Failure Checks
 
 - `401` on `/ready`: wrong or missing `READINESS_TOKEN`.
-- `503` on `/ready`: run `python -m app.scripts.readiness_check` inside backend for details.
+- `503` on `/ready`: run `python -m app.scripts.readiness_check --expected-active-products 50` inside backend for details.
 - Empty products: rerun import with `--require-real-assets`.
 - RAG returns no items: rerun `build_vector_index --mode rebuild`, then `check_vector_index`.
 - Upload provider fails: verify COS bucket, region, Tencent keys, and bucket policy.

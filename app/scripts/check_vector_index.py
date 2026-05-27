@@ -14,6 +14,8 @@ def main() -> None:
     expected_ids = sorted(known_seed_product_ids(args.profile)) if args.profile else None
     report = validate_vector_index_health(expected_product_ids=expected_ids, profile=args.profile)
     print(json.dumps(report, ensure_ascii=False, indent=2))
+    if not report["ok"]:
+        raise SystemExit(1)
 
 
 def _parse_args() -> argparse.Namespace:

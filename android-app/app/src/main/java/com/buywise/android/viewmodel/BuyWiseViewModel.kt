@@ -108,6 +108,10 @@ class BuyWiseViewModel(
         uploadViewModel.runVisionDemo()
     }
 
+    fun recognizeImage(filename: String, contentType: String, bytes: ByteArray) {
+        uploadViewModel.recognizeImage(filename, contentType, bytes)
+    }
+
     fun runSpeechDemo() {
         uploadViewModel.runSpeechDemo()
     }
