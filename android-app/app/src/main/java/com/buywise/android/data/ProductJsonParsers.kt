@@ -55,7 +55,7 @@ internal fun parseCompareItem(json: JSONObject): Product {
         price = json.optDoubleOrNull("price"),
         rating = json.optDoubleOrNull("rating"),
         recommendationScore = json.optDoubleOrNull("score"),
-        headline = pros.firstOrNull() ?: "后端已返回对比结果",
+        headline = pros.firstOrNull() ?: "已生成对比结果",
         tags = pros.ifEmpty { listOf("对比结果") },
         advantages = pros,
         cautions = cons,

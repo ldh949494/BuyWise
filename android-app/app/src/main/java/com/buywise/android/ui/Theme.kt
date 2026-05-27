@@ -14,10 +14,10 @@ object BuyWiseTheme {
 }
 
 data class AccentColors(
-    val surface: Color = Color(0xFFF4F7FA),
+    val surface: Color = Color(0xFFF6F8FC),
     val panel: Color = Color.White,
     val panelAlt: Color = Color(0xFFF8FAFC),
-    val primary: Color = Color(0xFF1D4ED8),
+    val primary: Color = Color(0xFF2563EB),
     val primarySoft: Color = Color(0xFFEFF6FF),
     val secondary: Color = Color(0xFF047857),
     val secondarySoft: Color = Color(0xFFECFDF5),
@@ -25,7 +25,7 @@ data class AccentColors(
     val accentSoft: Color = Color(0xFFFFF7ED),
     val ink: Color = Color(0xFF111827),
     val muted: Color = Color(0xFF64748B),
-    val border: Color = Color(0xFFE2E8F0),
+    val border: Color = Color(0xFFE5E7EB),
     val dangerSoft: Color = Color(0xFFFEF2F2),
     val danger: Color = Color(0xFFB91C1C),
 )

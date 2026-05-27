@@ -31,7 +31,7 @@ class GuideViewModel(
         guideStream?.cancel()
         state = state.copy(
             query = query,
-            intentSummary = "正在连接 BuyWise 后端...",
+            intentSummary = "正在理解预算、场景和偏好...",
             recommendations = emptyList(),
             partialReply = "",
             isStreaming = true,

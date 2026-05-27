@@ -35,7 +35,7 @@ class GuideRepository internal constructor(
                 }
 
                 override fun onFailure(eventSource: EventSource, t: Throwable?, response: okhttp3.Response?) {
-                    onEvent(ChatStreamEvent.Error(t?.message ?: "后端导购流连接失败"))
+                    onEvent(ChatStreamEvent.Error(t?.message ?: "导购建议生成失败"))
                 }
             },
         )
@@ -49,7 +49,7 @@ class GuideRepository internal constructor(
             "token" -> ChatStreamEvent.Token(json.optString("text"))
             "products" -> parseProductsEvent(json)
             "done" -> ChatStreamEvent.Done(json.optString("reply"))
-            "error" -> ChatStreamEvent.Error(json.optString("message", "后端导购流失败"))
+            "error" -> ChatStreamEvent.Error(json.optString("message", "导购建议生成失败"))
             else -> ChatStreamEvent.Status(type ?: "message")
         }
     }
@@ -70,7 +70,7 @@ class GuideRepository internal constructor(
             )
         }
         return ChatStreamEvent.Products(
-            intentSummary = intent.ifBlank { "后端已返回推荐商品" },
+            intentSummary = intent.ifBlank { "已生成推荐商品" },
             recommendations = recommendations,
         )
     }
