@@ -1,17 +1,18 @@
 from decimal import Decimal
 from io import BytesIO
+from datetime import datetime, timedelta
 
 from fastapi import Depends
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.core.config import settings
 from app.core.database import Base, get_db
 from app.core.dependencies import get_product_service
 from app.main import create_app
-from app.models import AdminUser, Product
+from app.models import AdminUser, Order, OrderItem, Product, Review
 from app.services.admin_auth_service import build_password_hash
 from app.services.product_service import ProductService
 
@@ -20,6 +21,11 @@ ADMIN_PASSWORD = "correct horse battery"
 
 
 def make_client():
+    client, _ = make_client_with_session_factory()
+    return client
+
+
+def make_client_with_session_factory():
     settings.admin_jwt_secret = "test-admin-secret"
     engine = create_engine(
         "sqlite:///:memory:",
@@ -48,7 +54,7 @@ def make_client():
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_product_service] = override_product_service
-    return TestClient(app)
+    return TestClient(app), testing_session_local
 
 
 def admin_headers(client: TestClient) -> dict[str, str]:
@@ -66,6 +72,7 @@ def test_admin_routes_are_registered() -> None:
 
     assert "/api/v1/admin/auth/login" in paths
     assert "/api/v1/admin/products" in paths
+    assert "/api/v1/admin/ops/summary" in paths
     assert "/api/v1/admin/upload" in paths
 
 
@@ -144,3 +151,85 @@ def test_admin_upload_uses_admin_jwt(tmp_path, monkeypatch) -> None:
 
     assert response.status_code == 200
     assert response.json()["url"].startswith("/uploads/")
+
+
+def test_admin_ops_summary_exposes_beta_operations_audit(monkeypatch) -> None:
+    client, session_factory = make_client_with_session_factory()
+    headers = admin_headers(client)
+    now = datetime.utcnow()
+    settings.auth_api_keys = "smoke:smoke-token:orders:write,feedback:write;beta-alice:alice-token:orders:read"
+    with session_factory() as db:
+        seed_ops_audit_data(db, now)
+
+    class FakeStore:
+        def indexed_product_ids(self):
+            return [1, 999]
+
+        def count(self):
+            return 2
+
+    monkeypatch.setattr("app.services.admin_ops_service.ChromaProductStore", FakeStore)
+    monkeypatch.setattr(
+        "app.services.admin_ops_service.validate_readiness",
+        lambda include_details=True: {
+            "status": "not_ready",
+            "service": "buywise-backend",
+            "checks": {"database": {"status": "ok"}, "vector_index": {"status": "failed"}},
+        },
+    )
+
+    response = client.get("/api/v1/admin/ops/summary", headers=headers)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["readiness"]["status"] == "not_ready"
+    assert payload["index_health"]["status"] == "ok"
+    assert payload["index_health"]["stale_product_ids"] == [999]
+    assert payload["catalog"]["active_products"] == 1
+    assert payload["operations"][0]["status"] == "manual"
+    assert {token["subject"] for token in payload["token_guidance"]} == {"smoke", "beta-alice"}
+    assert payload["recent_orders"][0]["external_platform"] == "jd"
+    assert payload["pending_feedback"][0]["product_name"] == "Phone Pro"
+    assert payload["recent_reviews"][0]["purchase_evidence"] == "buywise_recorded"
+
+
+def seed_ops_audit_data(db: Session, now: datetime) -> None:
+    order = Order(
+        user_ref="smoke",
+        payment_status="paid",
+        fulfillment_status="delivered",
+        external_platform="jd",
+        external_order_ref="jd-1001",
+        paid_at=now,
+        delivered_at=now,
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(order)
+    db.flush()
+    item = OrderItem(
+        order_id=order.id,
+        product_id=1,
+        quantity=1,
+        unit_price_snapshot=Decimal("1999.00"),
+        name_snapshot="Phone Pro",
+        platform_snapshot="jd",
+        product_url_snapshot="https://example.test/phone",
+        feedback_due_at=now - timedelta(hours=1),
+        created_at=now,
+    )
+    db.add(item)
+    db.flush()
+    db.add(
+        Review(
+            product_id=1,
+            order_item_id=item.id,
+            user_ref="smoke",
+            rating=Decimal("5.00"),
+            content="closed beta smoke feedback",
+            purchase_evidence="buywise_recorded",
+            status="active",
+            created_at=now,
+        )
+    )
+    db.commit()
