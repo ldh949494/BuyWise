@@ -8,6 +8,7 @@ param(
     [string]$BaseUrl = "http://127.0.0.1:8000",
     [string]$Token = "",
     [string]$ReadinessToken = "",
+    [int]$ExpectedActiveProducts = 0,
     [switch]$IncludeAiSmoke
 )
 
@@ -87,6 +88,9 @@ if ($Token -or $ReadinessToken) {
         "-ReadinessToken",
         $ReadinessToken
     )
+    if ($ExpectedActiveProducts -gt 0) {
+        $smokeArgs += @("-ExpectedActiveProducts", $ExpectedActiveProducts.ToString())
+    }
     if ($IncludeAiSmoke) {
         $smokeArgs += "-IncludeAi"
     }

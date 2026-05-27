@@ -1,8 +1,15 @@
 package com.buywise.android
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Bundle
+import android.provider.OpenableColumns
+import java.io.ByteArrayOutputStream
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,6 +31,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
@@ -42,6 +51,9 @@ import com.buywise.android.ui.screens.HomeScreen
 import com.buywise.android.ui.screens.ProductDetailScreen
 import com.buywise.android.ui.screens.VisionScreen
 import com.buywise.android.viewmodel.BuyWiseViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -76,6 +88,37 @@ private fun BuyWiseRoot(
     val showCompareBasket = currentRoute != "compare"
     val snackbarHostState = remember { SnackbarHostState() }
     val basketMessage = viewModel.compareBasketState.message
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val imagePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri == null) {
+            return@rememberLauncherForActivityResult
+        }
+        scope.launch {
+            val selectedImage = runCatching {
+                withContext(Dispatchers.IO) { context.readSelectedImage(uri) }
+            }.getOrNull()
+            if (selectedImage == null) {
+                snackbarHostState.showSnackbar("无法读取所选图片")
+            } else {
+                viewModel.recognizeImage(
+                    filename = selectedImage.filename,
+                    contentType = selectedImage.contentType,
+                    bytes = selectedImage.bytes,
+                )
+            }
+        }
+    }
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
+        if (bitmap == null) {
+            return@rememberLauncherForActivityResult
+        }
+        viewModel.recognizeImage(
+            filename = "camera-photo.png",
+            contentType = "image/png",
+            bytes = bitmap.toPngBytes(),
+        )
+    }
 
     LaunchedEffect(basketMessage) {
         if (basketMessage != null) {
@@ -161,6 +204,8 @@ private fun BuyWiseRoot(
                 composable("vision") {
                     VisionScreen(
                         state = viewModel.visionState,
+                        onTakePhoto = { cameraLauncher.launch(null) },
+                        onPickImage = { imagePickerLauncher.launch("image/*") },
                         onRunVisionDemo = viewModel::runVisionDemo,
                         onRunSpeechDemo = viewModel::runSpeechDemo,
                         onUseQuery = {
@@ -208,3 +253,25 @@ private fun BuyWiseRoot(
         }
     }
 }
+
+private data class SelectedImage(
+    val filename: String,
+    val contentType: String,
+    val bytes: ByteArray,
+)
+
+private fun Context.readSelectedImage(uri: Uri): SelectedImage? {
+    val contentType = contentResolver.getType(uri) ?: "image/jpeg"
+    val filename = contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+        val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+        if (index >= 0 && cursor.moveToFirst()) cursor.getString(index) else null
+    } ?: "selected-image.${contentType.substringAfter("/", "jpg")}"
+    val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return null
+    return SelectedImage(filename = filename, contentType = contentType, bytes = bytes)
+}
+
+private fun Bitmap.toPngBytes(): ByteArray =
+    ByteArrayOutputStream().use { output ->
+        compress(Bitmap.CompressFormat.PNG, 100, output)
+        output.toByteArray()
+    }

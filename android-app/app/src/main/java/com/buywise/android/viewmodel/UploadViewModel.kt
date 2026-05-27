@@ -21,10 +21,25 @@ class UploadViewModel(
         private set
 
     fun runVisionDemo() {
-        state = state.copy(isLoading = true, errorMessage = null)
+        state = state.copy(isLoading = true, errorMessage = null, selectedImageName = "buywise-demo.png")
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) { repository.runVisionDemo() }
+            }.onSuccess { result ->
+                state = state.copy(result = result, recognizedQuery = result.title, isLoading = false)
+            }.onFailure { throwable ->
+                state = state.copy(isLoading = false, errorMessage = throwable.userMessage("图片识别失败"))
+            }
+        }
+    }
+
+    fun recognizeImage(filename: String, contentType: String, bytes: ByteArray) {
+        state = state.copy(isLoading = true, errorMessage = null, selectedImageName = filename)
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    repository.recognizeImage(filename, com.buywise.android.data.mediaType(contentType), bytes)
+                }
             }.onSuccess { result ->
                 state = state.copy(result = result, recognizedQuery = result.title, isLoading = false)
             }.onFailure { throwable ->

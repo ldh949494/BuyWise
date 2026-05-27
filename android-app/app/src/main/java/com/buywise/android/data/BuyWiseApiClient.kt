@@ -81,7 +81,7 @@ internal class BuyWiseApiClient(
     }
 
     @Throws(IOException::class)
-    fun uploadDemoFile(filename: String, contentType: MediaType, bytes: ByteArray): UploadResult {
+    fun uploadFile(filename: String, contentType: MediaType, bytes: ByteArray): UploadResult {
         val body = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart("file", filename, bytes.toRequestBody(contentType))

@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.ImageSearch
 import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -34,6 +35,9 @@ import com.buywise.android.ui.components.SoftTag
 fun UploadPanel(
     isLoading: Boolean,
     hasQuery: Boolean,
+    selectedImageName: String?,
+    onTakePhoto: () -> Unit,
+    onPickImage: () -> Unit,
     onRunVisionDemo: () -> Unit,
     onRunSpeechDemo: () -> Unit,
     onUseQuery: () -> Unit,
@@ -52,17 +56,27 @@ fun UploadPanel(
             }
             Text("上传商品图片", style = MaterialTheme.typography.titleLarge, color = BuyWiseTheme.colors.ink)
             Text(
-                "当前使用演示资源，不申请相机和麦克风权限。",
+                selectedImageName?.let { "已选择：$it" } ?: "从相册选择商品图片，或使用演示图片快速体验。",
                 color = BuyWiseTheme.colors.muted,
                 style = MaterialTheme.typography.bodyMedium,
             )
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("上传商品图片", "识别商品类别", "提取视觉特征", "关联推荐商品").forEach { SoftTag(it) }
             }
-            FilledTonalButton(onClick = onRunVisionDemo, enabled = !isLoading) {
+            FilledTonalButton(onClick = onTakePhoto, enabled = !isLoading) {
+                Icon(Icons.Outlined.CameraAlt, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("拍照识别")
+            }
+            OutlinedButton(onClick = onPickImage, enabled = !isLoading) {
+                Icon(Icons.Outlined.PhotoLibrary, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("从相册选择并识别")
+            }
+            OutlinedButton(onClick = onRunVisionDemo, enabled = !isLoading) {
                 Icon(Icons.Outlined.ImageSearch, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("识别图片")
+                Text("使用演示图片")
             }
             OutlinedButton(onClick = onRunSpeechDemo, enabled = !isLoading) {
                 Icon(Icons.Outlined.CameraAlt, contentDescription = null)

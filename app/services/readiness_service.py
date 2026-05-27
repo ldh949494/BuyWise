@@ -17,10 +17,10 @@ from app.vectorstore.chroma_client import ChromaProductStore
 CHECK_ORDER = ("config", "database", "products", "chroma", "vector_index")
 
 
-def validate_readiness(include_details: bool = False) -> dict[str, Any]:
+def validate_readiness(include_details: bool = False, expected_active_products: int | None = None) -> dict[str, Any]:
     checks: dict[str, dict[str, Any]] = {}
     _run_config_check(checks, include_details)
-    product_ids = _run_database_checks(checks, include_details)
+    product_ids = _run_database_checks(checks, include_details, expected_active_products)
     _run_vector_checks(checks, product_ids, include_details)
     return _build_report(checks, include_details)
 
@@ -33,16 +33,28 @@ def _run_config_check(checks: dict[str, dict[str, Any]], include_details: bool) 
         checks["config"] = _failed(exc, include_details)
 
 
-def _run_database_checks(checks: dict[str, dict[str, Any]], include_details: bool) -> set[int]:
+def _run_database_checks(
+    checks: dict[str, dict[str, Any]],
+    include_details: bool,
+    expected_active_products: int | None,
+) -> set[int]:
     try:
         with SessionLocal() as db:
             db.execute(text("SELECT 1"))
             products = ProductRepository(db).get_all()
             product_ids = {product.id for product in products}
+            product_count = len(product_ids)
             checks["database"] = _ok()
-            checks["products"] = _ok({"product_count": len(product_ids)} if include_details else {})
+            details = {"product_count": product_count} if include_details else {}
+            checks["products"] = _ok(details)
             if not product_ids:
                 checks["products"] = _failed("No active products found.", include_details)
+            elif expected_active_products is not None and product_count != expected_active_products:
+                checks["products"] = _failed(
+                    f"Expected {expected_active_products} active products, found {product_count}.",
+                    include_details,
+                    details,
+                )
             return product_ids
     except SQLAlchemyError as exc:
         checks["database"] = _failed(exc, include_details)

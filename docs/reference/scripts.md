@@ -3,7 +3,7 @@
 ## 验证
 
 - `scripts/auto_validate.ps1`：仓库提交前和 CI 验证入口。它会运行文档校验、provider lint、仓库 lint、熵债校验、后端 smoke check、使用仓库内 basetemp 且禁用 cache 的 pytest，并可选择构建 Android。
-- `scripts/release_check.ps1`：发版前聚合验证入口。默认调用 `auto_validate.ps1`、Android lint 和 Android debug build；传入 `-CheckIndex` 时运行 `app.scripts.check_vector_index`，传入 `-Token` 与 `-ReadinessToken` 时运行 closed beta readiness 和 smoke。可用 `-SkipAndroidBuild`、`-SkipAndroidAnalyze` 和 `-SkipDependencyInstall` 控制本地耗时。
+- `scripts/release_check.ps1`：发版前聚合验证入口。默认调用 `auto_validate.ps1`、Android lint 和 Android debug build；传入 `-CheckIndex` 时运行 `app.scripts.check_vector_index`，传入 `-Token` 与 `-ReadinessToken` 时运行 closed beta readiness 和 smoke。可用 `-ExpectedActiveProducts <count>` 把固定目录规模门禁传给 readiness；可用 `-SkipAndroidBuild`、`-SkipAndroidAnalyze` 和 `-SkipDependencyInstall` 控制本地耗时。
 - `scripts/validate_docs.py`：校验 `AGENTS.md` 和 `docs/`。
 - `scripts/validate_providers.py`：校验后端模块是否通过统一 Provider 入口访问横切能力。
 - `scripts/validate_repo_lint.py`：自定义仓库 linter，覆盖结构化日志、命名、文件大小和导入边界。
@@ -29,7 +29,7 @@
 - `scripts/browser_check.py`：通过 Playwright/CDP 验证运行中的后端。
 - `scripts/demo_api_check.py`：验证演示备用 API 路径，依次请求 health、商品列表、商品对比和 AI 导购，并确认固定演示问题首推 demo 键盘。
 - `scripts/closed_beta_smoke.py`：closed beta HTTP smoke。依次检查 health、ready、商品列表、RAG search、外部购买记录、待评价和提交评价；使用 `--include-ai` 时额外验证真实导购返回商品且未降级。
-- `scripts/closed_beta_verify.ps1`：发布后验证薄入口。先运行 `app.scripts.readiness_check`，再运行 `scripts/closed_beta_smoke.py`；可用 `-IncludeAi` 打开真实 AI 检查。
+- `scripts/closed_beta_verify.ps1`：发布后验证薄入口。先打印非敏感 runtime config summary，再运行 `app.scripts.readiness_check` 和 `scripts/closed_beta_smoke.py`；可用 `-ExpectedActiveProducts <count>` 检查 active 商品数，可用 `-IncludeAi` 打开真实 AI 检查。
 
 ## 数据与维护
 
@@ -42,8 +42,9 @@
 - 推荐演示问题：`帮我推荐一个300以内适合宿舍写代码的低噪音无线机械键盘，最好性价比高`。demo profile 下该问题应首推 `Campus75 三模静音机械键盘`。
 - `scripts/set_utf8.ps1`：将 PowerShell 和 Python 进程编码设置为 UTF-8。如果终端查看 seed 数据时出现乱码，先点加载它：`. .\scripts\set_utf8.ps1`。
 - `app.scripts.build_vector_index`：重建或增量 upsert 持久化 ChromaDB 商品索引。`--mode rebuild` 会重置完整 collection，`--mode upsert` 会全量 upsert 但不重置，`--mode upsert --product-id <id>` 只更新指定商品。
-- `app.scripts.check_vector_index`：输出商品向量索引健康 JSON，包括 collection count、DB 商品数、缺失索引 ID 和陈旧索引 ID。可传入 `--profile android-contract` 或 `--profile demo` 校验固定 seed 商品 ID。
-- `app.scripts.readiness_check`：输出详细 readiness JSON 并在失败时返回非 0 exit code。检查 prod 配置、MySQL、商品数量、Chroma collection 和 active 商品索引覆盖。
+- `app.scripts.check_vector_index`：输出商品向量索引健康 JSON，包括 collection count、DB 商品数、缺失索引 ID 和陈旧索引 ID。可传入 `--profile android-contract` 或 `--profile demo` 校验固定 seed 商品 ID；索引缺失或陈旧时返回非 0 exit code。
+- `app.scripts.readiness_check`：输出详细 readiness JSON 并在失败时返回非 0 exit code。检查 prod 配置、MySQL、商品数量、Chroma collection 和 active 商品索引覆盖。可传入 `--expected-active-products <count>`，用于 closed beta 等固定目录规模发布门禁。
+- `app.scripts.print_runtime_config_summary`：输出非敏感运行配置摘要，用于确认实际加载的环境、provider、MySQL 和 Chroma 配置；不会打印 API key、密码或 token。
 - `app.scripts.cleanup_uploads`：清理本地 `UPLOAD_DIR` 下超过 TTL 的上传文件。示例：`python -m app.scripts.cleanup_uploads --max-age-hours 24 --dry-run`。仅清理允许扩展名的普通文件；COS 上传的生命周期应在 bucket 上配置。
 - `app.scripts.evaluate_rag`：运行小型 RAG 购物需求评测集，并输出 `recall@k`、`top1_accuracy`、`mrr@k`、失败案例和 case-level diagnostics。使用 `python -m app.scripts.evaluate_rag`；传入 `--profile android-contract|demo|beta-fixture` 可选择 Android 合同、演示或 beta fixture 评测集，传入 `--retrieval fallback|vector` 可选择数据库 fallback 或临时重建 Chroma 向量索引，传入 `--output-json <path>` 可保存报告。
 - `scripts/init_db.py`：数据库初始化辅助脚本，执行 Alembic 迁移。
