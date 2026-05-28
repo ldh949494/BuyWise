@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -58,6 +59,7 @@ import com.buywise.android.ui.fitLevel
 import com.buywise.android.ui.noiseLevel
 import com.buywise.android.ui.shortName
 import com.buywise.android.ui.components.ProductCard
+import com.buywise.android.ui.components.ProductImagePreview
 import com.buywise.android.ui.components.SectionTitle
 import com.buywise.android.ui.components.SoftTag
 
@@ -79,7 +81,7 @@ fun CompareScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    SectionTitle("商品对比", "先给结论，再看价格、评分和场景适配。")
+                    SectionTitle("商品对比", "对已选商品进行价格、评分、优点与注意事项分析。")
                 }
                 OutlinedButton(onClick = onRefresh, enabled = !state.isLoading) {
                     Icon(Icons.Outlined.Refresh, contentDescription = null)
@@ -93,6 +95,9 @@ fun CompareScreen(
         }
         state.errorMessage?.let { message ->
             item { ErrorPanel(message = message, actionLabel = "刷新", onAction = onRefresh) }
+        }
+        if (state.products.isNotEmpty()) {
+            item { CompareCandidateStrip(products = state.products, onProductClick = onProductClick) }
         }
         item { CompareDecisionCard(state = state) }
         item { CompareTable(rows = state.rows, products = state.products) }
@@ -123,7 +128,7 @@ fun VisionScreen(
         contentPadding = PaddingValues(18.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item { SectionTitle("图片识别导购", "上传图片，找到同类商品或平替。") }
+        item { SectionTitle("多模态联调", "使用图片、识图和语音能力完成后端联调，并将识别结果带入导购。") }
         item {
             UploadPanel(
                 isLoading = state.isLoading,
@@ -145,7 +150,7 @@ fun VisionScreen(
         item {
             InfoPanel(
                 icon = { Icon(Icons.Outlined.Inventory2, contentDescription = null) },
-                title = "识别结果",
+                title = "后端多模态联调",
                 body = state.result.displayVisionSummary(state.recognizedQuery),
             )
         }
@@ -158,7 +163,7 @@ fun VisionScreen(
                 )
             }
         }
-        item { SectionTitle("识别关联商品", "根据识别结果继续推荐。") }
+        item { SectionTitle("识别关联商品", "可将识别 query 带入导购继续推荐。") }
         if (state.result.similarProducts.isEmpty()) {
             item { Text("识别图片后，会展示同类候选商品。", color = BuyWiseTheme.colors.muted) }
         }
@@ -169,6 +174,40 @@ fun VisionScreen(
                 isInCompareBasket = isInCompareBasket(product.id),
                 onToggleCompare = { onToggleCompare(product) },
             )
+        }
+    }
+}
+
+@Composable
+private fun CompareCandidateStrip(products: List<Product>, onProductClick: (String) -> Unit) {
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        items(products) { product ->
+            Card(
+                colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
+                shape = RoundedCornerShape(16.dp),
+                border = CardDefaults.outlinedCardBorder(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                modifier = Modifier.width(190.dp),
+                onClick = { onProductClick(product.id) },
+            ) {
+                Row(
+                    modifier = Modifier.padding(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ProductImagePreview(product = product, modifier = Modifier.size(54.dp))
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            product.shortName(),
+                            color = BuyWiseTheme.colors.ink,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(product.price.displayPrice(), color = BuyWiseTheme.colors.primary, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
         }
     }
 }

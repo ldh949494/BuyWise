@@ -57,18 +57,23 @@ fun CompareDecisionCard(state: CompareState) {
         border = CardDefaults.outlinedCardBorder(),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Outlined.EmojiEvents, contentDescription = null, tint = BuyWiseTheme.colors.accent)
                 Text("AI 对比结论", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
             }
-            Text("AI 对比结论", color = BuyWiseTheme.colors.primary, fontWeight = FontWeight.Bold)
+            Text(
+                state.summary ?: "BuyWise 会综合价格、评分、噪音表现、连接方式和适合场景，给出更适合当前需求的商品。",
+                color = BuyWiseTheme.colors.muted,
+                style = MaterialTheme.typography.bodyMedium,
+            )
             winner?.let {
-                Surface(color = BuyWiseTheme.colors.secondarySoft, shape = RoundedCornerShape(14.dp)) {
-                    Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("优先推荐 ${it.name}", color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold)
+                Surface(color = BuyWiseTheme.colors.secondarySoft, shape = RoundedCornerShape(16.dp)) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("优先推荐", color = BuyWiseTheme.colors.secondary, fontWeight = FontWeight.Bold)
+                        Text(it.name, color = BuyWiseTheme.colors.ink, style = MaterialTheme.typography.titleMedium)
                         Text(
-                            "原因：价格、评分和宿舍静音场景匹配度更高。",
+                            "推荐指数 ${it.displayMatchPercent()}，性价比高，综合表现最均衡。",
                             color = BuyWiseTheme.colors.muted,
                             style = MaterialTheme.typography.bodyMedium,
                             maxLines = 2,
@@ -77,10 +82,7 @@ fun CompareDecisionCard(state: CompareState) {
                     }
                 }
                 CompareSummaryChips(products = state.products, winner = it)
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Button(onClick = { showReason = false }) { Text("选择这款") }
-                    FilledTonalButton(onClick = { showReason = !showReason }) { Text("生成购买理由") }
-                }
+                FilledTonalButton(onClick = { showReason = !showReason }, modifier = Modifier.fillMaxWidth()) { Text("生成购买理由") }
                 if (showReason) {
                     Text(
                         "购买理由：${it.name} 的价格为 ${it.price.displayPrice()}，AI 匹配度 ${it.displayMatchPercent()}，更贴近当前预算和使用场景。",
@@ -115,7 +117,7 @@ fun CompareTable(rows: List<CompareRow>, products: List<Product>) {
         border = CardDefaults.outlinedCardBorder(),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.AutoMirrored.Outlined.CompareArrows, contentDescription = null, tint = BuyWiseTheme.colors.primary)
                 Text("对比维度", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
