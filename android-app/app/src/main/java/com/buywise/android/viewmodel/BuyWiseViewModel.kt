@@ -103,8 +103,20 @@ class BuyWiseViewModel(
         guideViewModel.updateQuery(query)
     }
 
+    fun updateGuideChatDraft(draft: String) {
+        guideViewModel.updateChatDraft(draft)
+    }
+
+    fun prepareGuideChatDraft() {
+        guideViewModel.prepareChatDraft()
+    }
+
     fun submitGuideQuery() {
         guideViewModel.submitQuery()
+    }
+
+    fun sendGuideChatMessage() {
+        guideViewModel.sendChatMessage()
     }
 
     fun runVisionDemo() {
