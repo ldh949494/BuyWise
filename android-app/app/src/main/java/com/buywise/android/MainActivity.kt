@@ -240,7 +240,7 @@ private fun BuyWiseRoot(
                     },
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(18.dp),
+                        .padding(end = 18.dp, bottom = 88.dp),
                 )
             }
         }

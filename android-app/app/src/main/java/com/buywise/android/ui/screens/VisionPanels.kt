@@ -1,8 +1,10 @@
 package com.buywise.android.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -14,8 +16,10 @@ import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.ImageSearch
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -44,49 +48,75 @@ fun UploadPanel(
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
-        shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
+        shape = RoundedCornerShape(BuyWiseDimens.HeroRadius.dp),
         border = CardDefaults.outlinedCardBorder(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Surface(color = BuyWiseTheme.colors.accentSoft, shape = RoundedCornerShape(14.dp), modifier = Modifier.size(56.dp)) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                    Icon(Icons.Outlined.CameraAlt, contentDescription = null, tint = BuyWiseTheme.colors.accent)
+        Column(modifier = Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Surface(color = BuyWiseTheme.colors.accentSoft, shape = RoundedCornerShape(14.dp), modifier = Modifier.size(56.dp)) {
+                    Icon(Icons.Outlined.CameraAlt, contentDescription = null, tint = BuyWiseTheme.colors.accent, modifier = Modifier.padding(14.dp))
+                }
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("上传商品图片", style = MaterialTheme.typography.titleLarge, color = BuyWiseTheme.colors.ink)
+                    Text(
+                        selectedImageName?.let { "已选择：$it" } ?: "图片和音频使用内置演示资源，不申请相机或麦克风权限。",
+                        color = BuyWiseTheme.colors.muted,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
             }
-            Text("上传商品图片", style = MaterialTheme.typography.titleLarge, color = BuyWiseTheme.colors.ink)
-            Text(
-                selectedImageName?.let { "已选择：$it" } ?: "从相册选择商品图片，或使用演示图片快速体验。",
-                color = BuyWiseTheme.colors.muted,
-                style = MaterialTheme.typography.bodyMedium,
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxWidth()) {
+                Surface(
+                    color = BuyWiseTheme.colors.panelAlt,
+                    shape = RoundedCornerShape(16.dp),
+                    border = CardDefaults.outlinedCardBorder(),
+                    modifier = Modifier.size(width = 150.dp, height = 150.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Outlined.ImageSearch, contentDescription = null, tint = BuyWiseTheme.colors.primary, modifier = Modifier.size(42.dp))
+                    }
+                }
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Button(onClick = onRunVisionDemo, enabled = !isLoading, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Outlined.ImageSearch, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("运行识图联调")
+                    }
+                    OutlinedButton(onClick = onRunSpeechDemo, enabled = !isLoading, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Outlined.CameraAlt, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("运行语音联调")
+                    }
+                    FilledTonalButton(onClick = onUseQuery, enabled = hasQuery && !isLoading, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Outlined.Inventory2, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("带入导购")
+                    }
+                }
+            }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("上传商品图片", "识别商品类别", "提取视觉特征", "关联推荐商品").forEach { SoftTag(it) }
+                SoftTag("机械键盘")
+                SoftTag("白色")
+                SoftTag("紧凑布局")
+                SoftTag("低噪音")
             }
-            FilledTonalButton(onClick = onTakePhoto, enabled = !isLoading) {
-                Icon(Icons.Outlined.CameraAlt, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("拍照识别")
-            }
-            OutlinedButton(onClick = onPickImage, enabled = !isLoading) {
-                Icon(Icons.Outlined.PhotoLibrary, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("从相册选择并识别")
-            }
-            OutlinedButton(onClick = onRunVisionDemo, enabled = !isLoading) {
-                Icon(Icons.Outlined.ImageSearch, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("使用演示图片")
-            }
-            OutlinedButton(onClick = onRunSpeechDemo, enabled = !isLoading) {
-                Icon(Icons.Outlined.CameraAlt, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("语音描述需求")
-            }
-            OutlinedButton(onClick = onUseQuery, enabled = hasQuery && !isLoading) {
-                Icon(Icons.Outlined.Inventory2, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("生成导购建议")
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedButton(onClick = onPickImage, enabled = !isLoading, modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Outlined.PhotoLibrary, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("相册")
+                }
+                OutlinedButton(onClick = onTakePhoto, enabled = !isLoading, modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Outlined.CameraAlt, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("拍照")
+                }
+                OutlinedButton(onClick = onRunVisionDemo, enabled = !isLoading, modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Outlined.Refresh, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("重识别")
+                }
             }
         }
     }
