@@ -35,6 +35,38 @@ class GuideViewModel(
         state = state.copy(chatDraft = draft)
     }
 
+    fun appendChatDraft(text: String, sourceLabel: String) {
+        val normalized = text.trim().replace(Regex("""\s+"""), " ")
+        if (normalized.isBlank()) {
+            return
+        }
+        val nextDraft = listOf(state.chatDraft.trim(), normalized)
+            .filter { it.isNotBlank() }
+            .joinToString(" ")
+        val systemMessage = GuideChatMessage(
+            id = newMessageId(),
+            role = GuideChatRole.SYSTEM,
+            text = "已识别$sourceLabel：$normalized，已填入输入框。",
+        )
+        state = state.copy(
+            chatDraft = nextDraft,
+            chatMessages = state.chatMessages + systemMessage,
+        )
+    }
+
+    fun addChatSystemMessage(text: String) {
+        if (text.isBlank()) {
+            return
+        }
+        state = state.copy(
+            chatMessages = state.chatMessages + GuideChatMessage(
+                id = newMessageId(),
+                role = GuideChatRole.SYSTEM,
+                text = text,
+            ),
+        )
+    }
+
     fun prepareChatDraft() {
         if (state.chatDraft.isBlank() && state.query.isNotBlank()) {
             state = state.copy(chatDraft = state.query)

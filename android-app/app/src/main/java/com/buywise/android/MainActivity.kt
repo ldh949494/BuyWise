@@ -1,11 +1,7 @@
 package com.buywise.android
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.net.Uri
 import android.os.Bundle
-import android.provider.OpenableColumns
-import java.io.ByteArrayOutputStream
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -30,8 +26,11 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
@@ -91,22 +90,25 @@ private fun BuyWiseRoot(
     val basketMessage = viewModel.compareBasketState.message
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var multimodalTarget by remember { mutableStateOf(MultimodalTarget.VisionTab) }
     val imagePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri == null) {
             return@rememberLauncherForActivityResult
         }
         scope.launch {
-            val selectedImage = runCatching {
-                withContext(Dispatchers.IO) { context.readSelectedImage(uri) }
-            }.getOrNull()
+            val selectedImage = runCatching { withContext(Dispatchers.IO) { context.readSelectedImage(uri) } }.getOrNull()
             if (selectedImage == null) {
                 snackbarHostState.showSnackbar("无法读取所选图片")
             } else {
-                viewModel.recognizeImage(
-                    filename = selectedImage.filename,
-                    contentType = selectedImage.contentType,
-                    bytes = selectedImage.bytes,
-                )
+                if (multimodalTarget == MultimodalTarget.GuideChat) {
+                    viewModel.recognizeImageForGuideChat(
+                        filename = selectedImage.filename,
+                        contentType = selectedImage.contentType, bytes = selectedImage.bytes)
+                } else {
+                    viewModel.recognizeImage(
+                        filename = selectedImage.filename,
+                        contentType = selectedImage.contentType, bytes = selectedImage.bytes)
+                }
             }
         }
     }
@@ -114,11 +116,13 @@ private fun BuyWiseRoot(
         if (bitmap == null) {
             return@rememberLauncherForActivityResult
         }
-        viewModel.recognizeImage(
-            filename = "camera-photo.png",
-            contentType = "image/png",
-            bytes = bitmap.toPngBytes(),
-        )
+        if (multimodalTarget == MultimodalTarget.GuideChat) {
+            viewModel.recognizeImageForGuideChat(
+                filename = "camera-photo.png", contentType = "image/png", bytes = bitmap.toPngBytes())
+        } else {
+            viewModel.recognizeImage(
+                filename = "camera-photo.png", contentType = "image/png", bytes = bitmap.toPngBytes())
+        }
     }
 
     LaunchedEffect(basketMessage) {
@@ -200,6 +204,16 @@ private fun BuyWiseRoot(
                         onBack = navController::popBackStack,
                         onDraftChange = viewModel::updateGuideChatDraft,
                         onSend = viewModel::sendGuideChatMessage,
+                        onPickImage = {
+                            multimodalTarget = MultimodalTarget.GuideChat
+                            imagePickerLauncher.launch("image/*")
+                        },
+                        onTakePhoto = {
+                            multimodalTarget = MultimodalTarget.GuideChat
+                            cameraLauncher.launch(null)
+                        },
+                        onRunVisionDemo = viewModel::runVisionDemoForGuideChat,
+                        onRunSpeechDemo = viewModel::runSpeechDemoForGuideChat,
                         onProductClick = { navController.navigate("detail/$it") },
                     )
                 }
@@ -213,8 +227,14 @@ private fun BuyWiseRoot(
                 composable("vision") {
                     VisionScreen(
                         state = viewModel.visionState,
-                        onTakePhoto = { cameraLauncher.launch(null) },
-                        onPickImage = { imagePickerLauncher.launch("image/*") },
+                        onTakePhoto = {
+                            multimodalTarget = MultimodalTarget.VisionTab
+                            cameraLauncher.launch(null)
+                        },
+                        onPickImage = {
+                            multimodalTarget = MultimodalTarget.VisionTab
+                            imagePickerLauncher.launch("image/*")
+                        },
                         onRunVisionDemo = viewModel::runVisionDemo,
                         onRunSpeechDemo = viewModel::runSpeechDemo,
                         onUseQuery = {
@@ -270,25 +290,3 @@ private fun NavHostController.navigateTopLevel(route: String) {
         restoreState = true
     }
 }
-
-private data class SelectedImage(
-    val filename: String,
-    val contentType: String,
-    val bytes: ByteArray,
-)
-
-private fun Context.readSelectedImage(uri: Uri): SelectedImage? {
-    val contentType = contentResolver.getType(uri) ?: "image/jpeg"
-    val filename = contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
-        val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-        if (index >= 0 && cursor.moveToFirst()) cursor.getString(index) else null
-    } ?: "selected-image.${contentType.substringAfter("/", "jpg")}"
-    val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return null
-    return SelectedImage(filename = filename, contentType = contentType, bytes = bytes)
-}
-
-private fun Bitmap.toPngBytes(): ByteArray =
-    ByteArrayOutputStream().use { output ->
-        compress(Bitmap.CompressFormat.PNG, 100, output)
-        output.toByteArray()
-    }

@@ -20,20 +20,32 @@ class UploadViewModel(
     var state by mutableStateOf(initialState)
         private set
 
-    fun runVisionDemo() {
+    fun runVisionDemo(
+        onRecognized: ((VisionResult) -> Unit)? = null,
+        onError: ((String) -> Unit)? = null,
+    ) {
         state = state.copy(isLoading = true, errorMessage = null, selectedImageName = "buywise-demo.png")
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) { repository.runVisionDemo() }
             }.onSuccess { result ->
                 state = state.copy(result = result, recognizedQuery = result.title, isLoading = false)
+                onRecognized?.invoke(result)
             }.onFailure { throwable ->
-                state = state.copy(isLoading = false, errorMessage = throwable.userMessage("图片识别失败"))
+                val message = throwable.userMessage("图片识别失败")
+                state = state.copy(isLoading = false, errorMessage = message)
+                onError?.invoke(message)
             }
         }
     }
 
-    fun recognizeImage(filename: String, contentType: String, bytes: ByteArray) {
+    fun recognizeImage(
+        filename: String,
+        contentType: String,
+        bytes: ByteArray,
+        onRecognized: ((VisionResult) -> Unit)? = null,
+        onError: ((String) -> Unit)? = null,
+    ) {
         state = state.copy(isLoading = true, errorMessage = null, selectedImageName = filename)
         viewModelScope.launch {
             runCatching {
@@ -42,21 +54,30 @@ class UploadViewModel(
                 }
             }.onSuccess { result ->
                 state = state.copy(result = result, recognizedQuery = result.title, isLoading = false)
+                onRecognized?.invoke(result)
             }.onFailure { throwable ->
-                state = state.copy(isLoading = false, errorMessage = throwable.userMessage("图片识别失败"))
+                val message = throwable.userMessage("图片识别失败")
+                state = state.copy(isLoading = false, errorMessage = message)
+                onError?.invoke(message)
             }
         }
     }
 
-    fun runSpeechDemo() {
+    fun runSpeechDemo(
+        onRecognized: ((String) -> Unit)? = null,
+        onError: ((String) -> Unit)? = null,
+    ) {
         state = state.copy(isLoading = true, errorMessage = null)
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) { repository.runSpeechDemo() }
             }.onSuccess { text ->
                 state = state.copy(speechText = text, recognizedQuery = text, isLoading = false)
+                onRecognized?.invoke(text)
             }.onFailure { throwable ->
-                state = state.copy(isLoading = false, errorMessage = throwable.userMessage("语音识别失败"))
+                val message = throwable.userMessage("语音识别失败")
+                state = state.copy(isLoading = false, errorMessage = message)
+                onError?.invoke(message)
             }
         }
     }

@@ -22,16 +22,26 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.CameraAlt
+import androidx.compose.material.icons.outlined.ImageSearch
+import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -41,9 +51,7 @@ import androidx.compose.ui.unit.dp
 import com.buywise.android.data.GuideChatMessage
 import com.buywise.android.data.GuideChatRole
 import com.buywise.android.data.GuideState
-import com.buywise.android.data.Product
 import com.buywise.android.data.Recommendation
-import com.buywise.android.ui.BuyWiseDimens
 import com.buywise.android.ui.BuyWiseTheme
 import com.buywise.android.ui.components.ProductImagePreview
 import com.buywise.android.ui.displayPrice
@@ -55,6 +63,10 @@ fun GuideChatScreen(
     onBack: () -> Unit,
     onDraftChange: (String) -> Unit,
     onSend: () -> Unit,
+    onPickImage: () -> Unit,
+    onTakePhoto: () -> Unit,
+    onRunVisionDemo: () -> Unit,
+    onRunSpeechDemo: () -> Unit,
     onProductClick: (String) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
@@ -77,6 +89,10 @@ fun GuideChatScreen(
             isStreaming = state.isStreaming,
             onDraftChange = onDraftChange,
             onSend = onSend,
+            onPickImage = onPickImage,
+            onTakePhoto = onTakePhoto,
+            onRunVisionDemo = onRunVisionDemo,
+            onRunSpeechDemo = onRunSpeechDemo,
         )
     }
 }
@@ -120,6 +136,17 @@ private fun ChatMessageRow(message: GuideChatMessage, onProductClick: (String) -
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp).fillMaxWidth(0.78f),
                     color = Color.White,
                     style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+    } else if (message.role == GuideChatRole.SYSTEM) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+            Surface(color = BuyWiseTheme.colors.primarySoft, shape = RoundedCornerShape(999.dp)) {
+                Text(
+                    message.text,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                    color = BuyWiseTheme.colors.primary,
+                    style = MaterialTheme.typography.labelMedium,
                 )
             }
         }
@@ -187,13 +214,52 @@ private fun GuideChatInputBar(
     isStreaming: Boolean,
     onDraftChange: (String) -> Unit,
     onSend: () -> Unit,
+    onPickImage: () -> Unit,
+    onTakePhoto: () -> Unit,
+    onRunVisionDemo: () -> Unit,
+    onRunSpeechDemo: () -> Unit,
 ) {
+    var imageMenuExpanded by remember { mutableStateOf(false) }
     Surface(color = BuyWiseTheme.colors.panel, shadowElevation = 8.dp) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Box {
+                IconButton(onClick = { imageMenuExpanded = true }, enabled = !isStreaming) {
+                    Icon(Icons.Outlined.ImageSearch, contentDescription = "图片识别", tint = BuyWiseTheme.colors.primary)
+                }
+                DropdownMenu(expanded = imageMenuExpanded, onDismissRequest = { imageMenuExpanded = false }) {
+                    DropdownMenuItem(
+                        text = { Text("相册识图") },
+                        leadingIcon = { Icon(Icons.Outlined.PhotoLibrary, contentDescription = null) },
+                        onClick = {
+                            imageMenuExpanded = false
+                            onPickImage()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("拍照识图") },
+                        leadingIcon = { Icon(Icons.Outlined.CameraAlt, contentDescription = null) },
+                        onClick = {
+                            imageMenuExpanded = false
+                            onTakePhoto()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("演示识图") },
+                        leadingIcon = { Icon(Icons.Outlined.AutoAwesome, contentDescription = null) },
+                        onClick = {
+                            imageMenuExpanded = false
+                            onRunVisionDemo()
+                        },
+                    )
+                }
+            }
+            IconButton(onClick = onRunSpeechDemo, enabled = !isStreaming) {
+                Icon(Icons.Outlined.Mic, contentDescription = "演示语音识别", tint = BuyWiseTheme.colors.primary)
+            }
             OutlinedTextField(
                 value = draft,
                 onValueChange = onDraftChange,
