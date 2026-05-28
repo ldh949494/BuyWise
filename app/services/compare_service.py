@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.ai.llm_client import LLMClient
 from app.core.concurrency import run_blocking_io
+from app.core.providers import get_logging_provider
 from app.repositories.price_repo import PriceHistoryRepository
 from app.repositories.product_repo import ProductRepository
 from app.repositories.review_repo import ReviewRepository
@@ -30,9 +31,27 @@ class CompareService:
         db: Session,
     ) -> CompareResponse:
         items = await run_blocking_io(self._build_items, product_ids, user_need or "", db)
-        summary = await self.llm_client.generate_compare_summary(user_need or "", items)
+        summary = await self._generate_summary(user_need or "", items)
         winner_id = items[0].product_id if items else None
         return CompareResponse(items=items, summary=summary, winner_id=winner_id)
+
+    async def _generate_summary(self, user_need: str, items: list[CompareItem]) -> str:
+        try:
+            return await self.llm_client.generate_compare_summary(user_need, items)
+        except Exception:
+            get_logging_provider().get_logger("app.compare").error(
+                "Compare summary generation failed; using fallback summary",
+                exc_info=True,
+                extra={"item_count": len(items)},
+            )
+            return self._fallback_summary(items)
+
+    def _fallback_summary(self, items: list[CompareItem]) -> str:
+        if not items:
+            return "暂无可对比商品。"
+        winner = items[0]
+        signals = winner.pros[:2] or ["综合表现更均衡"]
+        return f"优先推荐 {winner.name}，主要依据是{'、'.join(signals)}。"
 
     def _build_items(
         self,

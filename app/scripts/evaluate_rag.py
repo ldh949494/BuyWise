@@ -175,7 +175,7 @@ def _structured_need(case: RagEvalCase) -> StructuredNeed:
 
 def _build_pipeline(retrieval: str, session_factory: Any | None, profile: str) -> RAGPipeline:
     if retrieval == "fallback":
-        return RAGPipeline(product_store=EmptyProductStore())
+        return build_rag_pipeline(product_store=EmptyProductStore())
     if retrieval != "vector":
         raise ValueError("retrieval must be 'fallback' or 'vector'.")
     if session_factory is None:
@@ -251,11 +251,17 @@ def _format_report(report: dict[str, Any]) -> str:
     lines.extend(f"{name}: {value:.4f}" for name, value in metrics.items())
     lines.append(f"failures: {len(report['failures'])}")
     for failure in report["failures"][:10]:
+        diagnostics = failure.get("diagnostics") or {}
         lines.append(
             "- "
             f"{failure['id']}: expected={failure['expected_product_ids']} "
             f"retrieved={failure['retrieved_product_ids']} "
-            f"top1={failure['top1_match']}"
+            f"top1={failure['top1_match']} "
+            f"source={diagnostics.get('source')} "
+            f"fallback={diagnostics.get('fallback_stage')} "
+            f"candidates={diagnostics.get('candidate_ids')} "
+            f"final={diagnostics.get('final_ids')} "
+            f"filters={diagnostics.get('filter_reasons')}"
         )
     return "\n".join(lines)
 

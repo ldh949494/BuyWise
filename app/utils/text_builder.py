@@ -24,7 +24,6 @@ def _product_fields(product: Any) -> list[tuple[str, Any]]:
         ("品牌", _get_value(product, "brand")),
         ("SKU", _get_value(product, "sku")),
         ("平台", _get_value(product, "platform")),
-        ("平台链接", _get_value(product, "product_url")),
         ("价格", _get_value(product, "price")),
         ("原价", _get_value(product, "original_price")),
         ("库存", _get_value(product, "stock")),
@@ -36,8 +35,6 @@ def _product_fields(product: Any) -> list[tuple[str, Any]]:
         ("商品标签", _get_value(product, "tags")),
         ("适合场景", _get_value(product, "suitable_scene")),
         ("评论摘要", _get_value(product, "review_summary")),
-        ("商品主图", _get_value(product, "image_url")),
-        ("商品图片", _get_value(product, "image_urls")),
     ]
 
 

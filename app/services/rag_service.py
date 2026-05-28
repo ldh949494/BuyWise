@@ -115,7 +115,15 @@ class RagService:
         }
 
     def _search_vector_store(self, request: RagSearchRequest) -> list[RagItem]:
-        results = self.product_store.search(request.query, top_k=request.top_k)
+        try:
+            results = self.product_store.search(request.query, top_k=request.top_k)
+        except Exception:
+            logger.error(
+                "RAG vector search failed; falling back to database search",
+                exc_info=True,
+                extra={"top_k": request.top_k},
+            )
+            return []
         items = []
         for result in results:
             metadata = result.get("metadata", {})

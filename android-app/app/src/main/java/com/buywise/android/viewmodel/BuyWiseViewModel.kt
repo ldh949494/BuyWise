@@ -37,13 +37,16 @@ class BuyWiseViewModel(
 
     fun loadHomeProducts() {
         homeViewModel.loadProducts { products ->
-            loadCompare(products.take(3).map { it.id })
             refreshFeedbackPrompts()
         }
     }
 
     fun loadCompare(productIds: List<String>, userNeed: String? = null) {
         compareViewModel.loadCompare(productIds, userNeed)
+    }
+
+    fun refreshCompare() {
+        compareViewModel.refresh()
     }
 
     fun toggleCompareBasket(product: Product, userNeed: String? = null) {

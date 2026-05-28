@@ -82,7 +82,15 @@ class RAGPipeline:
 
     def _search_vector_store(self, need: Any, top_k: int) -> list[dict]:
         query = build_query_from_need(need)
-        return self.product_store.search(query, top_k=top_k)
+        try:
+            return self.product_store.search(query, top_k=top_k)
+        except Exception:
+            logger.error(
+                "RAG pipeline vector search failed; falling back to database candidates",
+                exc_info=True,
+                extra={"top_k": top_k},
+            )
+            return []
 
     def _build_candidates(
         self,

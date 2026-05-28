@@ -46,7 +46,7 @@
 - `app.scripts.readiness_check`：输出详细 readiness JSON 并在失败时返回非 0 exit code。检查 prod 配置、MySQL、商品数量、Chroma collection 和 active 商品索引覆盖。可传入 `--expected-active-products <count>`，用于 closed beta 等固定目录规模发布门禁。
 - `app.scripts.print_runtime_config_summary`：输出非敏感运行配置摘要，用于确认实际加载的环境、provider、MySQL 和 Chroma 配置；不会打印 API key、密码或 token。
 - `app.scripts.cleanup_uploads`：清理本地 `UPLOAD_DIR` 下超过 TTL 的上传文件。示例：`python -m app.scripts.cleanup_uploads --max-age-hours 24 --dry-run`。仅清理允许扩展名的普通文件；COS 上传的生命周期应在 bucket 上配置。
-- `app.scripts.evaluate_rag`：运行小型 RAG 购物需求评测集，并输出 `recall@k`、`top1_accuracy`、`mrr@k`、失败案例和 case-level diagnostics。使用 `python -m app.scripts.evaluate_rag`；传入 `--profile android-contract|demo|beta-fixture` 可选择 Android 合同、演示或 beta fixture 评测集，传入 `--retrieval fallback|vector` 可选择数据库 fallback 或临时重建 Chroma 向量索引，传入 `--output-json <path>` 可保存报告。
+- `app.scripts.evaluate_rag`：运行小型 RAG 购物需求评测集，并输出 `recall@k`、`top1_accuracy`、`mrr@k`、失败案例和 case-level diagnostics。使用 `python -m app.scripts.evaluate_rag`；传入 `--profile android-contract|demo|beta-fixture` 可选择 Android 合同、演示或 beta fixture 评测集，传入 `--retrieval fallback|vector` 可选择数据库 fallback 或临时重建 Chroma 向量索引。fallback 评测使用生产 RAG pipeline 的二阶段 rerank 装配；失败行会打印 source、fallback stage、candidate IDs、final IDs 和 filter reasons，传入 `--output-json <path>` 可保存完整报告。
 - `scripts/init_db.py`：数据库初始化辅助脚本，执行 Alembic 迁移。
 - `scripts/ai_update_readme.py`：GitHub Actions 使用的 AI 辅助 README 更新脚本。
 - `scripts/doc_gardening.py`：AI 辅助仓库记忆维护报告。默认只写报告；使用 `--apply` 时才会编辑 `AGENTS.md`、README 或 `docs/`。
