@@ -107,6 +107,14 @@ class BuyWiseViewModel(
         guideViewModel.updateChatDraft(draft)
     }
 
+    fun appendGuideChatDraft(text: String, sourceLabel: String) {
+        guideViewModel.appendChatDraft(text, sourceLabel)
+    }
+
+    fun addGuideChatSystemMessage(text: String) {
+        guideViewModel.addChatSystemMessage(text)
+    }
+
     fun prepareGuideChatDraft() {
         guideViewModel.prepareChatDraft()
     }
@@ -123,12 +131,36 @@ class BuyWiseViewModel(
         uploadViewModel.runVisionDemo()
     }
 
+    fun runVisionDemoForGuideChat() {
+        uploadViewModel.runVisionDemo(
+            onRecognized = { result -> guideViewModel.appendChatDraft(result.title, "图片") },
+            onError = { message -> guideViewModel.addChatSystemMessage(message) },
+        )
+    }
+
     fun recognizeImage(filename: String, contentType: String, bytes: ByteArray) {
         uploadViewModel.recognizeImage(filename, contentType, bytes)
     }
 
+    fun recognizeImageForGuideChat(filename: String, contentType: String, bytes: ByteArray) {
+        uploadViewModel.recognizeImage(
+            filename = filename,
+            contentType = contentType,
+            bytes = bytes,
+            onRecognized = { result -> guideViewModel.appendChatDraft(result.title, "图片") },
+            onError = { message -> guideViewModel.addChatSystemMessage(message) },
+        )
+    }
+
     fun runSpeechDemo() {
         uploadViewModel.runSpeechDemo()
+    }
+
+    fun runSpeechDemoForGuideChat() {
+        uploadViewModel.runSpeechDemo(
+            onRecognized = { text -> guideViewModel.appendChatDraft(text, "语音") },
+            onError = { message -> guideViewModel.addChatSystemMessage(message) },
+        )
     }
 
     fun useVisionQueryInGuide() {

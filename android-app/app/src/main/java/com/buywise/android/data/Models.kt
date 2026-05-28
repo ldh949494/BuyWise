@@ -61,6 +61,7 @@ data class GuideState(
 enum class GuideChatRole {
     USER,
     ASSISTANT,
+    SYSTEM,
 }
 
 data class GuideChatMessage(
