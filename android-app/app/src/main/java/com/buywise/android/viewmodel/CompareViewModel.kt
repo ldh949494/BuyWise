@@ -24,21 +24,35 @@ class CompareViewModel(
     var basketState by mutableStateOf(CompareBasketState())
         private set
 
+    private var lastProductIds: List<String> = emptyList()
+    private var lastUserNeed: String? = null
+
     fun loadCompare(productIds: List<String>, userNeed: String? = null) {
         viewModelScope.launch {
-            if (productIds.size < 2) {
+            val validIds = productIds.filter { it.toIntOrNull() != null }.distinct()
+            if (validIds.size < 2) {
                 state = CompareState(products = emptyList(), rows = emptyList(), errorMessage = "至少需要 2 个商品才能对比。")
                 return@launch
             }
+            lastProductIds = validIds
+            lastUserNeed = userNeed
             state = state.copy(isLoading = true, errorMessage = null)
             runCatching {
-                withContext(Dispatchers.IO) { repository.compareProducts(productIds, userNeed) }
+                withContext(Dispatchers.IO) { repository.compareProducts(validIds, userNeed) }
             }.onSuccess { next ->
                 state = next.copy(isLoading = false)
             }.onFailure { throwable ->
                 state = state.copy(isLoading = false, errorMessage = throwable.userMessage("商品对比加载失败"))
             }
         }
+    }
+
+    fun refresh() {
+        if (lastProductIds.size < 2) {
+            state = state.copy(errorMessage = "请先选择至少 2 个商品进行对比。")
+            return
+        }
+        loadCompare(lastProductIds, lastUserNeed)
     }
 
     fun toggleBasket(product: Product, userNeed: String? = null) {

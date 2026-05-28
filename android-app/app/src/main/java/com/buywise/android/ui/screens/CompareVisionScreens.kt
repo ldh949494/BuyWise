@@ -22,6 +22,7 @@ import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.ImageSearch
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.EmojiEvents
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -61,18 +62,37 @@ import com.buywise.android.ui.components.SectionTitle
 import com.buywise.android.ui.components.SoftTag
 
 @Composable
-fun CompareScreen(state: CompareState, onProductClick: (String) -> Unit) {
+fun CompareScreen(
+    state: CompareState,
+    onProductClick: (String) -> Unit,
+    onRefresh: () -> Unit,
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(18.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item { SectionTitle("商品对比", "先给结论，再看价格、评分和场景适配。") }
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    SectionTitle("商品对比", "先给结论，再看价格、评分和场景适配。")
+                }
+                OutlinedButton(onClick = onRefresh, enabled = !state.isLoading) {
+                    Icon(Icons.Outlined.Refresh, contentDescription = null)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("刷新")
+                }
+            }
+        }
         if (state.isLoading) {
             item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
         }
         state.errorMessage?.let { message ->
-            item { ErrorPanel(message = message) }
+            item { ErrorPanel(message = message, actionLabel = "刷新", onAction = onRefresh) }
         }
         item { CompareDecisionCard(state = state) }
         item { CompareTable(rows = state.rows, products = state.products) }

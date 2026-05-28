@@ -24,6 +24,11 @@ class FakeLLMClient:
         return f"\u5982\u679c\u4f60\u6700\u5173\u6ce8\u5bbf\u820d\u9759\u97f3\uff0c\u4f18\u5148\u63a8\u8350 {products[0].name}\u3002"
 
 
+class FailingLLMClient:
+    async def generate_compare_summary(self, user_need, products):
+        raise RuntimeError("llm unavailable")
+
+
 def make_session_factory():
     engine = create_engine(
         "sqlite:///:memory:",
@@ -118,6 +123,27 @@ async def test_compare_service_builds_items_with_rules_and_summary(monkeypatch) 
     assert "\u7528\u6237\u53cd\u9988\u8f83\u597d" in response.items[0].pros
     assert "已购反馈满意度高" in response.items[0].pros
     assert "\u4e0d\u652f\u6301\u65e0\u7ebf" in response.items[0].cons
+
+
+@pytest.mark.anyio
+async def test_compare_service_falls_back_when_llm_summary_fails(monkeypatch) -> None:
+    session_factory = make_session_factory()
+
+    async def fake_threadpool(func, *args, **kwargs):
+        return func(*args, **kwargs)
+
+    monkeypatch.setattr("app.services.compare_service.run_blocking_io", fake_threadpool)
+
+    with session_factory() as db:
+        product_ids = seed_products(db)
+        service = CompareService(llm_client=FailingLLMClient())
+
+        response = await service.compare(product_ids, USER_NEED, db)
+
+    assert response.winner_id == product_ids[0]
+    assert response.items
+    assert response.summary is not None
+    assert KEYBOARD_NAME in response.summary
 
 
 def test_compare_api_returns_frontend_ready_table_payload() -> None:

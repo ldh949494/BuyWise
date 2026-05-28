@@ -35,7 +35,7 @@ async def test_rag_eval_runner_reports_metrics_with_light_quality_gate() -> None
     assert report["case_count"] == len(load_eval_cases(dataset_path_for_profile("android-contract")))
     assert report["top_k"] == 5
     assert report["metrics"]["recall@5"] >= 0.70
-    assert report["metrics"]["top1_accuracy"] >= 0.40
+    assert report["metrics"]["top1_accuracy"] >= 0.90
     assert "mrr@5" in report["metrics"]
     assert isinstance(report["failures"], list)
 
@@ -44,7 +44,7 @@ def test_demo_rag_eval_dataset_is_bound_to_demo_products() -> None:
     cases = load_eval_cases(dataset_path_for_profile("demo"))
     seed_ids = known_seed_product_ids("demo")
 
-    assert 5 <= len(cases) <= 20
+    assert 5 <= len(cases) <= 50
     for case in cases:
         assert "demo" in case.tags
         assert set(case.expected_product_ids).issubset(seed_ids)
@@ -58,6 +58,7 @@ async def test_demo_rag_eval_runner_reports_profile_metrics() -> None:
     assert report["profile"] == "demo"
     assert report["case_count"] == len(load_eval_cases(dataset_path_for_profile("demo")))
     assert report["metrics"]["recall@5"] >= 0.70
+    assert report["metrics"]["top1_accuracy"] >= 0.90
     assert "mrr@5" in report["metrics"]
 
 
@@ -65,7 +66,7 @@ def test_beta_fixture_rag_eval_dataset_is_bound_to_fixture_products() -> None:
     cases = load_eval_cases(dataset_path_for_profile("beta-fixture"))
     seed_ids = known_seed_product_ids("beta-fixture")
 
-    assert 5 <= len(cases) <= 20
+    assert 5 <= len(cases) <= 50
     for case in cases:
         assert "beta" in case.tags
         assert set(case.expected_product_ids).issubset(seed_ids)

@@ -139,13 +139,7 @@ private fun BuyWiseRoot(
                         NavigationBarItem(
                             selected = currentRoute == destination.route,
                             onClick = {
-                                navController.navigate(destination.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
+                                navController.navigateTopLevel(destination.route)
                             },
                             icon = destination.icon,
                             label = { Text(destination.label) },
@@ -175,9 +169,9 @@ private fun BuyWiseRoot(
                         onProductClick = { navController.navigate("detail/$it") },
                         isInCompareBasket = viewModel::isInCompareBasket,
                         onToggleCompare = { viewModel.toggleCompareBasket(it) },
-                        onOpenGuide = { navController.navigate("guide") },
-                        onOpenCompare = { navController.navigate("compare") },
-                        onOpenVision = { navController.navigate("vision") },
+                        onOpenGuide = { navController.navigateTopLevel("guide") },
+                        onOpenCompare = { navController.navigateTopLevel("compare") },
+                        onOpenVision = { navController.navigateTopLevel("vision") },
                         feedbackState = viewModel.feedbackState,
                         onToggleFeedbackForm = viewModel::toggleFeedbackForm,
                         onFeedbackDraftChange = viewModel::updateFeedbackDraft,
@@ -199,6 +193,7 @@ private fun BuyWiseRoot(
                     CompareScreen(
                         state = viewModel.compareState,
                         onProductClick = { navController.navigate("detail/$it") },
+                        onRefresh = viewModel::refreshCompare,
                     )
                 }
                 composable("vision") {
@@ -210,7 +205,7 @@ private fun BuyWiseRoot(
                         onRunSpeechDemo = viewModel::runSpeechDemo,
                         onUseQuery = {
                             viewModel.useVisionQueryInGuide()
-                            navController.navigate("guide")
+                            navController.navigateTopLevel("guide")
                         },
                         onProductClick = { navController.navigate("detail/$it") },
                         isInCompareBasket = viewModel::isInCompareBasket,
@@ -240,9 +235,7 @@ private fun BuyWiseRoot(
                     onClear = viewModel::clearCompareBasket,
                     onStartCompare = {
                         if (viewModel.startCompareFromBasket()) {
-                            navController.navigate("compare") {
-                                launchSingleTop = true
-                            }
+                            navController.navigateTopLevel("compare")
                         }
                     },
                     modifier = Modifier
@@ -251,6 +244,16 @@ private fun BuyWiseRoot(
                 )
             }
         }
+    }
+}
+
+private fun NavHostController.navigateTopLevel(route: String) {
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) {
+            saveState = true
+        }
+        launchSingleTop = true
+        restoreState = true
     }
 }
 

@@ -11,6 +11,9 @@ def test_build_product_text_formats_product_fields_for_embedding() -> None:
         category="机械键盘",
         brand="KeyNova",
         price=Decimal("329.00"),
+        product_url="https://example.com/products/k87",
+        image_url="https://example.com/images/k87.jpg",
+        image_urls=["https://example.com/images/k87-a.jpg"],
         rating=Decimal("4.80"),
         sales=2380,
         description="适合宿舍、写代码、低噪音",
@@ -31,6 +34,10 @@ def test_build_product_text_formats_product_fields_for_embedding() -> None:
     assert "商品参数：轴体：静音红轴；连接：有线" in text
     assert "商品标签：静音、红轴、编程" in text
     assert "适合场景：宿舍、写代码" in text
+    assert "平台链接：" not in text
+    assert "商品主图：" not in text
+    assert "商品图片：" not in text
+    assert "https://example.com" not in text
 
 
 def test_build_product_text_handles_str_list_dict_and_none_values() -> None:

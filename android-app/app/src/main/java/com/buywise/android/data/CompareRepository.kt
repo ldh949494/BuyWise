@@ -7,14 +7,14 @@ class CompareRepository internal constructor(
 ) {
     @Throws(IOException::class)
     fun compareProducts(productIds: List<String>, userNeed: String? = null): CompareState {
-        if (productIds.size < 2) {
+        val ids = productIds.mapNotNull { it.toIntOrNull() }.distinct()
+        if (ids.size < 2) {
             return CompareState(
                 products = emptyList(),
                 rows = emptyList(),
                 errorMessage = "至少需要 2 个商品才能对比。",
             )
         }
-        val ids = productIds.mapNotNull { it.toIntOrNull() }
         val response: CompareResponseDto = apiClient.post(
             "/api/v1/products/compare",
             CompareRequestDto(ids, userNeed ?: "对比这些商品的价格、评分、优点和注意事项"),

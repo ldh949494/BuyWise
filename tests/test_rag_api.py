@@ -97,6 +97,29 @@ def test_rag_search_route_is_registered() -> None:
     assert "/api/v1/rag/search" in paths
 
 
+def test_rag_service_falls_back_when_vector_store_errors() -> None:
+    client = make_client()
+    db_override = next(iter(client.app.dependency_overrides.values()))
+    db = next(db_override())
+
+    class FailingStore:
+        def search(self, query: str, top_k: int = 5):
+            raise RuntimeError("dimension mismatch")
+
+    response = RagService(product_store=FailingStore()).search(
+        RagSearchRequest(
+            query="\u5bbf\u820d \u9759\u97f3 \u673a\u68b0\u952e\u76d8 300\u4ee5\u5185",
+            filters={"category": KEYBOARD_CATEGORY, "price_max": 300},
+            top_k=10,
+        ),
+        db,
+    )
+
+    assert response.total == 1
+    assert response.items[0].name == KEYBOARD_NAME
+    assert response.items[0].reason == "\u6570\u636e\u5e93 fallback \u7ed3\u679c"
+
+
 def test_rag_service_filters_stale_vector_product_ids() -> None:
     client = make_client()
     db_override = next(iter(client.app.dependency_overrides.values()))
