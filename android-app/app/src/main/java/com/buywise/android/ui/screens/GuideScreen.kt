@@ -46,6 +46,7 @@ fun GuideScreen(
     state: GuideState,
     onQueryChange: (String) -> Unit,
     onSubmit: () -> Unit,
+    onOpenChat: () -> Unit,
     onProductClick: (String) -> Unit,
     isInCompareBasket: (String) -> Boolean,
     onToggleCompare: (Product, String?) -> Unit,
@@ -56,7 +57,7 @@ fun GuideScreen(
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         item { WorkbenchHeader() }
-        item { GuideInputPanel(state = state, onQueryChange = onQueryChange, onSubmit = onSubmit) }
+        item { GuideInputPanel(state = state, onQueryChange = onQueryChange, onSubmit = onSubmit, onOpenChat = onOpenChat) }
         guideStreamItems(state)
         item { DemandPanel(query = state.query, summary = state.intentSummary) }
         item {
@@ -117,7 +118,12 @@ private fun WorkbenchHeader() {
 }
 
 @Composable
-private fun GuideInputPanel(state: GuideState, onQueryChange: (String) -> Unit, onSubmit: () -> Unit) {
+private fun GuideInputPanel(
+    state: GuideState,
+    onQueryChange: (String) -> Unit,
+    onSubmit: () -> Unit,
+    onOpenChat: () -> Unit,
+) {
     Card(
         colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
         shape = RoundedCornerShape(BuyWiseDimens.HeroRadius.dp),
@@ -148,14 +154,22 @@ private fun GuideInputPanel(state: GuideState, onQueryChange: (String) -> Unit, 
                 minLines = 4,
                 placeholder = { Text("宿舍写代码用，预算300以内，想要低噪音机械键盘，最好便于收纳。") },
             )
-            Button(
-                onClick = onSubmit,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !state.isStreaming,
-            ) {
-                Icon(Icons.Outlined.AutoAwesome, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(if (state.isStreaming) "生成中..." else "生成推荐")
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = onSubmit,
+                    modifier = Modifier.weight(1f),
+                    enabled = !state.isStreaming,
+                ) {
+                    Icon(Icons.Outlined.AutoAwesome, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(if (state.isStreaming) "生成中..." else "生成推荐")
+                }
+                androidx.compose.material3.OutlinedButton(
+                    onClick = onOpenChat,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("进入对话导购")
+                }
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 SoftTag("预算300内")

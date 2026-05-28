@@ -46,6 +46,7 @@ import androidx.navigation.compose.rememberNavController
 import com.buywise.android.ui.BuyWiseTheme
 import com.buywise.android.ui.components.FloatingCompareBasket
 import com.buywise.android.ui.screens.CompareScreen
+import com.buywise.android.ui.screens.GuideChatScreen
 import com.buywise.android.ui.screens.GuideScreen
 import com.buywise.android.ui.screens.HomeScreen
 import com.buywise.android.ui.screens.ProductDetailScreen
@@ -184,9 +185,22 @@ private fun BuyWiseRoot(
                         state = viewModel.guideState,
                         onQueryChange = viewModel::updateGuideQuery,
                         onSubmit = viewModel::submitGuideQuery,
+                        onOpenChat = {
+                            viewModel.prepareGuideChatDraft()
+                            navController.navigate("guide/chat")
+                        },
                         onProductClick = { navController.navigate("detail/$it") },
                         isInCompareBasket = viewModel::isInCompareBasket,
                         onToggleCompare = viewModel::toggleCompareBasket,
+                    )
+                }
+                composable("guide/chat") {
+                    GuideChatScreen(
+                        state = viewModel.guideState,
+                        onBack = navController::popBackStack,
+                        onDraftChange = viewModel::updateGuideChatDraft,
+                        onSend = viewModel::sendGuideChatMessage,
+                        onProductClick = { navController.navigate("detail/$it") },
                     )
                 }
                 composable("compare") {

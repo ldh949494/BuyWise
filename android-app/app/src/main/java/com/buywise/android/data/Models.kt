@@ -51,9 +51,23 @@ data class GuideState(
     val intentSummary: String,
     val recommendations: List<Recommendation>,
     val partialReply: String = "",
+    val chatDraft: String = "",
+    val chatMessages: List<GuideChatMessage> = emptyList(),
     val isStreaming: Boolean = false,
     val errorMessage: String? = null,
     val sessionId: String? = null,
+)
+
+enum class GuideChatRole {
+    USER,
+    ASSISTANT,
+}
+
+data class GuideChatMessage(
+    val id: String,
+    val role: GuideChatRole,
+    val text: String,
+    val recommendations: List<Recommendation> = emptyList(),
 )
 
 data class CompareState(
