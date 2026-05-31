@@ -2,8 +2,8 @@ package com.buywise.android.ui
 
 import com.buywise.android.data.Product
 object BuyWiseDimens {
-    const val CardRadius = 18
-    const val HeroRadius = 24
+    const val CardRadius = 12
+    const val HeroRadius = 16
     const val ChipRadius = 999
 }
 

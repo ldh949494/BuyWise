@@ -6,6 +6,9 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.DeviceFontFamilyName
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
@@ -31,6 +34,17 @@ data class AccentColors(
     val danger: Color = Color(0xFFB91C1C),
 )
 
+private val RoundedFontFamily = FontFamily(
+    Font(DeviceFontFamilyName("sans-serif-rounded"), FontWeight.Normal),
+    Font(DeviceFontFamilyName("sans-serif-rounded"), FontWeight.Medium),
+    Font(DeviceFontFamilyName("sans-serif-rounded"), FontWeight.SemiBold),
+    Font(DeviceFontFamilyName("sans-serif-rounded"), FontWeight.Bold),
+    Font(DeviceFontFamilyName("sans-serif"), FontWeight.Normal),
+    Font(DeviceFontFamilyName("sans-serif"), FontWeight.Medium),
+    Font(DeviceFontFamilyName("sans-serif"), FontWeight.SemiBold),
+    Font(DeviceFontFamilyName("sans-serif"), FontWeight.Bold),
+)
+
 @Composable
 fun BuyWiseTheme(content: @Composable () -> Unit) {
     MaterialTheme(
@@ -47,29 +61,34 @@ fun BuyWiseTheme(content: @Composable () -> Unit) {
         ),
         typography = Typography(
             headlineMedium = TextStyle(
+                fontFamily = RoundedFontFamily,
                 fontSize = 28.sp,
-                lineHeight = 34.sp,
-                fontWeight = FontWeight.Bold,
+                lineHeight = 36.sp,
+                fontWeight = FontWeight.SemiBold,
                 letterSpacing = 0.sp,
             ),
             titleLarge = TextStyle(
+                fontFamily = RoundedFontFamily,
                 fontSize = 21.sp,
-                lineHeight = 27.sp,
-                fontWeight = FontWeight.Bold,
+                lineHeight = 28.sp,
+                fontWeight = FontWeight.SemiBold,
                 letterSpacing = 0.sp,
             ),
             titleMedium = TextStyle(
+                fontFamily = RoundedFontFamily,
                 fontSize = 17.sp,
-                lineHeight = 23.sp,
+                lineHeight = 24.sp,
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = 0.sp,
             ),
             bodyMedium = TextStyle(
+                fontFamily = RoundedFontFamily,
                 fontSize = 14.sp,
-                lineHeight = 21.sp,
+                lineHeight = 22.sp,
                 letterSpacing = 0.sp,
             ),
             labelMedium = TextStyle(
+                fontFamily = RoundedFontFamily,
                 fontSize = 12.sp,
                 lineHeight = 16.sp,
                 fontWeight = FontWeight.Medium,

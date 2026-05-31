@@ -99,7 +99,7 @@ fun ProductCard(
         colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
         shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
         border = CardDefaults.outlinedCardBorder().copy(width = 1.dp, brush = SolidColor(BuyWiseTheme.colors.border)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -195,7 +195,7 @@ fun ProductCard(
 
 @Composable
 fun ProductImagePreview(product: Product, modifier: Modifier = Modifier) {
-    val shape = RoundedCornerShape(16.dp)
+    val shape = RoundedCornerShape(12.dp)
     Box(
         modifier = modifier
             .clip(shape)

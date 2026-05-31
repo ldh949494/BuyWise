@@ -40,8 +40,16 @@ export function OpsPage() {
         </button>
       </div>
 
-      {state.error ? <p className="error-text">{state.error}</p> : null}
-      {state.isLoading ? <p className="notice-text">加载运维状态中</p> : null}
+      {state.error ? (
+        <p className="error-text" role="alert">
+          {state.error}
+        </p>
+      ) : null}
+      {state.isLoading ? (
+        <p className="notice-text" role="status">
+          加载运维状态中
+        </p>
+      ) : null}
       {state.data ? (
         <>
           <MetricGrid summary={state.data} />

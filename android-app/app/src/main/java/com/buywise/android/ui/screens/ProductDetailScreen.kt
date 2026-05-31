@@ -116,7 +116,7 @@ private fun PurchaseAdviceCard(product: Product) {
         colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
         shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
         border = CardDefaults.outlinedCardBorder(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -137,7 +137,7 @@ private fun SignalSummaryCard(product: Product) {
         colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
         shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
         border = CardDefaults.outlinedCardBorder(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -178,7 +178,7 @@ private fun ProductHeader(
         colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
         shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
         border = CardDefaults.outlinedCardBorder(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             ProductImagePreview(
@@ -227,7 +227,7 @@ private fun DetailBlock(title: String, items: List<String>, tone: androidx.compo
         colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
         shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
         border = CardDefaults.outlinedCardBorder(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)

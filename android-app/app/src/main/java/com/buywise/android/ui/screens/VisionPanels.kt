@@ -50,7 +50,7 @@ fun UploadPanel(
         colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
         shape = RoundedCornerShape(BuyWiseDimens.HeroRadius.dp),
         border = CardDefaults.outlinedCardBorder(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {

@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-31T00:00:00+08:00",
+  "title": "Design System: BuyWise",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Catalog Green",
+        "canonical": "#1f6f5b",
+        "tonalRamp": ["#102f27", "#185746", "#1f6f5b", "#2d8b72", "#9acdb5", "#c7e4d5", "#e3f2ea", "#f4fbf7"]
+      },
+      "secondary": {
+        "role": "secondary",
+        "displayName": "Android Blue",
+        "canonical": "#245bff",
+        "tonalRamp": ["#0b1f5c", "#1743d2", "#245bff", "#5f85ff", "#9bb6ff", "#c9d8ff", "#eaf1ff", "#f7faff"]
+      },
+      "accent": {
+        "role": "tertiary",
+        "displayName": "Commerce Amber",
+        "canonical": "#7c5a00",
+        "tonalRamp": ["#3b2b00", "#5f4400", "#7c5a00", "#a37700", "#c7981d", "#e0c069", "#fff1cd", "#fff9e8"]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Cool Surface",
+        "canonical": "#f6f7f8",
+        "tonalRamp": ["#222222", "#42484b", "#687174", "#9aa1a4", "#cbd1d3", "#d9dddf", "#f6f7f8", "#ffffff"]
+      }
+    },
+    "typographyMeta": {
+      "headline": { "displayName": "Rounded Headline", "purpose": "Page and mobile screen headings with softened weight." },
+      "title": { "displayName": "Rounded Title", "purpose": "Panel and card headings." },
+      "body": { "displayName": "Rounded Body", "purpose": "Descriptions, table cells, and recommendation explanations." },
+      "label": { "displayName": "Rounded Label", "purpose": "Form labels, table headers, and compact metadata." }
+    },
+    "shadows": [
+      {
+        "name": "floating-action",
+        "value": "0 10px 24px rgba(31, 111, 91, 0.18)",
+        "purpose": "Floating controls that sit above content."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-fast",
+        "value": "160ms ease-out",
+        "purpose": "Hover, focus, and active state transitions."
+      }
+    ],
+    "breakpoints": [
+      { "name": "mobile", "value": "820px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary task action for save, create, and submit.",
+      "html": "<button class=\"ds-btn-primary\">Save product</button>",
+      "css": ".ds-btn-primary { background: #1f6f5b; color: #fff; border: 1px solid #1f6f5b; border-radius: 6px; min-height: 42px; padding: 9px 14px; font: 700 14px/1.5 ui-rounded, 'SF Pro Rounded', 'Nunito Sans', 'Microsoft YaHei UI', system-ui, sans-serif; transition: background-color 160ms ease-out, border-color 160ms ease-out; } .ds-btn-primary:hover { background: #185746; border-color: #185746; } .ds-btn-primary:focus-visible { outline: 3px solid rgba(31, 111, 91, 0.24); outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Labeled field for catalog search and product editing.",
+      "html": "<label class=\"ds-field\"><span>Search</span><input placeholder=\"Name, brand, description\" /></label>",
+      "css": ".ds-field { display: grid; gap: 6px; color: #42484b; font: 700 13px/1.4 ui-rounded, 'SF Pro Rounded', 'Nunito Sans', 'Microsoft YaHei UI', system-ui, sans-serif; } .ds-field input { background: #fff; border: 1px solid #cbd1d3; border-radius: 6px; color: #222222; min-height: 42px; padding: 9px 11px; font: 400 14px/1.5 ui-rounded, 'SF Pro Rounded', 'Nunito Sans', 'Microsoft YaHei UI', system-ui, sans-serif; } .ds-field input:focus { border-color: #1f6f5b; box-shadow: 0 0 0 3px rgba(31, 111, 91, 0.16); outline: none; }"
+    },
+    {
+      "name": "Status Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Compact status indicator for stock and readiness state.",
+      "html": "<span class=\"ds-chip-ok\">in_stock</span>",
+      "css": ".ds-chip-ok { display: inline-flex; align-items: center; border-radius: 999px; background: #e3f2ea; color: #1f6f5b; padding: 5px 9px; font: 800 12px/1.35 ui-rounded, 'SF Pro Rounded', 'Nunito Sans', 'Microsoft YaHei UI', system-ui, sans-serif; white-space: nowrap; }"
+    },
+    {
+      "name": "Panel Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Flat bordered surface for admin panels and mobile cards.",
+      "html": "<section class=\"ds-card\"><h2>Panel title</h2><p>Important state and product evidence live here.</p></section>",
+      "css": ".ds-card { background: #fff; border: 1px solid #d9dddf; border-radius: 8px; color: #222222; padding: 16px; font-family: ui-rounded, 'SF Pro Rounded', 'Nunito Sans', 'Microsoft YaHei UI', system-ui, sans-serif; } .ds-card h2 { margin: 0 0 8px; font-size: 18px; line-height: 1.35; font-weight: 700; } .ds-card p { margin: 0; color: #687174; font-size: 14px; line-height: 1.55; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Shopping Workbench",
+    "overview": "BuyWise is a product UI system for repeated shopping and operations tasks. It should feel calm, legible, and specific: a place where products, recommendation reasons, and readiness states are easier to compare than they were before.",
+    "keyCharacteristics": [
+      "Dense but readable product evidence.",
+      "Shared state vocabulary across Android and web admin.",
+      "Crisp borders and tonal surfaces instead of decorative shadows.",
+      "Direct copy with action-oriented labels."
+    ],
+    "rules": [
+      { "name": "The Evidence Color Rule", "body": "Accent color must point to a real state, action, or shopping signal. It is not decoration.", "section": "colors" },
+      { "name": "The Product Type Rule", "body": "Do not use display typography in labels, buttons, data, or navigation.", "section": "typography" },
+      { "name": "The Border Or Shadow Rule", "body": "A component can use a border or a meaningful shadow, never a decorative pairing of both.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep admin tables dense and scannable.",
+      "Do show product evidence before recommendation language.",
+      "Do keep touch targets at least 44px on Android and mobile web.",
+      "Do use borders and tonal surfaces as the default container language."
+    ],
+    "donts": [
+      "Don't use SaaS landing-page theater.",
+      "Don't add decorative AI glow.",
+      "Don't use purple-blue gradient dashboards.",
+      "Don't use glassmorphism.",
+      "Don't use oversized rounded cards.",
+      "Don't make the admin console look like a consumer storefront."
+    ]
+  }
+}

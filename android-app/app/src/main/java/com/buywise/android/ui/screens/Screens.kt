@@ -132,7 +132,7 @@ fun InfoPanel(icon: @Composable () -> Unit, title: String, body: String) {
         colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
         shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
         border = CardDefaults.outlinedCardBorder(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),

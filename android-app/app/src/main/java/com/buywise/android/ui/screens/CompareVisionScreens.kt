@@ -186,7 +186,7 @@ private fun CompareCandidateStrip(products: List<Product>, onProductClick: (Stri
                 colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
                 shape = RoundedCornerShape(16.dp),
                 border = CardDefaults.outlinedCardBorder(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                 modifier = Modifier.width(190.dp),
                 onClick = { onProductClick(product.id) },
             ) {
