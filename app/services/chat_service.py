@@ -12,6 +12,7 @@ from app.ai.llm_client import LLMClient
 from app.ai.rag_pipeline import RAGPipeline
 from app.core.metrics import count_llm_failure, observe_chat_latency
 from app.core.traffic import is_capacity_limited
+from app.core.transaction import UnitOfWork, unit_of_work
 from app.repositories.chat_repo import ChatRepository
 from app.repositories.price_repo import PriceHistoryRepository
 from app.repositories.review_repo import ReviewRepository
@@ -239,13 +240,13 @@ class ChatService:
     def _commit(self, chat_repo: Any) -> None:
         db = getattr(chat_repo, "db", None)
         if db is not None:
-            db.commit()
+            with unit_of_work(db):
+                pass
 
     def _rollback(self, chat_repo: Any) -> None:
         db = getattr(chat_repo, "db", None)
         if db is not None:
-            db.rollback()
-
+            UnitOfWork(db).rollback()
     def _chat_repo(self, request: ChatRequest, db: Session):
         if hasattr(db, "scalar") and hasattr(db, "add"):
             return ChatRepository(db)

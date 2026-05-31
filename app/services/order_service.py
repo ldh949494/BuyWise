@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.metrics import count_feedback_prompted, count_order_created
 from app.core.providers import AppError
+from app.core.transaction import unit_of_work
 from app.models.order import Order, OrderItem
 from app.models.product import Product
 from app.repositories.order_repo import OrderRepository
@@ -33,15 +34,11 @@ class OrderService:
         product = self._purchasable_product(payload.product_id)
         now = datetime.utcnow()
         order, item = self._build_order_and_item(payload, user_ref, product, now)
-        try:
+        with unit_of_work(self.db) as uow:
             order = self.orders.create(order, item)
-            self.db.commit()
-            self.db.refresh(order)
-            count_order_created("api")
-            return self._read_order(order)
-        except Exception:
-            self.db.rollback()
-            raise
+            uow.refresh_after_commit(order)
+        count_order_created("api")
+        return self._read_order(order)
 
     def _build_order_and_item(
         self,
@@ -129,8 +126,8 @@ class OrderService:
             for item in self.orders.list_items(order.id):
                 item.feedback_due_at = transition.item_feedback_due_at
         order.updated_at = now
-        self.db.commit()
-        self.db.refresh(order)
+        with unit_of_work(self.db) as uow:
+            uow.refresh_after_commit(order)
         return self._read_order(order)
 
     def update_feedback_prompt_dismissed(self, order_item_id: int, user_ref: str) -> None:
@@ -139,7 +136,8 @@ class OrderService:
             raise AppError("Order item not found", status_code=404, code="not_found")
         item, _ = row
         item.feedback_prompt_dismissed_at = datetime.utcnow()
-        self.db.commit()
+        with unit_of_work(self.db):
+            pass
 
     def list_due_feedback_prompts(self, user_ref: str) -> list[FeedbackPromptRead]:
         prompts = []

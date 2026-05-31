@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.metrics import count_feedback_submit_failure, count_feedback_submit_success
 from app.core.providers import AppError
+from app.core.transaction import unit_of_work
 from app.models.order import Order, OrderItem
 from app.models.review import Review
 from app.repositories.order_repo import OrderRepository
@@ -55,14 +56,13 @@ class ReviewWorkflowService:
         now = datetime.utcnow()
         review = self._build_review(payload, item, user_ref, now)
         try:
-            review = self.reviews.create(review)
-            item.feedback_submitted_at = now
-            self.db.commit()
-            self.db.refresh(review)
+            with unit_of_work(self.db) as uow:
+                review = self.reviews.create(review)
+                item.feedback_submitted_at = now
+                uow.refresh_after_commit(review)
             count_feedback_submit_success("api")
             return review
         except SQLAlchemyError:
-            self.db.rollback()
             count_feedback_submit_failure("db")
             raise
 
@@ -95,9 +95,9 @@ class ReviewWorkflowService:
 
     def update_review(self, review_id: int, payload: ReviewUpdate, user_ref: str) -> Review:
         review = self._active_review(review_id, user_ref)
-        self._apply_review_update(review, payload)
-        self.db.commit()
-        self.db.refresh(review)
+        with unit_of_work(self.db) as uow:
+            self._apply_review_update(review, payload)
+            uow.refresh_after_commit(review)
         return review
 
     def _apply_review_update(self, review: Review, payload: ReviewUpdate) -> None:
@@ -113,10 +113,10 @@ class ReviewWorkflowService:
 
     def update_review_withdrawn(self, review_id: int, user_ref: str) -> Review:
         review = self._active_review(review_id, user_ref)
-        review.status = ReviewStatus.WITHDRAWN
-        review.updated_at = datetime.utcnow()
-        self.db.commit()
-        self.db.refresh(review)
+        with unit_of_work(self.db) as uow:
+            review.status = ReviewStatus.WITHDRAWN
+            review.updated_at = datetime.utcnow()
+            uow.refresh_after_commit(review)
         return review
 
     def _delivered_item(self, order_item_id: int, user_ref: str) -> tuple[OrderItem, Order]:

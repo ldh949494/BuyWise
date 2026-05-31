@@ -3,8 +3,21 @@ param(
     [switch]$SkipAndroidBuild,
     [switch]$SkipAndroidAnalyze,
     [switch]$CheckIndex,
+    [switch]$CheckOpenApiContract,
     [ValidateSet("", "android-contract", "demo")]
     [string]$IndexProfile = "",
+    [switch]$RunRagEval,
+    [ValidateSet("android-contract", "demo", "beta-fixture")]
+    [string]$RagEvalProfile = "android-contract",
+    [ValidateSet("fallback", "vector")]
+    [string]$RagEvalRetrieval = "fallback",
+    [int]$RagEvalTopK = 5,
+    [double]$MinRagRecall = 0.70,
+    [double]$MinRagTop1 = 0.90,
+    [double]$MinRagMrr = 0.70,
+    [double]$MaxRagFallbackRate = 0.20,
+    [double]$MaxRagEmptyResultRate = 0.0,
+    [string]$RagEvalOutputJson = "",
     [string]$BaseUrl = "http://127.0.0.1:8000",
     [string]$Token = "",
     [string]$ReadinessToken = "",
@@ -69,6 +82,41 @@ if ($CheckIndex) {
     }
     & $python @indexArgs
     Assert-LastExitCode "vector index health"
+}
+
+if ($CheckOpenApiContract) {
+    Write-Host "========== OpenAPI Contract =========="
+    & $python -m app.scripts.openapi_contract
+    Assert-LastExitCode "OpenAPI contract"
+}
+
+if ($RunRagEval) {
+    Write-Host "========== RAG Evaluation Gate =========="
+    $ragEvalArgs = @(
+        "-m",
+        "app.scripts.rag_eval_gate",
+        "--profile",
+        $RagEvalProfile,
+        "--retrieval",
+        $RagEvalRetrieval,
+        "--top-k",
+        $RagEvalTopK.ToString(),
+        "--min-recall",
+        $MinRagRecall.ToString([System.Globalization.CultureInfo]::InvariantCulture),
+        "--min-top1",
+        $MinRagTop1.ToString([System.Globalization.CultureInfo]::InvariantCulture),
+        "--min-mrr",
+        $MinRagMrr.ToString([System.Globalization.CultureInfo]::InvariantCulture),
+        "--max-fallback-rate",
+        $MaxRagFallbackRate.ToString([System.Globalization.CultureInfo]::InvariantCulture),
+        "--max-empty-result-rate",
+        $MaxRagEmptyResultRate.ToString([System.Globalization.CultureInfo]::InvariantCulture)
+    )
+    if ($RagEvalOutputJson) {
+        $ragEvalArgs += @("--output-json", $RagEvalOutputJson)
+    }
+    & $python @ragEvalArgs
+    Assert-LastExitCode "RAG evaluation gate"
 }
 
 if ($Token -or $ReadinessToken) {

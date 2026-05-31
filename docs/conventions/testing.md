@@ -23,6 +23,22 @@ powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1 -SkipDe
 .\.venv\Scripts\python.exe -m pytest -q --basetemp .pytest_tmp\manual
 ```
 
+## 测试分层
+
+BuyWise 使用 pytest marker 和 `scripts/test_matrix.ps1` 区分三档测试：
+
+- `unit`：默认快速测试，不依赖真实外部服务，运行 `pytest -m "not integration and not release"`。
+- `integration`：可替换基础设施测试，覆盖 Chroma、MySQL 兼容路径和 mock external provider，运行 `pytest -m "integration and not release"`。
+- `release`：发版烟测，调用 `scripts/release_check.ps1`，可组合真实或沙箱 readiness、closed beta smoke、AI smoke、索引健康和 RAG eval gate。
+
+示例：
+
+```powershell
+.\scripts\test_matrix.ps1 -Tier unit
+.\scripts\test_matrix.ps1 -Tier integration
+.\scripts\test_matrix.ps1 -Tier release -SkipDependencyInstall -SkipAndroidBuild -RunRagEval
+```
+
 ## 文档
 
 修改 `AGENTS.md`、`docs/`、指向 docs 的 README 说明或维护 docs 的脚本时，运行 `python scripts/validate_docs.py`。

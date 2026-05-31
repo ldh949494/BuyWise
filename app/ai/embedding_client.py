@@ -8,6 +8,7 @@ import random
 from typing import Any, List, Protocol
 
 from app.core.config import settings
+from app.core.resilience import provider_policy
 
 
 class EmbeddingProvider(Protocol):
@@ -67,6 +68,7 @@ class OpenAICompatibleEmbeddingProvider:
         return OpenAI(
             base_url=base_url or settings.effective_embedding_base_url,
             api_key=resolved_api_key,
+            timeout=provider_policy("embedding").timeout_seconds,
         )
 
 

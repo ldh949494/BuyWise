@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
+from app.scripts.job_artifacts import run_job_with_artifact
 from app.services.product_service import IndexUpdater, ProductService
 
 DEFAULT_CSV_PATH = Path(__file__).resolve().parents[2] / "data" / "products.csv"
@@ -146,9 +147,15 @@ def main() -> None:
         action="store_true",
         help="Require real product URLs, image URLs, and stock fields for closed beta catalogs.",
     )
+    parser.add_argument("--artifact-json", help="Optional path for a machine-readable job artifact.")
     args = parser.parse_args()
 
-    result = import_products(args.csv, require_real_assets=args.require_real_assets)
+    result = run_job_with_artifact(
+        job_name="import_products",
+        inputs={"csv": args.csv, "require_real_assets": args.require_real_assets},
+        artifact_path=args.artifact_json,
+        action=lambda: import_products(args.csv, require_real_assets=args.require_real_assets),
+    )
     print(
         f"Inserted {result['inserted']} products, "
         f"updated {result['updated']} products, failed {result['failed']} rows."

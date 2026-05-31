@@ -4,7 +4,7 @@ BuyWise 的商品数据源是人工维护、可校验、可导入的商品目录
 
 ## 标准数据流
 
-1. 准备真实商品目录 CSV：`data/beta-catalog.csv`。
+1. 准备真实商品目录 CSV：本地忽略文件 `.\data\beta-catalog.csv`。
 2. 把商品主图和图库图片上传到腾讯 COS。
 3. 在 CSV 的 `image_url` 和 `image_urls` 中填写 COS 公网 URL。
 4. 校验 CSV。

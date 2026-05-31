@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -10,6 +11,9 @@ from app.models import Product
 from app.scripts.build_vector_index import build_vector_index
 from app.services.product_index_service import validate_vector_index_health
 from app.vectorstore.chroma_client import ChromaProductStore
+
+
+pytestmark = pytest.mark.integration
 
 
 def make_session_factory():

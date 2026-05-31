@@ -6,6 +6,7 @@ from app.scripts.evaluate_rag import (
     known_seed_product_ids,
     load_eval_cases,
 )
+from app.scripts.rag_eval_gate import RagEvalThresholds, check_thresholds, enrich_report, evaluate_rag_gate
 
 
 def test_rag_eval_dataset_is_small_complete_and_bound_to_seed_products() -> None:
@@ -83,3 +84,53 @@ async def test_beta_fixture_vector_eval_reports_case_diagnostics() -> None:
     assert "diagnostics" in report["cases"][0]
     assert "retrieved_ids" in report["cases"][0]["diagnostics"]
     assert "final_ids" in report["cases"][0]["diagnostics"]
+
+
+def test_rag_eval_gate_adds_operational_rates_and_threshold_failures() -> None:
+    report = enrich_report(
+        {
+            "case_count": 2,
+            "top_k": 5,
+            "profile": "demo",
+            "metrics": {"recall@5": 0.5, "top1_accuracy": 0.5, "mrr@5": 0.5},
+            "cases": [
+                {"retrieved_product_ids": [1], "diagnostics": {"fallback_stage": "strict"}},
+                {"retrieved_product_ids": [], "diagnostics": {"fallback_stage": "fallback_budget"}},
+            ],
+        }
+    )
+
+    failures = check_thresholds(
+        report,
+        RagEvalThresholds(
+            min_recall=0.7,
+            min_top1=0.9,
+            min_mrr=0.7,
+            max_fallback_rate=0.2,
+            max_empty_result_rate=0.0,
+        ),
+    )
+
+    assert report["metrics"]["fallback_rate"] == 0.5
+    assert report["metrics"]["empty_result_rate"] == 0.5
+    assert len(failures) == 5
+
+
+@pytest.mark.anyio
+async def test_rag_eval_gate_passes_demo_thresholds() -> None:
+    report = await evaluate_rag_gate(
+        profile="demo",
+        retrieval="fallback",
+        top_k=5,
+        thresholds=RagEvalThresholds(
+            min_recall=0.7,
+            min_top1=0.9,
+            min_mrr=0.7,
+            max_fallback_rate=0.2,
+            max_empty_result_rate=0.0,
+        ),
+    )
+
+    assert report["gate_passed"] is True
+    assert "fallback_rate" in report["metrics"]
+    assert "empty_result_rate" in report["metrics"]
