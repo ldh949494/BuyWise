@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Link, Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, NavLink, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import {
   clearToken,
   createProduct,
@@ -91,11 +91,18 @@ function Shell({ onSignOut }: { onSignOut: () => void }) {
     <div className="app-shell">
       <header className="topbar">
         <Link to="/" className="brand">
+          <span className="brand-mark" aria-hidden="true">
+            BW
+          </span>
           BuyWise Admin
         </Link>
-        <nav>
-          <Link to="/">商品</Link>
-          <Link to="/ops">运维</Link>
+        <nav aria-label="管理台导航">
+          <NavLink to="/" end className={({ isActive }) => (isActive ? "nav-link active" : "nav-link")}>
+            商品
+          </NavLink>
+          <NavLink to="/ops" className={({ isActive }) => (isActive ? "nav-link active" : "nav-link")}>
+            运维
+          </NavLink>
           <button type="button" className="ghost-button" onClick={onSignOut}>
             退出
           </button>
@@ -138,7 +145,10 @@ function LoginPage({ onLogin }: { onLogin: () => void }) {
   return (
     <main className="login-layout">
       <form className="login-panel" onSubmit={submit}>
-        <h1>BuyWise Admin</h1>
+        <div>
+          <h1>BuyWise Admin</h1>
+          <p className="login-copy">维护商品、索引和 beta 发布状态。</p>
+        </div>
         <label>
           用户名
           <input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" />
@@ -152,9 +162,13 @@ function LoginPage({ onLogin }: { onLogin: () => void }) {
             autoComplete="current-password"
           />
         </label>
-        {error ? <p className="error-text">{error}</p> : null}
+        {error ? (
+          <p className="error-text" role="alert">
+            {error}
+          </p>
+        ) : null}
         <button type="submit" disabled={isLoading}>
-          {isLoading ? "登录中" : "登录"}
+          {isLoading ? "登录中" : "登录管理台"}
         </button>
       </form>
     </main>
@@ -203,12 +217,22 @@ function ProductListPage() {
         </Link>
       </div>
 
-      <div className="toolbar">
-        <input placeholder="搜索名称、描述、品牌" value={keyword} onChange={(event) => setKeyword(event.target.value)} />
-        <input placeholder="类目" value={category} onChange={(event) => setCategory(event.target.value)} />
+      <div className="toolbar" aria-label="商品筛选">
+        <label>
+          搜索
+          <input placeholder="名称、描述、品牌" value={keyword} onChange={(event) => setKeyword(event.target.value)} />
+        </label>
+        <label>
+          类目
+          <input placeholder="如 机械键盘" value={category} onChange={(event) => setCategory(event.target.value)} />
+        </label>
       </div>
 
-      {error ? <p className="error-text">{error}</p> : null}
+      {error ? (
+        <p className="error-text" role="alert">
+          {error}
+        </p>
+      ) : null}
       <div className="table-wrap">
         <table>
           <thead>
@@ -225,7 +249,15 @@ function ProductListPage() {
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={7}>加载中</td>
+                <td colSpan={7} className="table-message">
+                  加载商品中
+                </td>
+              </tr>
+            ) : products.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="table-message">
+                  没有匹配的商品。调整搜索词或新建商品。
+                </td>
               </tr>
             ) : (
               products.map((product) => (
@@ -233,7 +265,11 @@ function ProductListPage() {
                   <td>{product.id}</td>
                   <td>
                     <div className="product-cell">
-                      {product.image_url ? <img src={product.image_url} alt="" /> : <span className="image-placeholder" />}
+                      {product.image_url ? (
+                        <img src={product.image_url} alt={`${product.name} 主图`} />
+                      ) : (
+                        <span className="image-placeholder" aria-hidden="true" />
+                      )}
                       <div>
                         <strong>{product.name}</strong>
                         <span>{product.brand || product.sku || "-"}</span>
@@ -368,8 +404,16 @@ function ProductFormPage({ mode }: { mode: "create" | "edit" }) {
         </Link>
       </div>
 
-      {error ? <p className="error-text">{error}</p> : null}
-      {notice ? <p className="notice-text">{notice}</p> : null}
+      {error ? (
+        <p className="error-text" role="alert">
+          {error}
+        </p>
+      ) : null}
+      {notice ? (
+        <p className="notice-text" role="status">
+          {notice}
+        </p>
+      ) : null}
 
       <form className="product-form" onSubmit={submit}>
         <fieldset>
@@ -426,11 +470,11 @@ function ProductFormPage({ mode }: { mode: "create" | "edit" }) {
 
         <div className="form-actions">
           <button type="submit" disabled={isSaving || !parsedPayload}>
-            {isSaving ? "保存中" : "保存"}
+            {isSaving ? "保存中" : "保存商品"}
           </button>
           {canDelete ? (
             <button type="button" className="danger-button" onClick={remove}>
-              下架
+              下架商品
             </button>
           ) : null}
         </div>

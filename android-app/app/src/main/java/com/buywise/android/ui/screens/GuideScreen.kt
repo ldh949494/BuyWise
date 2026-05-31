@@ -104,7 +104,7 @@ private fun WorkbenchHeader() {
         Surface(
             color = BuyWiseTheme.colors.panel,
             shape = RoundedCornerShape(16.dp),
-            shadowElevation = 4.dp,
+            shadowElevation = 0.dp,
             modifier = Modifier.size(58.dp),
         ) {
             Icon(
@@ -128,7 +128,7 @@ private fun GuideInputPanel(
         colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
         shape = RoundedCornerShape(BuyWiseDimens.HeroRadius.dp),
         border = CardDefaults.outlinedCardBorder(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Surface(color = BuyWiseTheme.colors.primarySoft, shape = RoundedCornerShape(16.dp)) {

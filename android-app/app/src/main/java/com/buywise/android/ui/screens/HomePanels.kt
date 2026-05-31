@@ -47,8 +47,8 @@ fun HeroPanel(title: String, subtitle: String, previewProducts: List<Product>, o
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Surface(
                     color = BuyWiseTheme.colors.panel,
-                    shape = RoundedCornerShape(18.dp),
-                    shadowElevation = 4.dp,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 0.dp,
                     modifier = Modifier.size(64.dp),
                 ) {
                     Icon(
@@ -65,8 +65,8 @@ fun HeroPanel(title: String, subtitle: String, previewProducts: List<Product>, o
             }
             Surface(
                 color = BuyWiseTheme.colors.panel,
-                shape = RoundedCornerShape(16.dp),
-                shadowElevation = 4.dp,
+                shape = RoundedCornerShape(12.dp),
+                shadowElevation = 0.dp,
                 modifier = Modifier.size(58.dp),
             ) {
                 Icon(
@@ -88,7 +88,7 @@ fun HeroPanel(title: String, subtitle: String, previewProducts: List<Product>, o
             colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
             shape = RoundedCornerShape(BuyWiseDimens.HeroRadius.dp),
             border = CardDefaults.outlinedCardBorder(),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         ) {
             Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -116,7 +116,7 @@ fun HeroPanel(title: String, subtitle: String, previewProducts: List<Product>, o
 private fun PreviewProductRow(product: Product) {
     Surface(
         color = BuyWiseTheme.colors.panel,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
         border = CardDefaults.outlinedCardBorder(),
     ) {
         Row(
@@ -147,7 +147,7 @@ private fun CapabilityPill(label: String, icon: androidx.compose.ui.graphics.vec
         color = BuyWiseTheme.colors.panel,
         shape = RoundedCornerShape(999.dp),
         border = CardDefaults.outlinedCardBorder(),
-        shadowElevation = 2.dp,
+        shadowElevation = 0.dp,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
@@ -187,7 +187,7 @@ fun QuickEntryPanel(
             colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
             shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
             border = CardDefaults.outlinedCardBorder(),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             modifier = Modifier.fillMaxWidth(),
             onClick = onOpenVision,
         ) {
@@ -221,7 +221,7 @@ private fun StatusTile(
         colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
         shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
         border = CardDefaults.outlinedCardBorder(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         modifier = modifier,
         onClick = onClick,
     ) {
