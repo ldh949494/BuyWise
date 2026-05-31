@@ -2,13 +2,11 @@
 
 import argparse
 import hashlib
-import mimetypes
 import re
 from dataclasses import dataclass
 from io import BytesIO
 from typing import Callable
 from urllib.parse import unquote, urlparse
-from urllib.request import Request, urlopen
 
 from sqlalchemy.orm import Session
 
@@ -16,16 +14,8 @@ from app.core.config import settings
 from app.core.database import SessionLocal
 from app.integrations.cos_storage_client import ObjectStorageClient, TencentCosStorageClient
 from app.models import Product
-
-SUPPORTED_IMAGE_TYPES = {"image/gif", "image/jpeg", "image/png", "image/webp"}
-DEFAULT_TIMEOUT_SECONDS = 20
-DEFAULT_MAX_BYTES = 8 * 1024 * 1024
-
-@dataclass(frozen=True)
-class DownloadedImage:
-    content: bytes
-    content_type: str
-    suffix: str
+from app.scripts.image_downloads import DownloadedImage, download_image
+from app.scripts.job_artifacts import run_job_with_artifact
 
 
 @dataclass
@@ -49,6 +39,7 @@ class MigrationSummary:
 
 
 ImageDownloader = Callable[[str], DownloadedImage]
+
 
 def migrate_product_images_to_cos(
     *,
@@ -115,31 +106,6 @@ def _finish_session(db: Session, *, dry_run: bool) -> None:
         db.rollback()
     else:
         db.commit()
-
-
-def download_image(
-    url: str,
-    *,
-    timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
-    max_bytes: int = DEFAULT_MAX_BYTES,
-) -> DownloadedImage:
-    parsed = urlparse(url)
-    if parsed.scheme not in {"http", "https"}:
-        raise ValueError("Only http(s) image URLs can be migrated.")
-
-    request = Request(url, headers={"User-Agent": "BuyWiseImageMigrator/1.0"})
-    with urlopen(request, timeout=timeout_seconds) as response:
-        content_type = response.headers.get_content_type().lower()
-        if content_type not in SUPPORTED_IMAGE_TYPES:
-            raise ValueError(f"Unsupported image content type: {content_type}")
-        content = response.read(max_bytes + 1)
-    if len(content) > max_bytes:
-        raise ValueError(f"Image exceeds max size of {max_bytes} bytes.")
-    return DownloadedImage(
-        content=content,
-        content_type=content_type,
-        suffix=_suffix_for_url(url, content_type),
-    )
 
 
 def _migrate_product_images(
@@ -266,15 +232,6 @@ def _safe_path_part(value: str) -> str:
     return cleaned.strip("-._")[:80]
 
 
-def _suffix_for_url(url: str, content_type: str) -> str:
-    parsed_path = urlparse(url).path
-    path_suffix = "." + parsed_path.rsplit(".", 1)[-1].lower() if "." in parsed_path else ""
-    if path_suffix in {".gif", ".jpeg", ".jpg", ".png", ".webp"}:
-        return ".jpg" if path_suffix == ".jpeg" else path_suffix
-    guessed = mimetypes.guess_extension(content_type) or ".jpg"
-    return ".jpg" if guessed == ".jpe" else guessed
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description="Mirror product image URLs into Tencent COS.")
     parser.add_argument("--apply", action="store_true", help="Write migrated COS URLs back to the database.")
@@ -284,15 +241,22 @@ def main() -> None:
         action="store_true",
         help="Re-upload URLs that already look like Tencent COS URLs.",
     )
+    parser.add_argument("--artifact-json", help="Optional path for a machine-readable job artifact.")
     args = parser.parse_args()
 
-    summary = migrate_product_images_to_cos(
-        dry_run=not args.apply,
-        include_cos_urls=args.include_cos_urls,
-        limit=args.limit,
+    inputs = {"apply": args.apply, "include_cos_urls": args.include_cos_urls, "limit": args.limit}
+    summary = run_job_with_artifact(
+        job_name="migrate_product_images_to_cos",
+        inputs=inputs,
+        artifact_path=args.artifact_json,
+        action=lambda: migrate_product_images_to_cos(
+            dry_run=not args.apply,
+            include_cos_urls=args.include_cos_urls,
+            limit=args.limit,
+        ).as_dict(),
     )
     mode = "apply" if args.apply else "dry-run"
-    print(f"{mode}: {summary.as_dict()}")
+    print(f"{mode}: {summary}")
 
 
 if __name__ == "__main__":

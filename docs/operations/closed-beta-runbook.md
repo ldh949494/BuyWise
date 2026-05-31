@@ -122,7 +122,7 @@ Stage 1 catalog rules:
 
 ```powershell
 python -m app.scripts.validate_beta_catalog --csv .\data\beta-catalog.csv
-.\scripts\release_prepare.ps1 -ImportCsv .\data\beta-catalog.csv -RequireRealCatalog -BuildIndex -IndexMode rebuild -CheckIndex
+.\scripts\release_prepare.ps1 -ImportCsv .\data\beta-catalog.csv -RequireRealCatalog -BuildIndex -IndexMode rebuild -CheckIndex -ArtifactDir .\artifacts\release\$stamp
 ```
 
 In Compose:
@@ -189,7 +189,10 @@ Create a backup before every deploy:
 ```powershell
 $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
 docker compose -f docker-compose.prod.yml exec mysql sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"' > "backup-$stamp.sql"
+python -m app.scripts.check_mysql_backup --path ".\backup-$stamp.sql" --min-bytes 1024 --max-age-hours 2 --artifact-json ".\artifacts\release\$stamp\backup-check.json"
 ```
+
+The release record must reference the backup check artifact, not only the SQL filename.
 
 Daily backup policy for stage 1:
 

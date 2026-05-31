@@ -23,7 +23,7 @@
 ## 运行时
 
 - `scripts/start_backend.ps1`：本机开发后端启动脚本。它加载 UTF-8 设置，执行数据库迁移，并启动 Uvicorn。如果 `.env` 中的 `MYSQL_HOST=mysql`，会在当前本机进程中使用 `127.0.0.1` 连接 Docker 暴露到宿主机的 MySQL。可用 `-Port <port>` 切换端口、`-NoReload` 关闭 reload、`-SkipMigration` 跳过迁移。
-- `scripts/release_prepare.ps1`：发版或首次部署前的显式准备脚本。默认只执行数据库迁移；使用 `-SeedProfile android-contract|demo` 写入确定性 seed 数据，使用 `-ImportCsv <path>` 导入商品 CSV，使用 `-RequireRealCatalog` 对 closed beta 真实目录启用真实商品链接、图片和库存字段校验，使用 `-BuildIndex -IndexMode upsert|rebuild` 构建向量索引，使用 `-CheckIndex` 检查索引健康。`-SeedProfile` 和 `-ImportCsv` 不能同时使用，避免混合演示数据和外部商品目录。启用 `-RequireRealCatalog` 时必须同时传入 `-BuildIndex -IndexMode rebuild -CheckIndex`。
+- `scripts/release_prepare.ps1`：发版或首次部署前的显式准备脚本。默认只执行数据库迁移；使用 `-SeedProfile android-contract|demo` 写入确定性 seed 数据，使用 `-ImportCsv <path>` 导入商品 CSV，使用 `-RequireRealCatalog` 对 closed beta 真实目录启用真实商品链接、图片和库存字段校验，使用 `-BuildIndex -IndexMode upsert|rebuild` 构建向量索引，使用 `-CheckIndex` 检查索引健康。`-SeedProfile` 和 `-ImportCsv` 不能同时使用，避免混合演示数据和外部商品目录。启用 `-RequireRealCatalog` 时必须同时传入 `-BuildIndex -IndexMode rebuild -CheckIndex`。可传入 `-ArtifactDir <dir>` 自动生成 release_prepare 聚合 artifact 和子作业 artifact，或传入 `-ArtifactJson <path>` 指定聚合 artifact 文件。
 - `scripts/start_pr_env.ps1`：创建或复用隔离 worktree，并用指定 project name 启动 Docker Compose。
 - `scripts/stop_pr_env.ps1`：停止隔离 compose project，可选择删除 volume 或 worktree。
 - `scripts/start_demo.ps1`：本地演示启动脚本。它检查 `.env` 的 LLM 配置，执行迁移、`seed_products --profile demo`、向量索引构建，并启动 Uvicorn。可用 `-SkipIndex` 跳过索引、`-Port <port>` 切换端口、`-AllowMockLlm` 做离线 smoke。
@@ -42,7 +42,8 @@
 - `docs/reference/catalog-data-source.md`：商品目录数据源参照标准，定义 CSV 字段、closed beta 目录规模、COS 图片 URL 要求、taxonomy 约束和验收标准。
 - `app.scripts.validate_beta_catalog`：只读校验 closed beta 真实商品 CSV，不写数据库。示例：`python -m app.scripts.validate_beta_catalog --csv .\data\beta-catalog.csv`。它复用导入脚本的真实 URL、图片、库存和基础 JSON 校验，并额外检查 5 个固定类目、每类 10 个 SKU、`beta-...` SKU 命名、模板表头、`review_summary`、`specs` JSON 对象，以及 `tags` 和 `suitable_scene` 是否来自 `docs/reference/beta-catalog-taxonomy.md`。
 - 推荐演示问题：`帮我推荐一个300以内适合宿舍写代码的低噪音无线机械键盘，最好性价比高`。demo profile 下该问题应首推 `Campus75 三模静音机械键盘`。
-- `app.scripts.migrate_product_images_to_cos`：把商品表中现有 `image_url` / `image_urls` 指向的图片下载后上传到腾讯 COS，并把商品记录更新为 COS URL。默认 dry-run，不写数据库；确认后运行 `python -m app.scripts.migrate_product_images_to_cos --apply`。依赖 `.env` 中的 `UPLOAD_PROVIDER=cos`、Tencent Secret、`COS_BUCKET` 和 `COS_REGION`。
+- `app.scripts.migrate_product_images_to_cos`：把商品表中现有 `image_url` / `image_urls` 指向的图片下载后上传到腾讯 COS，并把商品记录更新为 COS URL。默认 dry-run，不写数据库；确认后运行 `python -m app.scripts.migrate_product_images_to_cos --apply`。可传入 `--artifact-json <path>` 留存统一 job artifact。依赖 `.env` 中的 `UPLOAD_PROVIDER=cos`、Tencent Secret、`COS_BUCKET` 和 `COS_REGION`。
+- `app.scripts.check_mysql_backup`：校验指定 MySQL 备份文件存在、是普通文件、非空，并可选校验最小字节数和最大文件年龄；只验证备份证据，不创建或恢复备份。示例：`python -m app.scripts.check_mysql_backup --path .\backup-20260531-213000.sql --min-bytes 1024 --max-age-hours 2 --artifact-json .\artifacts\release\20260531-213000\backup-check.json`。
 - `scripts/set_utf8.ps1`：将 PowerShell 和 Python 进程编码设置为 UTF-8。如果终端查看 seed 数据时出现乱码，先点加载它：`. .\scripts\set_utf8.ps1`。
 - `app.scripts.build_vector_index`：重建或增量 upsert 持久化 ChromaDB 商品索引。`--mode rebuild` 会重置完整 collection，`--mode upsert` 会全量 upsert 但不重置，`--mode upsert --product-id <id>` 只更新指定商品。可传入 `--artifact-json <path>` 留存统一 job artifact。
 - `app.scripts.check_vector_index`：输出商品向量索引健康 JSON，包括 collection count、DB 商品数、缺失索引 ID 和陈旧索引 ID。可传入 `--profile android-contract` 或 `--profile demo` 校验固定 seed 商品 ID；索引缺失或陈旧时返回非 0 exit code。
