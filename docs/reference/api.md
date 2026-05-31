@@ -27,6 +27,7 @@
 - 商品响应包含可选扩展电商字段：`sku`、`product_url`、`image_urls`、`stock_status`、`review_summary`、`feedback_metrics` 和 `price_history`。
 - 订单响应是 BuyWise 内部交易影子模型，只表达模拟付款、物流状态和订单项快照，不代表真实支付或真实履约。
 - 已购评价通过服务端校验订单项归属和已收货状态后写入 `reviews`。Closed beta 外部购买记录使用 `purchase_evidence=buywise_recorded`，不声明平台验真；未来接入平台验真后才使用 `platform_verified` 等级。
+- 订单相关接口只表示 BuyWise 内部的购买记录和影子订单状态，不提供购物车、支付、地址和真实结算；`POST /api/v1/orders/{order_id}/advance` 仅用于 demo、smoke 或管理推进。
 - 聊天响应通过 `extra.session_id` 返回持久化会话标识。
 - 聊天流式响应使用 Server-Sent Events，事件包括 `meta`、`status`、`token`、`products`、`done` 和 `error`。
 - 流式聊天不长期暴露 `fallback` 事件；降级通过 `status.stage=fallback` 和 `done.degraded=true` 表达。
@@ -84,6 +85,7 @@
 - 商品维护：`POST /api/v1/products` 创建商品，`PATCH /api/v1/products/{product_id}` 更新商品，`DELETE /api/v1/products/{product_id}` 软下架商品。下架商品默认不进入公开浏览、详情、RAG、推荐和对比。
 - 商品对比：`POST /api/v1/products/compare`，请求体包含 `product_ids` 和可选 `user_need`。
 - 订单反馈闭环：`POST /api/v1/orders` 记录购买，closed beta 外部购买记录带 `external_platform` 后可直接进入待评价；`POST /api/v1/orders/{order_id}/advance` 仅用于 demo、smoke 或管理推进；`GET /api/v1/feedback/prompts` 获取待评价项，`POST /api/v1/reviews/from-order-item` 提交已购评价。
+- 订单反馈闭环不包含购物车 CRUD、数量编辑、支付、真实 checkout、退款或售后；这些能力不在当前 BuyWise 验收范围内。
 - AI 导购：`POST /api/v1/ai/chat` 返回 JSON，或 `POST /api/v1/ai/chat/stream` 返回 SSE token 流；请求包含 `session_id` 和 `message`，可选 `image_url` 和 `audio_url`。
 
 ### AI 导购 SSE 事件契约

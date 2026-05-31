@@ -16,6 +16,7 @@ from app.repositories.chat_repo import ChatRepository
 from app.repositories.price_repo import PriceHistoryRepository
 from app.repositories.review_repo import ReviewRepository
 from app.schemas.chat import ChatRequest, ChatResponse
+from app.services.bundle_recommend_service import BundleRecommendService
 from app.services.intent_service import IntentService
 from app.services.noop_chat_repo import NoopChatRepository
 from app.services.recommend_service import RecommendService
@@ -35,6 +36,7 @@ class ChatService:
         intent_service: IntentService | None = None,
         rag_pipeline: RAGPipeline | None = None,
         recommend_service: RecommendService | None = None,
+        bundle_recommend_service: BundleRecommendService | None = None,
         llm_client: LLMClient | None = None,
     ) -> None:
         self.speech_service = speech_service or SpeechService()
@@ -43,6 +45,7 @@ class ChatService:
         self.intent_service = intent_service or IntentService(llm_client=self.llm_client)
         self.rag_pipeline = rag_pipeline or RAGPipeline()
         self.recommend_service = recommend_service or RecommendService()
+        self.bundle_recommend_service = bundle_recommend_service or BundleRecommendService(self.recommend_service)
 
     async def handle_chat(self, request: ChatRequest, db: Session) -> ChatResponse:
         started_at = time.perf_counter()
@@ -269,9 +272,21 @@ class ChatService:
         return {}
 
     async def _rank_recommendations(self, need: Any, db: Session) -> list[Any]:
+        if self._get_need_value(need, "intent") == "场景化组合推荐":
+            return await self._rank_bundle_recommendations(need, db)
         products = await self.rag_pipeline.search_products(need, db)
         self._attach_quality_signals(products, db)
         return self.recommend_service.rank(products, need)[:5]
+
+    async def _rank_bundle_recommendations(self, need: Any, db: Session) -> list[Any]:
+        products = await self.rag_pipeline.search_products(need, db, top_k=30)
+        self._attach_quality_signals(products, db)
+        return self.bundle_recommend_service.rank(products, need)
+
+    def _get_need_value(self, need: Any, key: str) -> Any:
+        if isinstance(need, dict):
+            return need.get(key)
+        return getattr(need, key, None)
 
     def _attach_quality_signals(self, products: list[Any], db: Session) -> None:
         if not hasattr(db, "execute"):

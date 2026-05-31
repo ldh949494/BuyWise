@@ -45,6 +45,7 @@ BuyWise is a FastAPI backend plus native Android client for a multimodal e-comme
 - API reference notes: `docs/reference/api.md`
 - Configuration reference: `docs/reference/configuration.md`
 - Script reference: `docs/reference/scripts.md`
+- Catalog data source standard: `docs/reference/catalog-data-source.md`
 - Closed beta operations: `docs/operations/closed-beta-runbook.md`
 
 ## Common Commands

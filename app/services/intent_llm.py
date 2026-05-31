@@ -17,6 +17,10 @@ INTENT_ALIASES = {
     "推荐": "商品推荐",
     "商品推荐": "商品推荐",
     "找推荐": "商品推荐",
+    "组合推荐": "场景化组合推荐",
+    "场景化组合推荐": "场景化组合推荐",
+    "搭配方案": "场景化组合推荐",
+    "购物清单": "场景化组合推荐",
     "对比": "商品对比",
     "比较": "商品对比",
     "商品对比": "商品对比",
@@ -170,6 +174,8 @@ class LlmIntentExtractor:
         return (
             "Extract shopping intent as JSON with fields: intent, category, "
             "budget_max, scenario, preferences, avoid, need_clarify, "
+            "Use intent 场景化组合推荐 when the user asks for a bundle, kit, "
+            "set, checklist, or cross-category scenario plan. "
             f"missing_fields. text={text!r}, image_info={image_info!r}, "
             f"history_context={history_context!r}"
         )
