@@ -4,18 +4,12 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.dependencies import AppContainerBuilder
 from app.models import Order, OrderItem, Review
 from tests.test_admin_api import admin_headers, make_client_with_session_factory
 
 
-def test_admin_ops_summary_exposes_beta_operations_audit(monkeypatch) -> None:
-    client, session_factory = make_client_with_session_factory()
-    headers = admin_headers(client)
-    now = datetime.utcnow()
-    settings.auth_api_keys = "smoke:smoke-token:orders:write,feedback:write;beta-alice:alice-token:orders:read"
-    with session_factory() as db:
-        seed_ops_audit_data(db, now)
-
+def test_admin_ops_summary_exposes_beta_operations_audit() -> None:
     class FakeStore:
         def indexed_product_ids(self):
             return [1, 999]
@@ -23,15 +17,25 @@ def test_admin_ops_summary_exposes_beta_operations_audit(monkeypatch) -> None:
         def count(self):
             return 2
 
-    monkeypatch.setattr("app.services.admin_ops_service.ChromaProductStore", FakeStore)
-    monkeypatch.setattr(
-        "app.services.admin_ops_service.validate_readiness",
-        lambda include_details=True: {
-            "status": "not_ready",
-            "service": "buywise-backend",
-            "checks": {"database": {"status": "ok"}, "vector_index": {"status": "failed"}},
-        },
+    class FakeReadinessService:
+        def validate_readiness(self, include_details=True):
+            return {
+                "status": "not_ready",
+                "service": "buywise-backend",
+                "checks": {"database": {"status": "ok"}, "vector_index": {"status": "failed"}},
+            }
+
+    builder = (
+        AppContainerBuilder()
+        .with_product_store(FakeStore())
+        .with_readiness_service(FakeReadinessService())
     )
+    client, session_factory = make_client_with_session_factory(builder)
+    headers = admin_headers(client)
+    now = datetime.utcnow()
+    settings.auth_api_keys = "smoke:smoke-token:orders:write,feedback:write;beta-alice:alice-token:orders:read"
+    with session_factory() as db:
+        seed_ops_audit_data(db, now)
 
     response = client.get("/api/v1/admin/ops/summary", headers=headers)
 

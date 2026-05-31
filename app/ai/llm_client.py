@@ -6,8 +6,7 @@ from collections.abc import AsyncIterator
 from typing import Any, Protocol
 
 from app.core.config import settings
-from app.core.resilience import provider_policy
-from app.core.traffic import run_with_capacity, stream_with_capacity
+from app.core.resilience import provider_policy, provider_stream, run_provider_call_async
 
 
 class LLMProvider(Protocol):
@@ -82,7 +81,7 @@ class OpenAICompatibleProvider:
         return AsyncOpenAI(
             base_url=base_url or settings.llm_base_url,
             api_key=resolved_api_key,
-            timeout=provider_policy("llm").timeout_seconds,
+            timeout=provider_policy("llm", "chat").timeout_seconds,
         )
 
 
@@ -99,15 +98,15 @@ class LLMClient:
             {"role": str(message.get("role", "user")), "content": str(message.get("content", ""))}
             for message in messages
         ]
-        policy = provider_policy("llm")
-        return await run_with_capacity("llm", lambda: self.provider.chat(normalized), timeout_seconds=policy.timeout_seconds)
+        policy = provider_policy("llm", "chat")
+        return await run_provider_call_async(policy, lambda: self.provider.chat(normalized), capacity_resource="llm")
 
     async def stream_chat(self, messages: list[dict]) -> AsyncIterator[str]:
         normalized = [
             {"role": str(message.get("role", "user")), "content": str(message.get("content", ""))}
             for message in messages
         ]
-        async with stream_with_capacity("llm", timeout_seconds=provider_policy("llm").timeout_seconds):
+        async with provider_stream(provider_policy("llm", "stream_chat"), capacity_resource="llm"):
             async for chunk in self.provider.stream_chat(normalized):
                 yield chunk
 

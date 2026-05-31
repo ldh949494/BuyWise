@@ -12,7 +12,8 @@ async def test_lifespan_builds_app_container_once_and_closes_it(monkeypatch) -> 
     closed = []
     container = SimpleNamespace(close=lambda: closed.append("called"))
 
-    def fake_build_app_container():
+    def fake_build_app_container(container_builder=None):
+        assert container_builder is None
         built.append("called")
         return container
 
@@ -21,17 +22,18 @@ async def test_lifespan_builds_app_container_once_and_closes_it(monkeypatch) -> 
 
     async with dependencies.lifespan(app):
         assert built == ["called"]
-        assert app.state.buywise_dependencies is container
+        assert dependencies.get_app_container_from_app(app) is container
 
     assert closed == ["called"]
-    assert app.state.buywise_dependencies is None
+    assert app not in dependencies._APP_CONTAINERS
 
 
 def test_get_app_container_reuses_request_app_container(monkeypatch) -> None:
-    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace()))
+    request = SimpleNamespace(app=FastAPI())
     created = []
 
-    def fake_build_app_container():
+    def fake_build_app_container(container_builder=None):
+        assert container_builder is None
         instance = SimpleNamespace(llm_client=object())
         created.append(instance)
         return instance
@@ -43,3 +45,13 @@ def test_get_app_container_reuses_request_app_container(monkeypatch) -> None:
 
     assert first is second
     assert created == [first]
+
+
+def test_container_builder_replaces_single_dependency() -> None:
+    product_store = SimpleNamespace(indexed_product_ids=lambda: [1, 2], count=lambda: 2)
+    builder = dependencies.AppContainerBuilder().with_product_store(product_store)
+
+    container = dependencies.build_app_container(builder)
+
+    assert container.product_store is product_store
+    assert container.readiness_service.product_store is product_store

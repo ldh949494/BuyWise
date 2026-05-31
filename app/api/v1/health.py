@@ -1,12 +1,13 @@
 import hmac
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
 from app.core.config import settings
+from app.core.dependencies import get_readiness_service
 from app.schemas.common import HealthResponse, ReadinessResponse
-from app.services.readiness_service import validate_readiness
+from app.services.readiness_service import ReadinessService
 
 
 router = APIRouter()
@@ -18,9 +19,12 @@ def health_check() -> HealthResponse:
 
 
 @router.get("/ready", response_model=ReadinessResponse)
-def readiness_check(request: Request) -> ReadinessResponse | JSONResponse:
+def readiness_check(
+    request: Request,
+    readiness_service: ReadinessService = Depends(get_readiness_service),
+) -> ReadinessResponse | JSONResponse:
     _require_readiness_token(request)
-    report = validate_readiness(include_details=False)
+    report = readiness_service.validate_readiness(include_details=False)
     if report["status"] != "ready":
         return JSONResponse(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content=report)
     return ReadinessResponse.model_validate(report)

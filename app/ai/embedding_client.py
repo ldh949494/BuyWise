@@ -8,7 +8,7 @@ import random
 from typing import Any, List, Protocol
 
 from app.core.config import settings
-from app.core.resilience import provider_policy
+from app.core.resilience import provider_policy, run_provider_call
 
 
 class EmbeddingProvider(Protocol):
@@ -68,7 +68,7 @@ class OpenAICompatibleEmbeddingProvider:
         return OpenAI(
             base_url=base_url or settings.effective_embedding_base_url,
             api_key=resolved_api_key,
-            timeout=provider_policy("embedding").timeout_seconds,
+            timeout=provider_policy("embedding", "embed_texts").timeout_seconds,
         )
 
 
@@ -85,7 +85,10 @@ class EmbeddingClient:
         return self.embed_texts([text])[0]
 
     def embed_texts(self, texts: List[str]) -> List[List[float]]:
-        return self.provider.embed_texts(texts)
+        return run_provider_call(
+            provider_policy("embedding", "embed_texts"),
+            lambda: self.provider.embed_texts(texts),
+        )
 
     def _build_provider(self, provider_name: str, dimension: int) -> EmbeddingProvider:
         normalized = provider_name.strip().lower()

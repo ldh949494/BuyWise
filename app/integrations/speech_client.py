@@ -9,8 +9,7 @@ from typing import Protocol
 from app.core.concurrency import run_blocking_io
 from app.core.config import settings
 from app.core.providers import AppError
-from app.core.resilience import provider_policy
-from app.core.traffic import run_with_capacity
+from app.core.resilience import provider_policy, run_provider_call_async
 from app.integrations.media_url import resolve_public_media_url
 
 
@@ -28,11 +27,10 @@ class MockSpeechClient:
 class TencentSpeechClient:
     async def transcribe(self, audio_url: str) -> str:
         public_url = resolve_public_media_url(audio_url, field_name="audio_url")
-        policy = provider_policy("speech")
-        return await run_with_capacity(
-            "speech",
+        return await run_provider_call_async(
+            provider_policy("speech", "transcribe"),
             lambda: run_blocking_io(self._transcribe_sync, public_url),
-            timeout_seconds=policy.timeout_seconds,
+            capacity_resource="speech",
         )
 
     def _transcribe_sync(self, audio_url: str) -> str:

@@ -18,12 +18,12 @@
   - 验收标准：业务 service 不直接提交事务；API use case、脚本入口或统一事务包装器负责提交和回滚；已有订单、评价、商品、聊天写入测试全部通过。
   - 完成记录：新增 `app.core.transaction.unit_of_work`，商品、订单、评价、聊天和管理员写入路径已收敛到统一事务 helper。脚本批处理入口仍保留显式事务边界，作为后续作业治理任务的一部分继续收敛。
 
-- [ ] 建立强类型应用 composition root，替代松散的 `app.state` 字典依赖缓存。
+- [x] 建立强类型应用 composition root，替代松散的 `app.state` 字典依赖缓存。
   - 当前问题：依赖生命周期和类型约束弱，外部 client、RAG pipeline、vector store 的初始化、关闭和健康状态不集中。
   - 验收标准：应用启动时构建明确的依赖容器；shutdown 时释放可关闭资源；readiness 能引用容器内依赖状态；测试仍可替换单个依赖。
-  - 状态：部分完成。
+  - 状态：已完成。
   - 进展记录：新增 typed `AppContainer`，应用 lifespan 构建容器并在 shutdown 调用 `close()`；FastAPI dependencies 从容器属性取 LLM、RAG、vector store、chat、compare、vision 和 speech 服务，不再使用松散 dict cache。
-  - 未完成原因：readiness 仍通过独立 readiness service 检查外部依赖，没有直接引用容器内依赖状态；单依赖替换也还主要依赖 FastAPI dependency override，而不是容器级测试 builder。
+  - 完成记录：容器注册从 `app.state` 动态缓存改为 typed app-container registry；新增 `AppContainerBuilder` 支持容器级单依赖替换；readiness service 进入容器并复用容器内 session factory 和 Chroma product store；HTTP readiness、admin ops summary 和 readiness CLI 均通过 composition root 获取 readiness 依赖。
 
 - [x] 明确同步数据库在 async HTTP 链路中的阻塞边界。
   - 当前问题：同步 SQLAlchemy session 混在 FastAPI async 链路里，容量模型依赖线程池和连接池行为。
@@ -40,12 +40,12 @@
   - 验收标准：provider registry 仍是统一访问点；具体 provider 分模块实现；`validate_providers.py` 继续禁止绕过 provider 边界。
   - 完成记录：`providers.py` 已收敛为 registry 和统一出口；logging、telemetry、middleware 分别拆到独立 provider 实现模块；`validate_providers.py` 已同步允许这些实现模块直接访问底层横切依赖。
 
-- [ ] 建立统一外部调用 resilience policy。
+- [x] 建立统一外部调用 resilience policy。
   - 当前问题：LLM、embedding、vision、speech、COS、Chroma 的 timeout、错误分类、重试和降级策略分散。
   - 验收标准：统一定义 timeout、retry、circuit breaker、错误分类和 degraded reason；高成本外部调用全部复用；指标可区分 capacity、timeout、provider_error、configuration_error。
-  - 状态：部分完成。
+  - 状态：已完成。
   - 进展记录：新增 `app.core.resilience`，LLM、embedding、vision、speech 已复用统一 provider timeout 和错误分类；测试覆盖 capacity、timeout、configuration_error、provider_error 分类。
-  - 未完成原因：retry、circuit breaker、COS 与 Chroma 外部调用接入尚未落地，指标维度也还未统一下沉到所有 provider，因此不满足完整验收标准。
+  - 完成记录：`app.core.resilience` 新增统一执行器、retry、进程内 circuit breaker 和 provider failure 指标；LLM、embedding、vision、speech、COS 与 Chroma 调用均通过统一 policy 执行，指标统一按 `provider`、`operation`、`reason` 记录 capacity、timeout、provider_error 和 configuration_error。
 
 - [x] 将 RAG/AI 评测阈值纳入 release gate。
   - 当前问题：`evaluate_rag` 和索引检查可运行，但质量阈值尚未成为强发布门禁。
@@ -87,12 +87,12 @@
 
 - [x] Unit of Work / Transaction Manager。
 - [x] 配置域拆分和 provider 拆分。
-- [ ] 统一 resilience policy。
+- [x] 统一 resilience policy。
 - [x] RAG/AI eval 阈值接入 release gate。
 
 第二批：
 
-- [ ] 强类型 composition root。
+- [x] 强类型 composition root。
 - [ ] 真实依赖 smoke 分层。
 - [x] OpenAPI contract snapshot。
 - [ ] 后台作业 artifact。

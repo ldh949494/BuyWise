@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import settings
-from app.core.dependencies import lifespan
+from app.core.dependencies import AppContainerBuilder, install_app_container_builder, make_lifespan
 from app.core.providers import (
     get_error_provider,
     get_logging_provider,
@@ -15,7 +15,7 @@ from app.core.providers import (
 )
 
 
-def create_app() -> FastAPI:
+def create_app(container_builder: AppContainerBuilder | None = None) -> FastAPI:
     settings.validate_production()
     get_logging_provider().configure()
     app = FastAPI(
@@ -25,8 +25,9 @@ def create_app() -> FastAPI:
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/openapi.json",
-        lifespan=lifespan,
+        lifespan=make_lifespan(container_builder),
     )
+    install_app_container_builder(app, container_builder)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
