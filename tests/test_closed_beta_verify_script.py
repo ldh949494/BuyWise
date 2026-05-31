@@ -38,3 +38,13 @@ def test_release_check_can_run_openapi_contract_gate() -> None:
     assert "[switch]$CheckOpenApiContract" in text
     assert "& $python -m app.scripts.openapi_contract" in text
     assert 'Assert-LastExitCode "OpenAPI contract"' in text
+
+
+def test_release_check_can_run_real_dependency_smoke() -> None:
+    text = RELEASE_CHECK.read_text(encoding="utf-8")
+
+    assert "[switch]$RunRealDependencySmoke" in text
+    assert "[switch]$SmokeMySql" in text
+    assert "[switch]$SmokeCos" in text
+    assert '"app.scripts.real_dependency_smoke"' in text
+    assert 'Assert-LastExitCode "real dependency smoke"' in text

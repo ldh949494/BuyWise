@@ -18,6 +18,10 @@ param(
     [double]$MaxRagFallbackRate = 0.20,
     [double]$MaxRagEmptyResultRate = 0.0,
     [string]$RagEvalOutputJson = "",
+    [switch]$RunRealDependencySmoke,
+    [switch]$SmokeMySql,
+    [switch]$SmokeCos,
+    [string]$RealDependencySmokeOutputJson = "",
     [string]$BaseUrl = "http://127.0.0.1:8000",
     [string]$Token = "",
     [string]$ReadinessToken = "",
@@ -117,6 +121,26 @@ if ($RunRagEval) {
     }
     & $python @ragEvalArgs
     Assert-LastExitCode "RAG evaluation gate"
+}
+
+if ($RunRealDependencySmoke) {
+    Write-Host "========== Real Dependency Smoke =========="
+    $realSmokeArgs = @("-m", "app.scripts.real_dependency_smoke")
+    if (-not $SmokeMySql -and -not $SmokeCos) {
+        $SmokeMySql = $true
+        $SmokeCos = $true
+    }
+    if ($SmokeMySql) {
+        $realSmokeArgs += @("--check", "mysql")
+    }
+    if ($SmokeCos) {
+        $realSmokeArgs += @("--check", "cos")
+    }
+    if ($RealDependencySmokeOutputJson) {
+        $realSmokeArgs += @("--output-json", $RealDependencySmokeOutputJson)
+    }
+    & $python @realSmokeArgs
+    Assert-LastExitCode "real dependency smoke"
 }
 
 if ($Token -or $ReadinessToken) {

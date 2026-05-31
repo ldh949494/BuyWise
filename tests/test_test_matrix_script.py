@@ -22,3 +22,6 @@ def test_test_matrix_runs_unit_integration_and_release_tiers() -> None:
     assert '".\\scripts\\release_check.ps1"' in text
     assert '$releaseArgs += "-CheckOpenApiContract"' in text
     assert '$releaseArgs += "-RunRagEval"' in text
+    assert '$releaseArgs += "-RunRealDependencySmoke"' in text
+    assert '$releaseArgs += "-SmokeMySql"' in text
+    assert '$releaseArgs += "-SmokeCos"' in text
