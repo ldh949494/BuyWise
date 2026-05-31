@@ -63,12 +63,11 @@
   - 验收标准：生成并提交 OpenAPI snapshot；schema diff 在 CI 或 release check 中可运行；破坏性变化需要显式确认并同步文档。
   - 完成记录：新增 `docs/reference/openapi.snapshot.json` 和 `app.scripts.openapi_contract`，支持 `--write` 生成规范化快照与默认 diff 检查；`release_check.ps1 -CheckOpenApiContract` 可作为发布门禁执行。
 
-- [ ] 系统化后台作业执行结果。
+- [x] 系统化后台作业执行结果。
   - 当前问题：catalog import、index rebuild、COS image migration、backup check 等依赖脚本输出，缺少统一作业记录。
   - 验收标准：脚本输出机器可读 artifact；记录输入、输出、耗时、结果、错误原因和操作者或执行环境；closed beta release 记录能引用这些 artifact。
-  - 状态：部分完成。
-  - 进展记录：新增 `app.scripts.job_artifacts.run_job_with_artifact`，artifact 统一记录 job 名称、输入、输出、耗时、状态、错误原因、环境和操作者；`import_products` 与 `build_vector_index` 已支持 `--artifact-json`。
-  - 未完成原因：COS image migration、backup check、release_prepare 聚合记录尚未全部接入；closed beta release checklist 也还未改成强制引用 artifact。
+  - 状态：已完成。
+  - 完成记录：`app.scripts.job_artifacts.run_job_with_artifact` 统一记录 job 名称、输入、输出、耗时、状态、错误原因、环境和操作者；`import_products`、`build_vector_index` 和 `migrate_product_images_to_cos` 已支持 `--artifact-json`。新增 `app.scripts.check_mysql_backup` 记录备份证据校验 artifact；`release_prepare.ps1 -ArtifactDir/-ArtifactJson` 会输出聚合 artifact，并为导入和索引构建写入子 artifact；closed beta release checklist 已要求强制引用这些 artifact。
 
 - [x] 规划安全模型升级路径。
   - 当前问题：受控 API key 适合 closed beta，但不适合公网用户体系。
@@ -94,7 +93,7 @@
 - [x] 强类型 composition root。
 - [x] 真实依赖 smoke 分层。
 - [x] OpenAPI contract snapshot。
-- [ ] 后台作业 artifact。
+- [x] 后台作业 artifact。
 
 第三批：
 
