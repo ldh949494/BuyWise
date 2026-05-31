@@ -12,17 +12,25 @@ from app.core.config import settings
 from app.models.order import Order, OrderItem
 from app.models.product import Product
 from app.models.review import Review
-from app.services.readiness_service import validate_readiness
+from app.services.readiness_service import ProductStoreHealth, ReadinessService, validate_readiness
 from app.vectorstore.chroma_client import ChromaProductStore
 
 
 class AdminOpsService:
-    def __init__(self, db: Session) -> None:
+    def __init__(
+        self,
+        db: Session,
+        *,
+        readiness_service: ReadinessService | None = None,
+        product_store: ProductStoreHealth | None = None,
+    ) -> None:
         self.db = db
+        self.readiness_service = readiness_service
+        self.product_store = product_store
 
     def get_summary(self) -> dict[str, Any]:
         return {
-            "readiness": validate_readiness(include_details=True),
+            "readiness": self._readiness(),
             "index_health": self._index_health(),
             "catalog": self._catalog_metrics(),
             "token_guidance": self._token_guidance(),
@@ -32,10 +40,16 @@ class AdminOpsService:
             "recent_reviews": self._recent_reviews(),
         }
 
+    def _readiness(self) -> dict[str, Any]:
+        if self.readiness_service is None:
+            return validate_readiness(include_details=True)
+        return self.readiness_service.validate_readiness(include_details=True)
+
     def _index_health(self) -> dict[str, Any]:
+        store = self.product_store or ChromaProductStore()
+        close_store = self.product_store is None
         try:
             active_ids = set(self.db.scalars(select(Product.id).where(_active_filter())).all())
-            store = ChromaProductStore()
             indexed_ids = set(store.indexed_product_ids())
             return {
                 "status": "ok" if active_ids <= indexed_ids else "attention",
@@ -46,6 +60,11 @@ class AdminOpsService:
             }
         except (ChromaError, RuntimeError, ValueError, OSError) as exc:
             return {"status": "unavailable", "detail": str(exc)}
+        finally:
+            if close_store:
+                close = getattr(store, "close", None)
+                if callable(close):
+                    close()
 
     def _catalog_metrics(self) -> dict[str, Any]:
         total = self.db.scalar(select(func.count()).select_from(Product)) or 0

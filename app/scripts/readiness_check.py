@@ -5,15 +5,19 @@ from __future__ import annotations
 import argparse
 import json
 
-from app.services.readiness_service import validate_readiness
+from app.core.dependencies import build_app_container
 
 
 def main() -> None:
     args = _parse_args()
-    report = validate_readiness(
-        include_details=True,
-        expected_active_products=args.expected_active_products,
-    )
+    container = build_app_container()
+    try:
+        report = container.readiness_service.validate_readiness(
+            include_details=True,
+            expected_active_products=args.expected_active_products,
+        )
+    finally:
+        container.close()
     print(json.dumps(report, ensure_ascii=False, indent=2))
     if report["status"] != "ready":
         raise SystemExit(1)

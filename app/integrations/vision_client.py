@@ -7,8 +7,7 @@ import re
 from typing import Any, Protocol
 
 from app.core.config import settings
-from app.core.resilience import provider_policy
-from app.core.traffic import run_with_capacity
+from app.core.resilience import provider_policy, run_provider_call_async
 from app.integrations.media_url import resolve_public_media_url
 
 
@@ -36,11 +35,10 @@ class LlmVisionClient:
 
     async def recognize(self, image_url: str) -> dict[str, Any]:
         public_url = resolve_public_media_url(image_url, field_name="image_url")
-        policy = provider_policy("vision")
-        response = await run_with_capacity(
-            "vision",
+        response = await run_provider_call_async(
+            provider_policy("vision", "recognize"),
             lambda: self._recognize_with_provider(public_url),
-            timeout_seconds=policy.timeout_seconds,
+            capacity_resource="vision",
         )
         content = response.choices[0].message.content or "{}"
         return parse_vision_json(content)
@@ -82,7 +80,7 @@ class LlmVisionClient:
         return AsyncOpenAI(
             base_url=settings.effective_vision_base_url,
             api_key=api_key,
-            timeout=provider_policy("vision").timeout_seconds,
+            timeout=provider_policy("vision", "recognize").timeout_seconds,
         )
 
 

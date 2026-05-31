@@ -1,10 +1,12 @@
 import pytest
 
 from app.core.config import settings
+from app.core.resilience import reset_resilience_state
 
 
 @pytest.fixture(autouse=True)
 def isolate_mutable_settings():
+    reset_resilience_state()
     saved = {
         "auth_api_keys": settings.auth_api_keys,
         "allow_mock_providers_in_prod": settings.allow_mock_providers_in_prod,
@@ -37,3 +39,4 @@ def isolate_mutable_settings():
     yield
     for key, value in saved.items():
         setattr(settings, key, value)
+    reset_resilience_state()

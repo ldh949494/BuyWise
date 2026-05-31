@@ -15,6 +15,11 @@ LLM_FAILURES_TOTAL = Counter(
     "LLM failure count.",
     labelnames=("operation", "reason"),
 )
+PROVIDER_FAILURES_TOTAL = Counter(
+    "buywise_provider_failures_total",
+    "External provider failure count.",
+    labelnames=("provider", "operation", "reason"),
+)
 RAG_FALLBACK_TOTAL = Counter(
     "buywise_rag_fallback_total",
     "RAG fallback count.",
@@ -58,6 +63,10 @@ def observe_chat_latency(mode: str, outcome: str, seconds: float) -> None:
 
 def count_llm_failure(operation: str, reason: str) -> None:
     LLM_FAILURES_TOTAL.labels(operation=operation, reason=reason).inc()
+
+
+def count_provider_failure(provider: str, operation: str, reason: str) -> None:
+    PROVIDER_FAILURES_TOTAL.labels(provider=provider, operation=operation, reason=reason).inc()
 
 
 def count_rag_fallback(entrypoint: str, stage: str) -> None:

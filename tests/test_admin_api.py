@@ -24,7 +24,7 @@ def make_client():
     return client
 
 
-def make_client_with_session_factory():
+def make_client_with_session_factory(container_builder=None):
     settings.admin_jwt_secret = "test-admin-secret"
     engine = create_engine(
         "sqlite:///:memory:",
@@ -39,7 +39,7 @@ def make_client_with_session_factory():
     db.commit()
     db.close()
 
-    app = create_app()
+    app = create_app(container_builder)
 
     def override_get_db():
         session = testing_session_local()

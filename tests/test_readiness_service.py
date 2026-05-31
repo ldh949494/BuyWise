@@ -46,13 +46,15 @@ class FakeSettings:
         return None
 
 
-def test_validate_readiness_fails_when_expected_active_product_count_differs(monkeypatch) -> None:
-    monkeypatch.setattr(readiness_service, "settings", FakeSettings())
-    monkeypatch.setattr(readiness_service, "SessionLocal", lambda: FakeDb())
-    monkeypatch.setattr(readiness_service, "ProductRepository", FakeProductRepository)
-    monkeypatch.setattr(readiness_service, "ChromaProductStore", FakeProductStore)
+def test_validate_readiness_fails_when_expected_active_product_count_differs() -> None:
+    service = readiness_service.ReadinessService(
+        app_settings=FakeSettings(),
+        session_factory=lambda: FakeDb(),
+        product_repository_type=FakeProductRepository,
+        product_store=FakeProductStore(),
+    )
 
-    report = readiness_service.validate_readiness(include_details=True, expected_active_products=50)
+    report = service.validate_readiness(include_details=True, expected_active_products=50)
 
     assert report["status"] == "not_ready"
     assert report["checks"]["products"]["status"] == "failed"

@@ -5,6 +5,7 @@ from app.api.v1.compare import get_compare_service
 from app.api.v1.rag import get_rag_service
 from app.core.config import Settings, settings
 from app.core.database import get_db
+from app.core.dependencies import AppContainerBuilder
 from app.main import create_app
 from app.schemas.chat import ChatResponse
 from app.schemas.compare import CompareResponse
@@ -52,18 +53,20 @@ def test_production_config_validation_rejects_insecure_settings() -> None:
     assert "READINESS_TOKEN" in message
 
 
-def test_readiness_requires_token_in_prod(monkeypatch) -> None:
+def test_readiness_requires_token_in_prod() -> None:
     settings.app_env = "prod"
     settings.app_debug = False
     settings.mysql_password = "secret"
     settings.auth_api_keys = "api:token:orders:read"
     settings.readiness_token = "ready-token"
     settings.allow_mock_providers_in_prod = True
-    monkeypatch.setattr(
-        "app.api.v1.health.validate_readiness",
-        lambda include_details=False: {"status": "ready", "service": "buywise-backend", "checks": {}},
-    )
-    client = TestClient(create_app())
+
+    class FakeReadinessService:
+        def validate_readiness(self, include_details=False):
+            return {"status": "ready", "service": "buywise-backend", "checks": {}}
+
+    app = create_app(AppContainerBuilder().with_readiness_service(FakeReadinessService()))
+    client = TestClient(app)
 
     missing = client.get("/api/v1/ready")
     allowed = client.get("/api/v1/ready", headers={"X-Readiness-Token": "ready-token"})

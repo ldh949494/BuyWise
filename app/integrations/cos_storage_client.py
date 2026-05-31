@@ -7,6 +7,7 @@ from urllib.parse import quote
 
 from app.core.config import settings
 from app.core.providers import AppError
+from app.core.resilience import provider_policy, run_provider_call
 
 
 class ObjectStorageClient(Protocol):
@@ -32,11 +33,14 @@ class TencentCosStorageClient:
         content_type: str,
     ) -> str:
         self._validate_settings()
-        self.client.put_object(
-            Bucket=settings.cos_bucket,
-            Body=fileobj,
-            Key=key,
-            ContentType=content_type,
+        run_provider_call(
+            provider_policy("cos", "upload_fileobj"),
+            lambda: self.client.put_object(
+                Bucket=settings.cos_bucket,
+                Body=fileobj,
+                Key=key,
+                ContentType=content_type,
+            ),
         )
         return self._public_url(key)
 

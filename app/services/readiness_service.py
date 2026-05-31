@@ -2,94 +2,129 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from chromadb.errors import ChromaError
 from sqlalchemy import select, text
+from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.core.config import settings
+from app.core.config import Settings, settings
 from app.core.database import SessionLocal
 from app.models.product import Product
 from app.repositories.product_repo import ProductRepository
 from app.vectorstore.chroma_client import ChromaProductStore
 
 CHECK_ORDER = ("config", "database", "products", "chroma", "vector_index")
+ProductStoreHealth = Any
+
+
+class ReadinessService:
+    def __init__(
+        self,
+        *,
+        app_settings: Settings = settings,
+        session_factory: Callable[[], Session] = SessionLocal,
+        product_repository_type: type[ProductRepository] = ProductRepository,
+        product_store: ProductStoreHealth | None = None,
+        product_store_factory: Callable[[], ProductStoreHealth] = ChromaProductStore,
+    ) -> None:
+        self.settings = app_settings
+        self.session_factory = session_factory
+        self.product_repository_type = product_repository_type
+        self.product_store = product_store
+        self.product_store_factory = product_store_factory
+
+    def validate_readiness(
+        self,
+        include_details: bool = False,
+        expected_active_products: int | None = None,
+    ) -> dict[str, Any]:
+        checks: dict[str, dict[str, Any]] = {}
+        self._run_config_check(checks, include_details)
+        product_ids = self._run_database_checks(checks, include_details, expected_active_products)
+        self._run_vector_checks(checks, product_ids, include_details)
+        return _build_report(checks, include_details)
+
+    def _run_config_check(self, checks: dict[str, dict[str, Any]], include_details: bool) -> None:
+        try:
+            self.settings.validate_production()
+            checks["config"] = _ok()
+        except ValueError as exc:
+            checks["config"] = _failed(exc, include_details)
+
+    def _run_database_checks(
+        self,
+        checks: dict[str, dict[str, Any]],
+        include_details: bool,
+        expected_active_products: int | None,
+    ) -> set[int]:
+        try:
+            with self.session_factory() as db:
+                db.execute(text("SELECT 1"))
+                products = self.product_repository_type(db).get_all()
+                product_ids = {product.id for product in products}
+                product_count = len(product_ids)
+                checks["database"] = _ok()
+                details = {"product_count": product_count} if include_details else {}
+                checks["products"] = _ok(details)
+                if not product_ids:
+                    checks["products"] = _failed("No active products found.", include_details)
+                elif expected_active_products is not None and product_count != expected_active_products:
+                    checks["products"] = _failed(
+                        f"Expected {expected_active_products} active products, found {product_count}.",
+                        include_details,
+                        details,
+                    )
+                return product_ids
+        except SQLAlchemyError as exc:
+            checks["database"] = _failed(exc, include_details)
+            checks["products"] = _skipped()
+            return set()
+
+    def _run_vector_checks(self, checks: dict[str, dict[str, Any]], product_ids: set[int], include_details: bool) -> None:
+        if not product_ids:
+            checks["chroma"] = _skipped()
+            checks["vector_index"] = _skipped()
+            return
+        store = self.product_store or self.product_store_factory()
+        close_store = self.product_store is None
+        try:
+            indexed_ids = set(store.indexed_product_ids())
+            missing = sorted(product_ids - indexed_ids)
+            stale = self._stale_active_index_ids(indexed_ids)
+            checks["chroma"] = _ok({"collection_count": store.count()} if include_details else {})
+            details = {"missing_in_index": missing, "stale_in_index": stale} if include_details else {}
+            checks["vector_index"] = (
+                _ok(details)
+                if not missing and not stale
+                else _failed("Vector index is incomplete.", include_details, details)
+            )
+        except (ChromaError, RuntimeError, ValueError, OSError) as exc:
+            checks["chroma"] = _failed(exc, include_details)
+            checks["vector_index"] = _skipped()
+        finally:
+            if close_store:
+                close = getattr(store, "close", None)
+                if callable(close):
+                    close()
+
+    def _stale_active_index_ids(self, indexed_ids: set[int]) -> list[int]:
+        if not indexed_ids:
+            return []
+        with self.session_factory() as db:
+            db_ids = set(db.scalars(select(Product.id)).all())
+        return sorted(indexed_ids - db_ids)
 
 
 def validate_readiness(include_details: bool = False, expected_active_products: int | None = None) -> dict[str, Any]:
-    checks: dict[str, dict[str, Any]] = {}
-    _run_config_check(checks, include_details)
-    product_ids = _run_database_checks(checks, include_details, expected_active_products)
-    _run_vector_checks(checks, product_ids, include_details)
-    return _build_report(checks, include_details)
-
-
-def _run_config_check(checks: dict[str, dict[str, Any]], include_details: bool) -> None:
-    try:
-        settings.validate_production()
-        checks["config"] = _ok()
-    except ValueError as exc:
-        checks["config"] = _failed(exc, include_details)
-
-
-def _run_database_checks(
-    checks: dict[str, dict[str, Any]],
-    include_details: bool,
-    expected_active_products: int | None,
-) -> set[int]:
-    try:
-        with SessionLocal() as db:
-            db.execute(text("SELECT 1"))
-            products = ProductRepository(db).get_all()
-            product_ids = {product.id for product in products}
-            product_count = len(product_ids)
-            checks["database"] = _ok()
-            details = {"product_count": product_count} if include_details else {}
-            checks["products"] = _ok(details)
-            if not product_ids:
-                checks["products"] = _failed("No active products found.", include_details)
-            elif expected_active_products is not None and product_count != expected_active_products:
-                checks["products"] = _failed(
-                    f"Expected {expected_active_products} active products, found {product_count}.",
-                    include_details,
-                    details,
-                )
-            return product_ids
-    except SQLAlchemyError as exc:
-        checks["database"] = _failed(exc, include_details)
-        checks["products"] = _skipped()
-        return set()
-
-
-def _run_vector_checks(checks: dict[str, dict[str, Any]], product_ids: set[int], include_details: bool) -> None:
-    if not product_ids:
-        checks["chroma"] = _skipped()
-        checks["vector_index"] = _skipped()
-        return
-    try:
-        store = ChromaProductStore()
-        indexed_ids = set(store.indexed_product_ids())
-        missing = sorted(product_ids - indexed_ids)
-        stale = _stale_active_index_ids(indexed_ids)
-        checks["chroma"] = _ok({"collection_count": store.count()} if include_details else {})
-        details = {"missing_in_index": missing, "stale_in_index": stale} if include_details else {}
-        checks["vector_index"] = (
-            _ok(details)
-            if not missing and not stale
-            else _failed("Vector index is incomplete.", include_details, details)
-        )
-    except (ChromaError, RuntimeError, ValueError, OSError) as exc:
-        checks["chroma"] = _failed(exc, include_details)
-        checks["vector_index"] = _skipped()
-
-
-def _stale_active_index_ids(indexed_ids: set[int]) -> list[int]:
-    if not indexed_ids:
-        return []
-    with SessionLocal() as db:
-        db_ids = set(db.scalars(select(Product.id)).all())
-    return sorted(indexed_ids - db_ids)
+    return ReadinessService(
+        app_settings=settings,
+        session_factory=SessionLocal,
+        product_repository_type=ProductRepository,
+        product_store_factory=ChromaProductStore,
+    ).validate_readiness(include_details=include_details, expected_active_products=expected_active_products)
 
 
 def _build_report(checks: dict[str, dict[str, Any]], include_details: bool) -> dict[str, Any]:
