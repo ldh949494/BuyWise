@@ -7,6 +7,9 @@ param(
     [switch]$CheckIndex,
     [switch]$CheckOpenApiContract,
     [switch]$RunRagEval,
+    [switch]$RunRealDependencySmoke,
+    [switch]$SmokeMySql,
+    [switch]$SmokeCos,
     [string]$BaseUrl = "http://127.0.0.1:8000",
     [string]$Token = "",
     [string]$ReadinessToken = "",
@@ -69,6 +72,15 @@ if ($CheckOpenApiContract) {
 }
 if ($RunRagEval) {
     $releaseArgs += "-RunRagEval"
+}
+if ($RunRealDependencySmoke) {
+    $releaseArgs += "-RunRealDependencySmoke"
+}
+if ($SmokeMySql) {
+    $releaseArgs += "-SmokeMySql"
+}
+if ($SmokeCos) {
+    $releaseArgs += "-SmokeCos"
 }
 if ($Token -or $ReadinessToken) {
     $releaseArgs += @("-BaseUrl", $BaseUrl, "-Token", $Token, "-ReadinessToken", $ReadinessToken)

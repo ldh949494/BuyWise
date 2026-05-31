@@ -52,12 +52,11 @@
   - 验收标准：`release_check.ps1` 可配置并执行 RAG eval 阈值；报告包含 recall、top1、MRR、fallback rate、empty result rate；低于阈值时 release check 失败。
   - 完成记录：新增 `app.scripts.rag_eval_gate`，复用现有 RAG eval 并补充 `fallback_rate`、`empty_result_rate` 和阈值失败原因；`release_check.ps1` 新增 `-RunRagEval` 及可配置 profile、retrieval、top_k、质量阈值和 JSON artifact 参数。
 
-- [ ] 增加真实依赖 smoke 分层。
+- [x] 增加真实依赖 smoke 分层。
   - 当前问题：pytest 大量使用 SQLite、fake provider 和 in-memory 环境，不能完全代表部署运行。
   - 验收标准：定义 unit、integration、release 三档测试；integration 覆盖 MySQL、Chroma、mock external providers；release 覆盖真实或沙箱 AI/COS/readiness/smoke。
-  - 状态：部分完成。
-  - 进展记录：新增 `pytest.ini` marker 和 `scripts/test_matrix.ps1` 分层入口；`unit` 排除 integration/release，`integration` 承接 Chroma/向量索引和 mock 外部 provider 类测试，`release` 转发 `release_check.ps1` 以组合 readiness、closed beta smoke、AI smoke、索引健康和 RAG eval gate。
-  - 未完成原因：尚未新增 MySQL 真连接 integration smoke，也未新增 COS 沙箱 bucket 连通或只读权限检查；为避免对真实 bucket 产生写入副作用，COS smoke 需要单独设计安全探针。
+  - 状态：已完成。
+  - 完成记录：`pytest.ini` marker 和 `scripts/test_matrix.ps1` 已定义 unit、integration、release 三档；integration 覆盖 Chroma、MySQL 兼容路径和 mock external provider；新增 `app.scripts.real_dependency_smoke`，MySQL 真连接 smoke 要求 MySQL dialect 并执行 `SELECT 1`，COS smoke 使用 `head_bucket` 或只读 list fallback 检查 bucket 可访问性且不上传对象；`release_check.ps1 -RunRealDependencySmoke` 和 `test_matrix.ps1 -Tier release -RunRealDependencySmoke` 已接入 release 层。
 
 - [x] 增加 OpenAPI contract snapshot 和 diff 门禁。
   - 当前问题：Android contract 测试覆盖重点响应，但公共 API schema 变化缺少整体快照对比。
@@ -93,7 +92,7 @@
 第二批：
 
 - [x] 强类型 composition root。
-- [ ] 真实依赖 smoke 分层。
+- [x] 真实依赖 smoke 分层。
 - [x] OpenAPI contract snapshot。
 - [ ] 后台作业 artifact。
 

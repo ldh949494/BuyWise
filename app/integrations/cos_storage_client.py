@@ -44,6 +44,13 @@ class TencentCosStorageClient:
         )
         return self._public_url(key)
 
+    def check_bucket_read_access(self) -> dict[str, object]:
+        self._validate_settings()
+        return run_provider_call(
+            provider_policy("cos", "check_bucket_read_access"),
+            self._check_bucket_read_access,
+        )
+
     def _create_client(self):
         try:
             from qcloud_cos import CosConfig, CosS3Client
@@ -78,6 +85,13 @@ class TencentCosStorageClient:
                 code="storage_provider_not_configured",
                 extra={"missing": missing},
             )
+
+    def _check_bucket_read_access(self) -> dict[str, object]:
+        if hasattr(self.client, "head_bucket"):
+            self.client.head_bucket(Bucket=settings.cos_bucket)
+            return {"bucket": settings.cos_bucket, "operation": "head_bucket"}
+        self.client.list_objects(Bucket=settings.cos_bucket, MaxKeys=1)
+        return {"bucket": settings.cos_bucket, "operation": "list_objects"}
 
     def _public_url(self, key: str) -> str:
         base_url = settings.upload_public_base_url.strip()

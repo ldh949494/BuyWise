@@ -19,6 +19,7 @@ Use this checklist for every BuyWise closed beta release. `scripts/release_check
 - [ ] Run Android debug build.
 - [ ] Run vector index health check for the target catalog.
 - [ ] Run RAG eval gate and OpenAPI contract gate when preparing a closed beta release.
+- [ ] Run real dependency smoke against MySQL and COS sandbox or production-equivalent credentials.
 
 Recommended local command:
 
@@ -29,7 +30,7 @@ Recommended local command:
 Closed beta command with smoke:
 
 ```powershell
-.\scripts\release_check.ps1 -CheckIndex -RunRagEval -CheckOpenApiContract -ExpectedActiveProducts 50 -Token <smoke-token> -ReadinessToken <readiness-token> -BaseUrl https://api.buywise-beta.example.com -IncludeAiSmoke
+.\scripts\release_check.ps1 -CheckIndex -RunRagEval -CheckOpenApiContract -RunRealDependencySmoke -SmokeMySql -SmokeCos -ExpectedActiveProducts 50 -Token <smoke-token> -ReadinessToken <readiness-token> -BaseUrl https://api.buywise-beta.example.com -IncludeAiSmoke
 ```
 
 ## Deploy
@@ -51,7 +52,7 @@ Closed beta real catalog preparation:
 - [ ] Run closed beta smoke against the deployed base URL.
 - [ ] Record the SLO snapshot from `docs/operations/slo.md` and compare it with the previous release.
 - [ ] Check structured logs for request IDs on failed smoke or tester reports.
-- [ ] Record release notes, tag, smoke result, readiness JSON, index health output, RAG eval JSON, OpenAPI contract result, SLO comparison, and rollback target.
+- [ ] Record release notes, tag, smoke result, readiness JSON, index health output, RAG eval JSON, OpenAPI contract result, real dependency smoke JSON, SLO comparison, and rollback target.
 
 ## Rollback Readiness
 

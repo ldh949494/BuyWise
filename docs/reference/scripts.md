@@ -3,14 +3,14 @@
 ## 验证
 
 - `scripts/auto_validate.ps1`：仓库提交前和 CI 验证入口。它会运行文档校验、provider lint、仓库 lint、熵债校验、后端 smoke check、使用仓库内 basetemp 且禁用 cache 的 pytest，并可选择构建 Android。
-- `scripts/release_check.ps1`：发版前聚合验证入口。默认调用 `auto_validate.ps1`、Android lint 和 Android debug build；传入 `-CheckIndex` 时运行 `app.scripts.check_vector_index`，传入 `-RunRagEval` 时运行 RAG 质量阈值门禁，传入 `-Token` 与 `-ReadinessToken` 时运行 closed beta readiness 和 smoke。可用 `-ExpectedActiveProducts <count>` 把固定目录规模门禁传给 readiness；可用 `-RagEvalProfile android-contract|demo|beta-fixture`、`-RagEvalRetrieval fallback|vector`、`-MinRagRecall`、`-MinRagTop1`、`-MinRagMrr`、`-MaxRagFallbackRate`、`-MaxRagEmptyResultRate` 和 `-RagEvalOutputJson` 配置 RAG 门禁；可用 `-SkipAndroidBuild`、`-SkipAndroidAnalyze` 和 `-SkipDependencyInstall` 控制本地耗时。
+- `scripts/release_check.ps1`：发版前聚合验证入口。默认调用 `auto_validate.ps1`、Android lint 和 Android debug build；传入 `-CheckIndex` 时运行 `app.scripts.check_vector_index`，传入 `-RunRagEval` 时运行 RAG 质量阈值门禁，传入 `-RunRealDependencySmoke` 时运行 MySQL 与 COS 真实或沙箱依赖 smoke，传入 `-Token` 与 `-ReadinessToken` 时运行 closed beta readiness 和 smoke。可用 `-ExpectedActiveProducts <count>` 把固定目录规模门禁传给 readiness；可用 `-RagEvalProfile android-contract|demo|beta-fixture`、`-RagEvalRetrieval fallback|vector`、`-MinRagRecall`、`-MinRagTop1`、`-MinRagMrr`、`-MaxRagFallbackRate`、`-MaxRagEmptyResultRate` 和 `-RagEvalOutputJson` 配置 RAG 门禁；可用 `-SmokeMySql`、`-SmokeCos` 和 `-RealDependencySmokeOutputJson` 配置真实依赖 smoke；可用 `-SkipAndroidBuild`、`-SkipAndroidAnalyze` 和 `-SkipDependencyInstall` 控制本地耗时。
 - `scripts/validate_docs.py`：校验 `AGENTS.md` 和 `docs/`。
 - `scripts/validate_providers.py`：校验后端模块是否通过统一 Provider 入口访问横切能力。
 - `scripts/validate_repo_lint.py`：自定义仓库 linter，覆盖结构化日志、命名、文件大小和导入边界。
 - `scripts/validate_entropy.py`：根据 `docs/entropy/baseline.json` 校验黄金原则熵债规则。
 - `scripts/entropy_gc.py`：在 `artifacts/entropy-gc/` 下生成只读熵债清理报告。
 - `scripts/entropy_cleanup_agent.py`：通过 GitHub Models 执行一个低风险熵债清理，供后台清理流程使用。
-- `scripts/test_matrix.ps1`：分层测试入口。`-Tier unit` 运行无真实外部依赖的 pytest，`-Tier integration` 运行带 `integration` marker 的 Chroma、MySQL 兼容路径和 mock external provider 测试，`-Tier release` 转发到 `release_check.ps1` 运行发版级 readiness、smoke、AI smoke、索引和 RAG eval gate。
+- `scripts/test_matrix.ps1`：分层测试入口。`-Tier unit` 运行无真实外部依赖的 pytest，`-Tier integration` 运行带 `integration` marker 的 Chroma、MySQL 兼容路径和 mock external provider 测试，`-Tier release` 转发到 `release_check.ps1` 运行发版级 readiness、smoke、AI smoke、索引、RAG eval gate 和真实依赖 smoke。
 
 ## 依赖文件
 
@@ -53,6 +53,7 @@
 - `app.scripts.rag_eval_gate`：RAG 发布质量门禁。它复用 `evaluate_rag`，额外计算 `fallback_rate` 和 `empty_result_rate`，并按 `--min-recall`、`--min-top1`、`--min-mrr`、`--max-fallback-rate`、`--max-empty-result-rate` 判断是否通过；失败时返回非 0 exit code。示例：`python -m app.scripts.rag_eval_gate --profile demo --retrieval fallback --output-json artifacts/release/rag-eval.json`。
 - `app.scripts.openapi_contract`：OpenAPI 契约快照工具。默认检查 `docs/reference/openapi.snapshot.json` 是否与 `create_app().openapi()` 一致；使用 `--write` 刷新快照。`release_check.ps1 -CheckOpenApiContract` 会调用该检查。
 - `app.scripts.job_artifacts`：维护脚本统一 job artifact 工具。artifact 包含 job 名称、输入、输出、开始/结束时间、耗时、成功或失败状态、错误原因、执行环境和操作者。
+- `app.scripts.real_dependency_smoke`：真实或沙箱依赖 smoke。`--check mysql` 要求 `DATABASE_URL` 使用 MySQL dialect 并执行 `SELECT 1`；`--check cos` 使用 Tencent COS 的 `head_bucket` 或只读 list fallback 检查 bucket 可访问性，不上传对象。失败时返回非 0 exit code，可用 `--output-json <path>` 留存报告。
 - `scripts/init_db.py`：数据库初始化辅助脚本，执行 Alembic 迁移。
 - `scripts/ai_update_readme.py`：GitHub Actions 使用的 AI 辅助 README 更新脚本。
 - `scripts/doc_gardening.py`：AI 辅助仓库记忆维护报告。默认只写报告；使用 `--apply` 时才会编辑 `AGENTS.md`、README 或 `docs/`。
