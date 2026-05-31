@@ -20,3 +20,21 @@ def test_release_check_forwards_expected_active_products_to_closed_beta_verify()
 
     assert "[int]$ExpectedActiveProducts = 0" in text
     assert '$smokeArgs += @("-ExpectedActiveProducts", $ExpectedActiveProducts.ToString())' in text
+
+
+def test_release_check_can_run_rag_eval_gate() -> None:
+    text = RELEASE_CHECK.read_text(encoding="utf-8")
+
+    assert "[switch]$RunRagEval" in text
+    assert "[string]$RagEvalProfile = \"android-contract\"" in text
+    assert '"app.scripts.rag_eval_gate"' in text
+    assert '"--max-empty-result-rate"' in text
+    assert 'Assert-LastExitCode "RAG evaluation gate"' in text
+
+
+def test_release_check_can_run_openapi_contract_gate() -> None:
+    text = RELEASE_CHECK.read_text(encoding="utf-8")
+
+    assert "[switch]$CheckOpenApiContract" in text
+    assert "& $python -m app.scripts.openapi_contract" in text
+    assert 'Assert-LastExitCode "OpenAPI contract"' in text

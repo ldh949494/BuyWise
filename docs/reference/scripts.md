@@ -3,13 +3,14 @@
 ## 验证
 
 - `scripts/auto_validate.ps1`：仓库提交前和 CI 验证入口。它会运行文档校验、provider lint、仓库 lint、熵债校验、后端 smoke check、使用仓库内 basetemp 且禁用 cache 的 pytest，并可选择构建 Android。
-- `scripts/release_check.ps1`：发版前聚合验证入口。默认调用 `auto_validate.ps1`、Android lint 和 Android debug build；传入 `-CheckIndex` 时运行 `app.scripts.check_vector_index`，传入 `-Token` 与 `-ReadinessToken` 时运行 closed beta readiness 和 smoke。可用 `-ExpectedActiveProducts <count>` 把固定目录规模门禁传给 readiness；可用 `-SkipAndroidBuild`、`-SkipAndroidAnalyze` 和 `-SkipDependencyInstall` 控制本地耗时。
+- `scripts/release_check.ps1`：发版前聚合验证入口。默认调用 `auto_validate.ps1`、Android lint 和 Android debug build；传入 `-CheckIndex` 时运行 `app.scripts.check_vector_index`，传入 `-RunRagEval` 时运行 RAG 质量阈值门禁，传入 `-Token` 与 `-ReadinessToken` 时运行 closed beta readiness 和 smoke。可用 `-ExpectedActiveProducts <count>` 把固定目录规模门禁传给 readiness；可用 `-RagEvalProfile android-contract|demo|beta-fixture`、`-RagEvalRetrieval fallback|vector`、`-MinRagRecall`、`-MinRagTop1`、`-MinRagMrr`、`-MaxRagFallbackRate`、`-MaxRagEmptyResultRate` 和 `-RagEvalOutputJson` 配置 RAG 门禁；可用 `-SkipAndroidBuild`、`-SkipAndroidAnalyze` 和 `-SkipDependencyInstall` 控制本地耗时。
 - `scripts/validate_docs.py`：校验 `AGENTS.md` 和 `docs/`。
 - `scripts/validate_providers.py`：校验后端模块是否通过统一 Provider 入口访问横切能力。
 - `scripts/validate_repo_lint.py`：自定义仓库 linter，覆盖结构化日志、命名、文件大小和导入边界。
 - `scripts/validate_entropy.py`：根据 `docs/entropy/baseline.json` 校验黄金原则熵债规则。
 - `scripts/entropy_gc.py`：在 `artifacts/entropy-gc/` 下生成只读熵债清理报告。
 - `scripts/entropy_cleanup_agent.py`：通过 GitHub Models 执行一个低风险熵债清理，供后台清理流程使用。
+- `scripts/test_matrix.ps1`：分层测试入口。`-Tier unit` 运行无真实外部依赖的 pytest，`-Tier integration` 运行带 `integration` marker 的 Chroma、MySQL 兼容路径和 mock external provider 测试，`-Tier release` 转发到 `release_check.ps1` 运行发版级 readiness、smoke、AI smoke、索引和 RAG eval gate。
 
 ## 依赖文件
 
@@ -36,17 +37,22 @@
 - `app.scripts.migrate_database`：对配置的数据库执行 Alembic 迁移。
 - `app.scripts.create_tables`：兼容 wrapper，内部执行 Alembic 迁移。
 - `app.scripts.seed_products`：upsert 确定性商品种子数据。默认 profile 是 `android-contract`，用于 Android 合同流；演示时使用 `python -m app.scripts.seed_products --profile demo` 写入更适合固定提问和商品卡片展示的 demo 数据。旧 seed 数据如果曾以乱码写入，重新运行该脚本即可按固定商品 ID 更新。
-- `app.scripts.import_products`：从 CSV 导入商品。CSV 必须包含 `sku`、`name`、`category`、`price`、`tags`；脚本先整批校验，再按 `sku` upsert，输出 `inserted`、`updated`、`failed`。Closed beta 真实目录使用 `--require-real-assets`，要求每行包含真实 `product_url`、真实图片 URL，以及 `stock` 或 `stock_status`。
+- `app.scripts.import_products`：从 CSV 导入商品。CSV 必须包含 `sku`、`name`、`category`、`price`、`tags`；脚本先整批校验，再按 `sku` upsert，输出 `inserted`、`updated`、`failed`。Closed beta 真实目录使用 `--require-real-assets`，要求每行包含真实 `product_url`、真实图片 URL，以及 `stock` 或 `stock_status`。可传入 `--artifact-json <path>` 留存统一 job artifact。
 - `data/beta-catalog.template.csv`：closed beta 真实商品目录模板。真实目录文件使用本地忽略的 beta catalog CSV，不提交到 Git。第一版目录建议人工维护 5 个类目、每类 10 个真实 SKU；`sku` 使用自定义稳定值，动态字段按导入当天人工快照填写。推荐字段顺序为 `sku,name,category,brand,price,original_price,platform,product_url,image_url,image_urls,rating,sales,description,specs,tags,suitable_scene,stock,stock_status,review_summary`。`tags`、`suitable_scene`、`image_urls` 必须是 JSON 数组，`specs` 必须是 JSON 对象。`tags` 和 `suitable_scene` 从 `docs/reference/beta-catalog-taxonomy.md` 选择，避免同义词漂移。模板中的 URL 只能作为占位，正式导入前必须替换为可无登录打开的真实商品页和图片 URL。
+- `docs/reference/catalog-data-source.md`：商品目录数据源参照标准，定义 CSV 字段、closed beta 目录规模、COS 图片 URL 要求、taxonomy 约束和验收标准。
 - `app.scripts.validate_beta_catalog`：只读校验 closed beta 真实商品 CSV，不写数据库。示例：`python -m app.scripts.validate_beta_catalog --csv .\data\beta-catalog.csv`。它复用导入脚本的真实 URL、图片、库存和基础 JSON 校验，并额外检查 5 个固定类目、每类 10 个 SKU、`beta-...` SKU 命名、模板表头、`review_summary`、`specs` JSON 对象，以及 `tags` 和 `suitable_scene` 是否来自 `docs/reference/beta-catalog-taxonomy.md`。
 - 推荐演示问题：`帮我推荐一个300以内适合宿舍写代码的低噪音无线机械键盘，最好性价比高`。demo profile 下该问题应首推 `Campus75 三模静音机械键盘`。
+- `app.scripts.migrate_product_images_to_cos`：把商品表中现有 `image_url` / `image_urls` 指向的图片下载后上传到腾讯 COS，并把商品记录更新为 COS URL。默认 dry-run，不写数据库；确认后运行 `python -m app.scripts.migrate_product_images_to_cos --apply`。依赖 `.env` 中的 `UPLOAD_PROVIDER=cos`、Tencent Secret、`COS_BUCKET` 和 `COS_REGION`。
 - `scripts/set_utf8.ps1`：将 PowerShell 和 Python 进程编码设置为 UTF-8。如果终端查看 seed 数据时出现乱码，先点加载它：`. .\scripts\set_utf8.ps1`。
-- `app.scripts.build_vector_index`：重建或增量 upsert 持久化 ChromaDB 商品索引。`--mode rebuild` 会重置完整 collection，`--mode upsert` 会全量 upsert 但不重置，`--mode upsert --product-id <id>` 只更新指定商品。
+- `app.scripts.build_vector_index`：重建或增量 upsert 持久化 ChromaDB 商品索引。`--mode rebuild` 会重置完整 collection，`--mode upsert` 会全量 upsert 但不重置，`--mode upsert --product-id <id>` 只更新指定商品。可传入 `--artifact-json <path>` 留存统一 job artifact。
 - `app.scripts.check_vector_index`：输出商品向量索引健康 JSON，包括 collection count、DB 商品数、缺失索引 ID 和陈旧索引 ID。可传入 `--profile android-contract` 或 `--profile demo` 校验固定 seed 商品 ID；索引缺失或陈旧时返回非 0 exit code。
 - `app.scripts.readiness_check`：输出详细 readiness JSON 并在失败时返回非 0 exit code。检查 prod 配置、MySQL、商品数量、Chroma collection 和 active 商品索引覆盖。可传入 `--expected-active-products <count>`，用于 closed beta 等固定目录规模发布门禁。
 - `app.scripts.print_runtime_config_summary`：输出非敏感运行配置摘要，用于确认实际加载的环境、provider、MySQL 和 Chroma 配置；不会打印 API key、密码或 token。
 - `app.scripts.cleanup_uploads`：清理本地 `UPLOAD_DIR` 下超过 TTL 的上传文件。示例：`python -m app.scripts.cleanup_uploads --max-age-hours 24 --dry-run`。仅清理允许扩展名的普通文件；COS 上传的生命周期应在 bucket 上配置。
 - `app.scripts.evaluate_rag`：运行小型 RAG 购物需求评测集，并输出 `recall@k`、`top1_accuracy`、`mrr@k`、失败案例和 case-level diagnostics。使用 `python -m app.scripts.evaluate_rag`；传入 `--profile android-contract|demo|beta-fixture` 可选择 Android 合同、演示或 beta fixture 评测集，传入 `--retrieval fallback|vector` 可选择数据库 fallback 或临时重建 Chroma 向量索引。fallback 评测使用生产 RAG pipeline 的二阶段 rerank 装配；失败行会打印 source、fallback stage、candidate IDs、final IDs 和 filter reasons，传入 `--output-json <path>` 可保存完整报告。
+- `app.scripts.rag_eval_gate`：RAG 发布质量门禁。它复用 `evaluate_rag`，额外计算 `fallback_rate` 和 `empty_result_rate`，并按 `--min-recall`、`--min-top1`、`--min-mrr`、`--max-fallback-rate`、`--max-empty-result-rate` 判断是否通过；失败时返回非 0 exit code。示例：`python -m app.scripts.rag_eval_gate --profile demo --retrieval fallback --output-json artifacts/release/rag-eval.json`。
+- `app.scripts.openapi_contract`：OpenAPI 契约快照工具。默认检查 `docs/reference/openapi.snapshot.json` 是否与 `create_app().openapi()` 一致；使用 `--write` 刷新快照。`release_check.ps1 -CheckOpenApiContract` 会调用该检查。
+- `app.scripts.job_artifacts`：维护脚本统一 job artifact 工具。artifact 包含 job 名称、输入、输出、开始/结束时间、耗时、成功或失败状态、错误原因、执行环境和操作者。
 - `scripts/init_db.py`：数据库初始化辅助脚本，执行 Alembic 迁移。
 - `scripts/ai_update_readme.py`：GitHub Actions 使用的 AI 辅助 README 更新脚本。
 - `scripts/doc_gardening.py`：AI 辅助仓库记忆维护报告。默认只写报告；使用 `--apply` 时才会编辑 `AGENTS.md`、README 或 `docs/`。

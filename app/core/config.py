@@ -5,6 +5,8 @@ from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import URL
 
+from app.core.settings_groups import AISettings, DatabaseSettings, SecuritySettings, TrafficSettings, UploadSettings
+
 AppEnv = Literal["dev", "test", "prod"]
 
 
@@ -174,6 +176,21 @@ class Settings(BaseSettings):
     @property
     def effective_embedding_api_key(self) -> str:
         return self.embedding_api_key.strip() or self.llm_api_key
+
+    @property
+    def database(self) -> DatabaseSettings: return DatabaseSettings.from_settings(self)
+
+    @property
+    def ai(self) -> AISettings: return AISettings.from_settings(self)
+
+    @property
+    def upload(self) -> UploadSettings: return UploadSettings.from_settings(self)
+
+    @property
+    def security(self) -> SecuritySettings: return SecuritySettings.from_settings(self)
+
+    @property
+    def traffic(self) -> TrafficSettings: return TrafficSettings.from_settings(self)
 
     def validate_production(self) -> None:
         if self.app_env != "prod":

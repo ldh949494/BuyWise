@@ -58,6 +58,22 @@ async def test_extract_other_intents_and_budget_patterns() -> None:
 
 
 @pytest.mark.anyio
+async def test_extract_bundle_recommendation_need_from_text() -> None:
+    service = IntentService()
+
+    need = await service.extract("下周去旅行，帮我搭配一套轻便出行清单，预算700以内，不要大容量")
+
+    assert need.intent == "场景化组合推荐"
+    assert need.category is None
+    assert need.budget_max == 700
+    assert need.scenario == "旅行"
+    assert "轻便" in need.preferences
+    assert need.avoid == ["大容量"]
+    assert need.need_clarify is False
+    assert need.missing_fields == []
+
+
+@pytest.mark.anyio
 async def test_extract_marks_underspecified_request_for_clarification() -> None:
     service = IntentService()
 

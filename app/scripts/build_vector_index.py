@@ -4,15 +4,22 @@ from __future__ import annotations
 
 import argparse
 
-from app.services.product_index_service import build_vector_index, update_product_index
+from app.scripts.job_artifacts import run_job_with_artifact
+from app.services.product_index_service import build_vector_index
 
 
 def main() -> None:
     args = _parse_args()
-    result = build_vector_index(
-        mode=args.mode,
-        product_ids=args.product_id,
-        batch_size=args.batch_size,
+    inputs = {"mode": args.mode, "product_ids": args.product_id, "batch_size": args.batch_size}
+    result = run_job_with_artifact(
+        job_name="build_vector_index",
+        inputs=inputs,
+        artifact_path=args.artifact_json,
+        action=lambda: build_vector_index(
+            mode=args.mode,
+            product_ids=args.product_id,
+            batch_size=args.batch_size,
+        ),
     )
     print(
         f"Indexed {result['indexed']} products "
@@ -41,6 +48,7 @@ def _parse_args() -> argparse.Namespace:
         default=100,
         help="Number of product documents to write per batch.",
     )
+    parser.add_argument("--artifact-json", help="Optional path for a machine-readable job artifact.")
     return parser.parse_args()
 
 

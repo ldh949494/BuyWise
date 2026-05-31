@@ -11,10 +11,13 @@ ALLOWED_FILES = {
     Path("app/core/auth_provider.py"),
     Path("app/core/error_provider.py"),
     Path("app/core/exceptions.py"),
+    Path("app/core/logging_provider.py"),
     Path("app/core/logging_utils.py"),
+    Path("app/core/middleware_provider.py"),
     Path("app/core/providers.py"),
     Path("app/core/logging.py"),
     Path("app/core/request_context.py"),
+    Path("app/core/telemetry_provider.py"),
     Path("app/core/traffic.py"),
     Path("app/utils/logging.py"),
 }

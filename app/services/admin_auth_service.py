@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.providers import AppError
+from app.core.transaction import unit_of_work
 from app.models.admin_user import AdminUser
 from app.repositories.admin_user_repo import AdminUserRepository
 
@@ -65,8 +66,8 @@ class AdminAuthService:
             user = self.repo.update_password(user, password_hash)
         else:
             raise AppError("Admin user already exists.", status_code=409, code="admin_user_exists")
-        self.db.commit()
-        self.db.refresh(user)
+        with unit_of_work(self.db) as uow:
+            uow.refresh_after_commit(user)
         return user
 
     def _get_builtin_dev_admin(self, username: str, password: str) -> AdminUser:

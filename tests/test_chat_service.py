@@ -54,8 +54,10 @@ class FakeRAGPipeline:
     def __init__(self, products=None, should_fail=False) -> None:
         self.products = products or []
         self.should_fail = should_fail
+        self.calls = []
 
     async def search_products(self, need, db, top_k=20):
+        self.calls.append({"need": need, "top_k": top_k})
         if self.should_fail:
             raise RuntimeError("boom")
         return self.products

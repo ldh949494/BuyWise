@@ -6,6 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.providers import AppError
+from app.core.transaction import unit_of_work
 from app.models.product import Product
 from app.repositories.price_repo import PriceHistoryRepository
 from app.repositories.product_repo import ProductRepository
@@ -73,40 +74,32 @@ class ProductService:
         return items, total
 
     def create_product(self, product_data: ProductCreate) -> Product:
-        try:
+        with unit_of_work(self.db) as uow:
             product = self.repo.create_product(product_data.model_dump(exclude_unset=True))
-            return self._commit_write(product, operation="create")
-        except Exception:
-            self.db.rollback()
-            raise
+            uow.refresh_after_commit(product)
+        return self._after_write_commit(product, operation="create")
 
     def update_product(self, product_id: int, product_data: ProductUpdate) -> Product:
         product = self._active_product(product_id)
-        try:
+        with unit_of_work(self.db) as uow:
             payload = product_data.model_dump(exclude_unset=True)
             product = self.repo.update_product(product, payload)
-            return self._commit_write(product, operation="update")
-        except Exception:
-            self.db.rollback()
-            raise
+            uow.refresh_after_commit(product)
+        return self._after_write_commit(product, operation="update")
 
     def delete_product(self, product_id: int) -> Product:
         product = self._active_product(product_id)
-        try:
+        with unit_of_work(self.db) as uow:
             product = self.repo.delete_product(product)
-            return self._commit_write(product, operation="soft_delete")
-        except Exception:
-            self.db.rollback()
-            raise
+            uow.refresh_after_commit(product)
+        return self._after_write_commit(product, operation="soft_delete")
 
     def update_product_by_sku(self, product_data: dict) -> tuple[Product, bool]:
-        try:
+        with unit_of_work(self.db) as uow:
             product, inserted = self.repo.update_by_sku(product_data)
-            product = self._commit_write(product, operation="upsert")
-            return product, inserted
-        except Exception:
-            self.db.rollback()
-            raise
+            uow.refresh_after_commit(product)
+        product = self._after_write_commit(product, operation="upsert")
+        return product, inserted
 
     def get_all_products(self) -> list[Product]:
         products = self.repo.get_all()
@@ -120,10 +113,7 @@ class ProductService:
             raise AppError("Product not found", status_code=404, code="not_found")
         return product
 
-    def _commit_write(self, product: Product, *, operation: str) -> Product:
-        self._normalize_product(product)
-        self.db.commit()
-        self.db.refresh(product)
+    def _after_write_commit(self, product: Product, *, operation: str) -> Product:
         self._normalize_product(product)
         self._upsert_index_best_effort(product.id, operation)
         logger.info(

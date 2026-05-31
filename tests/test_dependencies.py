@@ -7,35 +7,39 @@ from app.core import dependencies
 
 
 @pytest.mark.anyio
-async def test_lifespan_builds_dependency_cache_once_and_clears_it(monkeypatch) -> None:
+async def test_lifespan_builds_app_container_once_and_closes_it(monkeypatch) -> None:
     built = []
-    cache = {"compare_service": object()}
+    closed = []
+    container = SimpleNamespace(close=lambda: closed.append("called"))
 
-    def fake_build_dependencies():
+    def fake_build_app_container():
         built.append("called")
-        return cache
+        return container
 
-    monkeypatch.setattr(dependencies, "build_app_dependencies", fake_build_dependencies)
+    monkeypatch.setattr(dependencies, "build_app_container", fake_build_app_container)
     app = FastAPI()
 
     async with dependencies.lifespan(app):
         assert built == ["called"]
-        assert app.state.buywise_dependencies is cache
+        assert app.state.buywise_dependencies is container
 
-    assert app.state.buywise_dependencies == {}
+    assert closed == ["called"]
+    assert app.state.buywise_dependencies is None
 
 
-def test_get_cached_dependency_reuses_request_app_cache() -> None:
+def test_get_app_container_reuses_request_app_container(monkeypatch) -> None:
     request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace()))
     created = []
 
-    def factory():
-        instance = object()
+    def fake_build_app_container():
+        instance = SimpleNamespace(llm_client=object())
         created.append(instance)
         return instance
 
-    first = dependencies.get_cached_dependency(request, "service", factory)
-    second = dependencies.get_cached_dependency(request, "service", factory)
+    monkeypatch.setattr(dependencies, "build_app_container", fake_build_app_container)
+
+    first = dependencies.get_app_container(request)
+    second = dependencies.get_app_container(request)
 
     assert first is second
     assert created == [first]

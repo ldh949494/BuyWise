@@ -43,6 +43,10 @@ class IntentService:
         "\u8fd0\u52a8",
         "\u5b66\u4e60",
         "\u5199\u4ee3\u7801",
+        "\u65c5\u884c",
+        "\u5ea6\u5047",
+        "\u9605\u8bfb",
+        "\u5e94\u6025",
     ]
     PREFERENCE_KEYWORDS = [
         "\u4f4e\u566a\u97f3",
@@ -52,6 +56,9 @@ class IntentService:
         "\u8f7b\u4fbf",
         "\u5927\u5bb9\u91cf",
         "\u6027\u4ef7\u6bd4",
+        "\u5feb\u5145",
+        "\u9632\u6cfc\u6c34",
+        "\u5c0f\u5de7",
     ]
     BUDGET_PATTERNS = [
         re.compile(
@@ -130,6 +137,7 @@ class IntentService:
             "budget_max": budget_max,
             "scenario": scenario,
             "preferences": preferences,
+            "avoid": self._extract_avoid(normalized_text),
         }
 
     def _rule_preferences(
@@ -144,6 +152,8 @@ class IntentService:
         return dedupe_strings(preferences)
 
     def _extract_intent(self, text: str) -> str:
+        if self._is_bundle_intent(text):
+            return "\u573a\u666f\u5316\u7ec4\u5408\u63a8\u8350"
         if self._is_compare_intent(text):
             return "\u5546\u54c1\u5bf9\u6bd4"
         if self._is_alternative_intent(text):
@@ -156,6 +166,20 @@ class IntentService:
 
     def _is_compare_intent(self, text: str) -> bool:
         return self._contains_keyword(text, ["\u5bf9\u6bd4", "\u6bd4\u8f83", "\u54ea\u4e2a\u597d", "\u54ea\u6b3e\u597d"])
+
+    def _is_bundle_intent(self, text: str) -> bool:
+        return self._contains_keyword(
+            text,
+            [
+                "\u642d\u914d",
+                "\u4e00\u5957",
+                "\u5957\u88c5",
+                "\u7ec4\u5408",
+                "\u65b9\u6848",
+                "\u6e05\u5355",
+                "\u4ece",
+            ],
+        )
 
     def _is_alternative_intent(self, text: str) -> bool:
         return self._contains_keyword(text, ["\u5e73\u66ff", "\u66ff\u4ee3", "\u7c7b\u4f3c\u6b3e"])
@@ -206,6 +230,18 @@ class IntentService:
                 preferences.append(quiet_preference)
         return preferences
 
+    def _extract_avoid(self, text: str) -> list[str]:
+        if not self._contains_keyword(text, ["\u4e0d\u8981", "\u4e0d\u60f3\u8981", "\u907f\u514d", "\u6392\u9664"]):
+            return []
+        return [
+            preference
+            for preference in self.PREFERENCE_KEYWORDS
+            if self._contains_any_negative_context(text, preference)
+        ]
+
+    def _contains_any_negative_context(self, text: str, value: str) -> bool:
+        return any(marker in text for marker in [f"\u4e0d\u8981{value}", f"\u4e0d\u60f3\u8981{value}", f"\u907f\u514d{value}", f"\u6392\u9664{value}"])
+
     def _missing_fields(
         self,
         intent: str,
@@ -214,6 +250,12 @@ class IntentService:
         scenario: str | None,
         preferences: list[str],
     ) -> list[str]:
+        if intent == "\u573a\u666f\u5316\u7ec4\u5408\u63a8\u8350":
+            missing_fields = []
+            if scenario is None:
+                missing_fields.append("scenario")
+            return missing_fields
+
         if intent not in {"\u5546\u54c1\u63a8\u8350", "\u627e\u5e73\u66ff"}:
             return []
 
