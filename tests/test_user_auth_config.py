@@ -1,0 +1,27 @@
+from app.core.config import Settings
+
+
+def test_prod_requires_user_jwt_secret_and_non_mock_otp() -> None:
+    settings = Settings(
+        _env_file=None,
+        APP_ENV="prod",
+        APP_DEBUG=False,
+        MYSQL_PASSWORD="secret",
+        AUTH_API_KEYS="api:prod-token:upload:write",
+        READINESS_TOKEN="ready-token",
+        ADMIN_JWT_SECRET="admin-jwt-secret",
+        ALLOW_MOCK_PROVIDERS_IN_PROD=True,
+        LLM_PROVIDER="mock",
+        VISION_PROVIDER="mock",
+        SPEECH_PROVIDER="mock",
+    )
+
+    try:
+        settings.validate_production()
+    except ValueError as exc:
+        message = str(exc)
+    else:
+        message = ""
+
+    assert "USER_JWT_SECRET must be set in prod." in message
+    assert "AUTH_OTP_MOCK_ENABLED must be false in prod." in message

@@ -11,7 +11,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.exceptions import AppError
+from app.core.providers import AppError
 from app.core.transaction import unit_of_work
 from app.models.user import User
 from app.repositories.otp_repo import OtpRepository

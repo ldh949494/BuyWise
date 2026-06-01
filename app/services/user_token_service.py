@@ -8,8 +8,11 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.core.config import settings
-from app.core.exceptions import AppError
 from app.utils.jwt import build_hs256_jwt, decode_hs256_jwt
+
+
+class UserTokenError(Exception):
+    """User JWT decode or signing error."""
 
 USER_SCOPES = (
     "orders:read",
@@ -74,10 +77,10 @@ def _user_jwt_secret() -> str:
     secret = settings.user_jwt_secret.strip()
     if not secret:
         if settings.app_env == "prod":
-            raise AppError("User JWT secret is not configured.", status_code=500, code="user_auth_not_configured")
+            raise UserTokenError("user_auth_not_configured")
         return "dev-user-jwt-secret"
     return secret
 
 
-def _invalid_token_error() -> AppError:
-    return AppError("Invalid user token.", status_code=401, code="unauthorized", headers={"WWW-Authenticate": "Bearer"})
+def _invalid_token_error() -> UserTokenError:
+    return UserTokenError("invalid_user_token")

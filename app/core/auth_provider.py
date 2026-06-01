@@ -9,8 +9,7 @@ from fastapi import Request, status
 from starlette.exceptions import HTTPException
 
 from app.core.config import settings
-from app.core.exceptions import AppError
-from app.services.user_token_service import USER_SCOPES, get_user_token_payload
+from app.services.user_token_service import USER_SCOPES, UserTokenError, get_user_token_payload
 
 
 class Principal:
@@ -38,10 +37,9 @@ class AuthProvider:
                 )
         try:
             payload = get_user_token_payload(token)
-        except AppError:
+        except UserTokenError:
             return None
         return Principal(subject=str(payload["sub"]), scopes=USER_SCOPES, auth_type="user")
-        return None
 
     def require_principal(self, request: Request, required_scopes: tuple[str, ...] = ()) -> Principal:
         principal = self.get_current_principal(request)

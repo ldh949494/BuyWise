@@ -5,6 +5,7 @@ from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import URL
 
+from app.core.production_validation import validate_production_settings
 from app.core.settings_groups import AISettings, DatabaseSettings, SecuritySettings, TrafficSettings, UploadSettings
 
 AppEnv = Literal["dev", "test", "prod"]
@@ -204,74 +205,7 @@ class Settings(BaseSettings):
     def traffic(self) -> TrafficSettings: return TrafficSettings.from_settings(self)
 
     def validate_production(self) -> None:
-        if self.app_env != "prod":
-            return
-        errors = self._production_base_errors()
-        errors.extend(self._production_provider_errors())
-        if self._contains_placeholder_auth_key():
-            errors.append("AUTH_API_KEYS must not contain placeholder tokens in prod.")
-        if errors:
-            raise ValueError("Invalid production configuration: " + " ".join(errors))
-
-    def _production_base_errors(self) -> list[str]:
-        errors = []
-        if self.app_debug:
-            errors.append("APP_DEBUG must be false in prod.")
-        if not self.configured_auth_api_keys:
-            errors.append("AUTH_API_KEYS must include at least one production API key.")
-        if not self.cors_origins:
-            errors.append("CORS_ALLOWED_ORIGINS must be explicit in prod.")
-        if self.cors_allow_credentials and "*" in self.cors_origins:
-            errors.append("CORS_ALLOWED_ORIGINS cannot be '*' when credentials are enabled.")
-        if self._is_placeholder(self.mysql_password):
-            errors.append("MYSQL_PASSWORD must not be a placeholder in prod.")
-        if self._is_placeholder(self.readiness_token):
-            errors.append("READINESS_TOKEN must be set in prod.")
-        if self._is_placeholder(self.admin_jwt_secret):
-            errors.append("ADMIN_JWT_SECRET must be set in prod.")
-        if self._is_placeholder(self.user_jwt_secret):
-            errors.append("USER_JWT_SECRET must be set in prod.")
-        if self.auth_otp_mock_enabled:
-            errors.append("AUTH_OTP_MOCK_ENABLED must be false in prod.")
-        if self.external_purchase_feedback_mode not in {"delayed", "immediate"}:
-            errors.append("EXTERNAL_PURCHASE_FEEDBACK_MODE must be 'delayed' or 'immediate'.")
-        return errors
-
-    def _production_provider_errors(self) -> list[str]:
-        errors = []
-        if not self.allow_mock_providers_in_prod and self.llm_provider == "mock":
-            errors.append("LLM_PROVIDER must not be mock in prod.")
-        if not self.allow_mock_providers_in_prod and self.vision_provider == "mock":
-            errors.append("VISION_PROVIDER must not be mock in prod.")
-        if not self.allow_mock_providers_in_prod and self.embedding_provider == "mock":
-            errors.append("EMBEDDING_PROVIDER must not be mock in prod.")
-        if self.llm_provider != "mock" and self._is_placeholder(self.llm_api_key):
-            errors.append("LLM_API_KEY must be set for non-mock LLM providers in prod.")
-        if self.vision_provider != "mock" and self._is_placeholder(self.effective_vision_api_key):
-            errors.append("VISION_API_KEY or LLM_API_KEY must be set for non-mock vision providers in prod.")
-        if self.embedding_provider != "mock" and self._is_placeholder(self.effective_embedding_api_key):
-            errors.append("EMBEDDING_API_KEY or LLM_API_KEY must be set for non-mock embedding providers in prod.")
-        if self.upload_provider == "cos":
-            errors.extend(self._cos_configuration_errors())
-        if self._uses_external_multimodal_provider() and not self._has_public_upload_url():
-            errors.append(
-                "UPLOAD_PUBLIC_BASE_URL must be set, or UPLOAD_PROVIDER must be cos, "
-                "when VISION_PROVIDER or SPEECH_PROVIDER is non-mock in prod."
-            )
-        return errors
-
-    def _cos_configuration_errors(self) -> list[str]:
-        required = {
-            "TENCENT_SECRET_ID": self.tencent_secret_id,
-            "TENCENT_SECRET_KEY": self.tencent_secret_key,
-            "COS_BUCKET": self.cos_bucket,
-            "COS_REGION": self.cos_region,
-        }
-        return [
-            f"{name} must be set when UPLOAD_PROVIDER=cos in prod."
-            for name, value in required.items()
-            if self._is_placeholder(value)
-        ]
+        validate_production_settings(self)
 
     def _parse_auth_key(self, item: str) -> tuple[str, str, tuple[str, ...]]:
         parts = item.split(":", 2)
@@ -284,25 +218,6 @@ class Settings(BaseSettings):
 
     def _split_csv(self, value: str) -> list[str]:
         return [item.strip() for item in value.split(",") if item.strip()]
-
-    def _contains_placeholder_auth_key(self) -> bool:
-        return any(self._is_placeholder(token) for token in self.configured_auth_api_keys)
-
-    def _uses_external_multimodal_provider(self) -> bool:
-        return self.vision_provider.strip().lower() != "mock" or self.speech_provider.strip().lower() != "mock"
-
-    def _has_public_upload_url(self) -> bool:
-        return bool(self.upload_public_base_url.strip()) or self.upload_provider.strip().lower() == "cos"
-
-    def _is_placeholder(self, value: str) -> bool:
-        normalized = value.strip().lower()
-        return (
-            not normalized
-            or "change-me" in normalized
-            or normalized in {"placeholder", "test-placeholder"}
-            or normalized.startswith("your-")
-        )
-
 
 @lru_cache
 def get_settings() -> Settings:

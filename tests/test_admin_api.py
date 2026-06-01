@@ -177,6 +177,8 @@ def configure_valid_prod_settings() -> None:
     settings.auth_api_keys = "beta:beta-token:orders:read"
     settings.mysql_password = "secret"
     settings.readiness_token = "ready-token"
+    settings.user_jwt_secret = "test-user-secret"
+    settings.auth_otp_mock_enabled = False
     settings.allow_mock_providers_in_prod = True
 
 
