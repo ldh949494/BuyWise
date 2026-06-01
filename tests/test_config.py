@@ -37,6 +37,10 @@ def test_settings_reads_new_env_names() -> None:
         "READINESS_TOKEN": "ready-token",
         "ADMIN_JWT_SECRET": "admin-jwt-secret",
         "ADMIN_JWT_EXPIRE_MINUTES": "120",
+        "USER_JWT_SECRET": "user-jwt-secret",
+        "USER_JWT_EXPIRE_MINUTES": "15",
+        "USER_REFRESH_TOKEN_EXPIRE_DAYS": "30",
+        "AUTH_OTP_MOCK_ENABLED": "false",
         "ALLOW_MOCK_PROVIDERS_IN_PROD": "true",
         "EXTERNAL_PURCHASE_FEEDBACK_MODE": "immediate",
         "UPLOAD_PROVIDER": "cos",
@@ -91,6 +95,10 @@ def test_settings_reads_new_env_names() -> None:
     assert settings.readiness_token == "ready-token"
     assert settings.admin_jwt_secret == "admin-jwt-secret"
     assert settings.admin_jwt_expire_minutes == 120
+    assert settings.user_jwt_secret == "user-jwt-secret"
+    assert settings.user_jwt_expire_minutes == 15
+    assert settings.user_refresh_token_expire_days == 30
+    assert settings.auth_otp_mock_enabled is False
     assert settings.allow_mock_providers_in_prod is True
     assert settings.external_purchase_feedback_mode == "immediate"
     assert settings.upload_provider == "cos"
@@ -212,6 +220,8 @@ def test_prod_non_mock_multimodal_requires_public_upload_url() -> None:
         AUTH_API_KEYS="api:prod-token:upload:write",
         READINESS_TOKEN="ready-token",
         ADMIN_JWT_SECRET="admin-jwt-secret",
+        USER_JWT_SECRET="user-jwt-secret",
+        AUTH_OTP_MOCK_ENABLED=False,
         ALLOW_MOCK_PROVIDERS_IN_PROD=True,
         LLM_PROVIDER="mock",
         LLM_API_KEY="llm-key",
@@ -240,6 +250,8 @@ def test_prod_non_mock_multimodal_allows_cos_upload_provider() -> None:
         AUTH_API_KEYS="api:prod-token:upload:write",
         READINESS_TOKEN="ready-token",
         ADMIN_JWT_SECRET="admin-jwt-secret",
+        USER_JWT_SECRET="user-jwt-secret",
+        AUTH_OTP_MOCK_ENABLED=False,
         ALLOW_MOCK_PROVIDERS_IN_PROD=True,
         LLM_PROVIDER="mock",
         VISION_PROVIDER="mock",
@@ -263,6 +275,8 @@ def test_prod_requires_non_mock_embedding_provider_by_default() -> None:
         AUTH_API_KEYS="api:prod-token:upload:write",
         READINESS_TOKEN="ready-token",
         ADMIN_JWT_SECRET="admin-jwt-secret",
+        USER_JWT_SECRET="user-jwt-secret",
+        AUTH_OTP_MOCK_ENABLED=False,
         LLM_PROVIDER="openai-compatible",
         LLM_API_KEY="llm-key",
         VISION_PROVIDER="llm",
@@ -282,3 +296,29 @@ def test_prod_requires_non_mock_embedding_provider_by_default() -> None:
         message = ""
 
     assert "EMBEDDING_PROVIDER must not be mock in prod." in message
+
+
+def test_prod_requires_user_jwt_secret_and_non_mock_otp() -> None:
+    settings = Settings(
+        _env_file=None,
+        APP_ENV="prod",
+        APP_DEBUG=False,
+        MYSQL_PASSWORD="secret",
+        AUTH_API_KEYS="api:prod-token:upload:write",
+        READINESS_TOKEN="ready-token",
+        ADMIN_JWT_SECRET="admin-jwt-secret",
+        ALLOW_MOCK_PROVIDERS_IN_PROD=True,
+        LLM_PROVIDER="mock",
+        VISION_PROVIDER="mock",
+        SPEECH_PROVIDER="mock",
+    )
+
+    try:
+        settings.validate_production()
+    except ValueError as exc:
+        message = str(exc)
+    else:
+        message = ""
+
+    assert "USER_JWT_SECRET must be set in prod." in message
+    assert "AUTH_OTP_MOCK_ENABLED must be false in prod." in message

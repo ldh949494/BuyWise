@@ -19,9 +19,11 @@ internal class BuyWiseApiClient(
     private val betaToken: String?,
     private val uploadToken: String?,
 ) {
+    private var accessToken: String? = null
+    private var refreshToken: String? = null
     val hasBetaToken: Boolean = betaToken != null
     val betaCapability: BetaCapability =
-        if (hasBetaToken) {
+        if (hasBetaToken || accessToken != null) {
             BetaCapability.Enabled
         } else {
             val message = if (BuildConfig.BUYWISE_SHOW_DEBUG_INFO) {
@@ -89,7 +91,7 @@ internal class BuyWiseApiClient(
         val request = Request.Builder()
             .url("$baseUrl/api/v1/upload")
             .apply {
-                uploadToken?.let { header("Authorization", "Bearer $it") }
+                (accessToken ?: uploadToken)?.let { header("Authorization", "Bearer $it") }
             }
             .post(body)
             .build()
@@ -119,8 +121,18 @@ internal class BuyWiseApiClient(
         if (!requireAuth) {
             return builder
         }
-        val token = betaToken ?: throw IOException(BetaCapability.TOKEN_REQUIRED_MESSAGE)
+        val token = accessToken ?: betaToken ?: throw IOException(BetaCapability.TOKEN_REQUIRED_MESSAGE)
         return builder.header("Authorization", "Bearer $token")
+    }
+
+    fun setSessionTokens(accessToken: String?, refreshToken: String?) {
+        this.accessToken = accessToken?.takeIf { it.isNotBlank() }
+        this.refreshToken = refreshToken?.takeIf { it.isNotBlank() }
+    }
+
+    fun clearSessionTokens() {
+        accessToken = null
+        refreshToken = null
     }
 }
 

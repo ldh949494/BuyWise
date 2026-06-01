@@ -128,3 +128,55 @@ data class SpeechRequestDto(
 data class SpeechResponseDto(
     val text: String = "",
 )
+
+@Serializable
+data class OtpRequestDto(
+    val phone: String,
+)
+
+@Serializable
+data class OtpRequestResponseDto(
+    @SerialName("phone_masked") val phoneMasked: String,
+    @SerialName("debug_otp") val debugOtp: String? = null,
+)
+
+@Serializable
+data class OtpVerifyRequestDto(
+    val phone: String,
+    val code: String,
+    @SerialName("device_name") val deviceName: String? = null,
+)
+
+@Serializable
+data class AuthUser(
+    val id: Int,
+    @SerialName("phone_masked") val phoneMasked: String,
+)
+
+@Serializable
+data class AuthTokenResponseDto(
+    @SerialName("access_token") val accessToken: String,
+    @SerialName("refresh_token") val refreshToken: String,
+    @SerialName("expires_in") val expiresIn: Int,
+    val user: AuthUser,
+) {
+    fun toTokens(): AuthTokens = AuthTokens(accessToken, refreshToken)
+}
+
+@Serializable
+data class RefreshRequestDto(
+    @SerialName("refresh_token") val refreshToken: String,
+)
+
+@Serializable
+data class RefreshResponseDto(
+    @SerialName("access_token") val accessToken: String,
+    @SerialName("refresh_token") val refreshToken: String,
+) {
+    fun toTokens(): AuthTokens = AuthTokens(accessToken, refreshToken)
+}
+
+@Serializable
+data class LogoutRequestDto(
+    @SerialName("refresh_token") val refreshToken: String,
+)

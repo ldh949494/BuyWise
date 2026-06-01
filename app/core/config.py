@@ -75,6 +75,17 @@ class Settings(BaseSettings):
     readiness_token: str = Field(default="", validation_alias="READINESS_TOKEN")
     admin_jwt_secret: str = Field(default="", validation_alias="ADMIN_JWT_SECRET")
     admin_jwt_expire_minutes: int = Field(default=480, validation_alias="ADMIN_JWT_EXPIRE_MINUTES")
+    user_jwt_secret: str = Field(default="", validation_alias="USER_JWT_SECRET")
+    user_jwt_expire_minutes: int = Field(default=15, validation_alias="USER_JWT_EXPIRE_MINUTES")
+    user_refresh_token_expire_days: int = Field(default=30, validation_alias="USER_REFRESH_TOKEN_EXPIRE_DAYS")
+    auth_otp_mock_enabled: bool = Field(default=True, validation_alias="AUTH_OTP_MOCK_ENABLED")
+    auth_otp_expire_minutes: int = Field(default=5, validation_alias="AUTH_OTP_EXPIRE_MINUTES")
+    auth_otp_cooldown_seconds: int = Field(default=60, validation_alias="AUTH_OTP_COOLDOWN_SECONDS")
+    auth_otp_max_attempts: int = Field(default=5, validation_alias="AUTH_OTP_MAX_ATTEMPTS")
+    auth_otp_phone_hour_limit: int = Field(default=5, validation_alias="AUTH_OTP_PHONE_HOUR_LIMIT")
+    auth_otp_phone_day_limit: int = Field(default=20, validation_alias="AUTH_OTP_PHONE_DAY_LIMIT")
+    auth_otp_ip_minute_limit: int = Field(default=10, validation_alias="AUTH_OTP_IP_MINUTE_LIMIT")
+    auth_otp_ip_hour_limit: int = Field(default=100, validation_alias="AUTH_OTP_IP_HOUR_LIMIT")
     allow_mock_providers_in_prod: bool = Field(default=False, validation_alias="ALLOW_MOCK_PROVIDERS_IN_PROD")
     external_purchase_feedback_mode: str = Field(default="delayed", validation_alias="EXTERNAL_PURCHASE_FEEDBACK_MODE")
     request_max_bytes: int = Field(default=20 * 1024 * 1024, validation_alias="REQUEST_MAX_BYTES")
@@ -218,6 +229,10 @@ class Settings(BaseSettings):
             errors.append("READINESS_TOKEN must be set in prod.")
         if self._is_placeholder(self.admin_jwt_secret):
             errors.append("ADMIN_JWT_SECRET must be set in prod.")
+        if self._is_placeholder(self.user_jwt_secret):
+            errors.append("USER_JWT_SECRET must be set in prod.")
+        if self.auth_otp_mock_enabled:
+            errors.append("AUTH_OTP_MOCK_ENABLED must be false in prod.")
         if self.external_purchase_feedback_mode not in {"delayed", "immediate"}:
             errors.append("EXTERNAL_PURCHASE_FEEDBACK_MODE must be 'delayed' or 'immediate'.")
         return errors
