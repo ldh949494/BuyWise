@@ -74,6 +74,8 @@ class SecuritySettings:
     auth_api_keys: dict[str, dict[str, object]]
     readiness_token: str
     admin_jwt_expire_minutes: int
+    user_jwt_expire_minutes: int
+    user_refresh_token_expire_days: int
     cors_origins: list[str]
 
     @classmethod
@@ -82,6 +84,8 @@ class SecuritySettings:
             auth_api_keys=settings.configured_auth_api_keys,
             readiness_token=settings.readiness_token,
             admin_jwt_expire_minutes=settings.admin_jwt_expire_minutes,
+            user_jwt_expire_minutes=settings.user_jwt_expire_minutes,
+            user_refresh_token_expire_days=settings.user_refresh_token_expire_days,
             cors_origins=settings.cors_origins,
         )
 

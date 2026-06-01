@@ -59,6 +59,8 @@ def test_readiness_requires_token_in_prod() -> None:
     settings.mysql_password = "secret"
     settings.auth_api_keys = "api:token:orders:read"
     settings.readiness_token = "ready-token"
+    settings.user_jwt_secret = "test-user-secret"
+    settings.auth_otp_mock_enabled = False
     settings.allow_mock_providers_in_prod = True
 
     class FakeReadinessService:

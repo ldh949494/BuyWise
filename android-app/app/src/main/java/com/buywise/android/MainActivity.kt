@@ -10,12 +10,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.CompareArrows
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.ImageSearch
-import androidx.compose.material.icons.outlined.SmartToy
-import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
@@ -45,6 +39,7 @@ import androidx.navigation.compose.rememberNavController
 import com.buywise.android.ui.BuyWiseTheme
 import com.buywise.android.ui.components.FloatingCompareBasket
 import com.buywise.android.ui.screens.CompareScreen
+import com.buywise.android.ui.screens.AccountScreen
 import com.buywise.android.ui.screens.GuideChatScreen
 import com.buywise.android.ui.screens.GuideScreen
 import com.buywise.android.ui.screens.HomeScreen
@@ -66,29 +61,18 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private data class BottomDestination(
-    val route: String,
-    val label: String,
-    val icon: @Composable () -> Unit,
-)
-
 @Composable
 private fun BuyWiseRoot(
     navController: NavHostController = rememberNavController(),
-    viewModel: BuyWiseViewModel = viewModel(),
 ) {
-    val destinations = listOf(
-        BottomDestination("home", "首页") { Icon(Icons.Outlined.Home, contentDescription = null) },
-        BottomDestination("guide", "导购") { Icon(Icons.Outlined.SmartToy, contentDescription = null) },
-        BottomDestination("compare", "对比") { Icon(Icons.AutoMirrored.Outlined.CompareArrows, contentDescription = null) },
-        BottomDestination("vision", "识图") { Icon(Icons.Outlined.ImageSearch, contentDescription = null) },
-    )
+    val context = LocalContext.current
+    val viewModel: BuyWiseViewModel = viewModel(factory = BuyWiseViewModel.factory(context))
+    val destinations = bottomDestinations()
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
     val showBottomBar = currentRoute?.startsWith("detail/") != true
     val showCompareBasket = currentRoute != "compare"
     val snackbarHostState = remember { SnackbarHostState() }
     val basketMessage = viewModel.compareBasketState.message
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var multimodalTarget by remember { mutableStateOf(MultimodalTarget.VisionTab) }
     val imagePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -244,6 +228,17 @@ private fun BuyWiseRoot(
                         onProductClick = { navController.navigate("detail/$it") },
                         isInCompareBasket = viewModel::isInCompareBasket,
                         onToggleCompare = { viewModel.toggleCompareBasket(it) },
+                    )
+                }
+                composable("account") {
+                    AccountScreen(
+                        state = viewModel.accountState,
+                        onPhoneChange = viewModel::updateAccountPhone,
+                        onCodeChange = viewModel::updateAccountCode,
+                        onRequestOtp = viewModel::requestAccountOtp,
+                        onVerifyOtp = viewModel::verifyAccountOtp,
+                        onGuestMode = { viewModel.enterGuestMode { navController.navigateTopLevel("home") } },
+                        onLogout = viewModel::logoutAccount,
                     )
                 }
                 composable("detail/{productId}") { backStackEntry ->

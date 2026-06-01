@@ -16,6 +16,7 @@
 - 上传：`/api/v1/upload`
 - 视觉识别：`/api/v1/vision/recognize`
 - 语音识别：`/api/v1/speech/asr`
+- 普通用户认证：`/api/v1/auth/...`
 - 内部后台：`/api/v1/admin/...`
 
 ## 生成式参考
@@ -38,6 +39,8 @@
 
 - `POST /api/v1/upload` 需要 `Authorization: Bearer <token>`，并具备 `upload:write` scope。
 - `POST`、`PATCH` 和 `DELETE /api/v1/products...` 需要 `Authorization: Bearer <token>`，并具备 `products:write` scope。
+- `/api/v1/auth/otp/request` 和 `/api/v1/auth/otp/verify` 使用手机号验证码登录；dev/test mock OTP 会返回 `debug_otp`，prod 不返回验证码。
+- 普通用户登录后使用 user access JWT 调用订单、评价和上传接口；用户 JWT 固定具备 `orders:read`、`orders:write`、`feedback:read`、`feedback:write` 和 `upload:write`，不具备 `products:write` 或后台权限。
 - `APP_ENV=prod` 时，订单、待评价提示和已购评价接口必须携带 `Authorization: Bearer <token>`；dev/test 仍允许无 token 使用 `DEMO_USER_REF` 演示身份。
 - `APP_ENV=prod` 时，`/api/v1/ready` 必须携带 `READINESS_TOKEN`，可通过 `Authorization: Bearer <token>` 或 `X-Readiness-Token` 传入。
 - `/api/v1/admin/...` 使用管理员账号登录后签发的 JWT access token，不复用 `AUTH_API_KEYS` scope。
@@ -53,6 +56,11 @@
 | 商品创建 | `POST` | `/api/v1/products` | Bearer token | `products:write` |
 | 商品更新 | `PATCH` | `/api/v1/products/{product_id}` | Bearer token | `products:write` |
 | 商品下架 | `DELETE` | `/api/v1/products/{product_id}` | Bearer token | `products:write` |
+| 请求登录验证码 | `POST` | `/api/v1/auth/otp/request` | 公开 | 无 |
+| 校验验证码登录 | `POST` | `/api/v1/auth/otp/verify` | 公开 | 无 |
+| 刷新用户 token | `POST` | `/api/v1/auth/refresh` | refresh token | 无 |
+| 用户退出登录 | `POST` | `/api/v1/auth/logout` | refresh token | 无 |
+| 当前用户资料 | `GET` | `/api/v1/auth/me` | User JWT | 无 |
 | 管理员登录 | `POST` | `/api/v1/admin/auth/login` | 公开 | 无 |
 | 后台商品列表 | `GET` | `/api/v1/admin/products` | Admin JWT | 无 |
 | 后台商品详情 | `GET` | `/api/v1/admin/products/{product_id}` | Admin JWT | 无 |

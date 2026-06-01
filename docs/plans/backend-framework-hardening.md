@@ -94,7 +94,6 @@
 - [x] 真实依赖 smoke 分层。
 - [x] OpenAPI contract snapshot。
 - [x] 后台作业 artifact。
-
 第三批：
 
 - [x] 同步数据库阻塞边界或 async SQLAlchemy 迁移评估。

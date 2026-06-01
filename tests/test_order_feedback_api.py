@@ -152,6 +152,8 @@ def test_prod_order_feedback_requires_bearer_token() -> None:
     settings.app_debug = False
     settings.mysql_password = "secret"
     settings.readiness_token = "ready-token"
+    settings.user_jwt_secret = "user-jwt-secret"
+    settings.auth_otp_mock_enabled = False
     settings.allow_mock_providers_in_prod = True
     settings.auth_api_keys = "beta:beta-token:orders:read,orders:write,feedback:read,feedback:write"
     client = make_client()
@@ -167,6 +169,8 @@ def test_prod_order_feedback_rejects_missing_scope() -> None:
     settings.app_debug = False
     settings.mysql_password = "secret"
     settings.readiness_token = "ready-token"
+    settings.user_jwt_secret = "user-jwt-secret"
+    settings.auth_otp_mock_enabled = False
     settings.allow_mock_providers_in_prod = True
     settings.auth_api_keys = "beta:beta-token:orders:read"
     client = make_client()
@@ -186,6 +190,8 @@ def test_prod_order_feedback_uses_token_subject_for_user_ref() -> None:
     settings.app_debug = False
     settings.mysql_password = "secret"
     settings.readiness_token = "ready-token"
+    settings.user_jwt_secret = "user-jwt-secret"
+    settings.auth_otp_mock_enabled = False
     settings.allow_mock_providers_in_prod = True
     settings.external_purchase_feedback_mode = "immediate"
     settings.feedback_delay_days = 0
@@ -219,6 +225,8 @@ def test_prod_order_advance_requires_advance_scope() -> None:
     settings.app_debug = False
     settings.mysql_password = "secret"
     settings.readiness_token = "ready-token"
+    settings.user_jwt_secret = "user-jwt-secret"
+    settings.auth_otp_mock_enabled = False
     settings.allow_mock_providers_in_prod = True
     settings.auth_api_keys = (
         "beta:beta-token:orders:read,orders:write,feedback:read,feedback:write;"

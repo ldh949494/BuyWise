@@ -1,6 +1,9 @@
 package com.buywise.android.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import android.content.Context
 import com.buywise.android.data.CompareBasketState
 import com.buywise.android.data.CompareState
 import com.buywise.android.data.FeedbackDraft
@@ -22,6 +25,7 @@ class BuyWiseViewModel(
     private val productDetailViewModel = ProductDetailViewModel.from(repository)
     private val feedbackViewModel = FeedbackViewModel.from(repository)
     private val uploadViewModel = UploadViewModel.from(repository)
+    private val accountViewModel = AccountViewModel(repository.authRepository, viewModelScope)
 
     val homeState: HomeState get() = homeViewModel.state
     val compareState: CompareState get() = compareViewModel.state
@@ -30,8 +34,10 @@ class BuyWiseViewModel(
     val guideState: GuideState get() = guideViewModel.state
     val productDetailState: ProductDetailState get() = productDetailViewModel.state
     val feedbackState: FeedbackUiState get() = feedbackViewModel.state
+    val accountState get() = accountViewModel.state
 
     init {
+        accountViewModel.restoreSession()
         loadHomeProducts()
     }
 
@@ -168,6 +174,33 @@ class BuyWiseViewModel(
         guideViewModel.useQuery(query)
     }
 
+    fun updateAccountPhone(value: String) {
+        accountViewModel.updatePhone(value)
+    }
+
+    fun updateAccountCode(value: String) {
+        accountViewModel.updateCode(value)
+    }
+
+    fun requestAccountOtp() {
+        accountViewModel.requestOtp()
+    }
+
+    fun verifyAccountOtp(onLoggedIn: () -> Unit = {}) {
+        accountViewModel.verifyOtp {
+            refreshFeedbackPrompts()
+            onLoggedIn()
+        }
+    }
+
+    fun enterGuestMode(onEntered: () -> Unit = {}) {
+        accountViewModel.enterGuestMode(onEntered)
+    }
+
+    fun logoutAccount() {
+        accountViewModel.logout()
+    }
+
     fun product(productId: String?): Product? =
         productDetailState.product?.takeIf { it.id == productId } ?: cachedProduct(productId)
 
@@ -186,4 +219,13 @@ class BuyWiseViewModel(
             ?: guideState.recommendations.firstOrNull { it.product.id == productId }?.product
             ?: compareState.products.firstOrNull { it.id == productId }
             ?: uploadViewModel.product(productId)
+
+    companion object {
+        fun factory(context: Context): ViewModelProvider.Factory =
+            object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                    BuyWiseViewModel(ShopRepository(context = context.applicationContext)) as T
+            }
+    }
 }

@@ -1,5 +1,6 @@
 package com.buywise.android.data
 
+import android.content.Context
 import com.buywise.android.BuildConfig
 import java.io.IOException
 import okhttp3.OkHttpClient
@@ -7,11 +8,13 @@ import okhttp3.sse.EventSource
 
 class ShopRepository(
     private val baseUrl: String = BuildConfig.BUYWISE_API_BASE_URL.trimEnd('/'),
+    context: Context? = null,
 ) {
     private val httpClient = OkHttpClient()
     private val betaToken = BuildConfig.BUYWISE_BETA_TOKEN.takeIf { it.isNotBlank() }
     private val uploadToken = betaToken ?: BuildConfig.BUYWISE_UPLOAD_TOKEN.takeIf { it.isNotBlank() }
     private val apiClient = BuyWiseApiClient(httpClient, baseUrl, betaToken, uploadToken)
+    private val tokenStore = context?.let { AuthTokenStore(it) }
 
     val betaCapability: BetaCapability
         get() = apiClient.betaCapability
@@ -22,6 +25,7 @@ class ShopRepository(
     val orderRepository = OrderRepository(apiClient)
     val feedbackRepository = FeedbackRepository(apiClient)
     val uploadRepository = UploadRepository(apiClient)
+    val authRepository: AuthRepository? = tokenStore?.let { AuthRepository(apiClient, it) }
 
     fun homeState(): HomeState = HomeState(
         heroTitle = "AI 智能购物决策助手",

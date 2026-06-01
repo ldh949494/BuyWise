@@ -164,3 +164,20 @@ data class BetaCapability(
         const val DEBUG_TOKEN_REQUIRED_MESSAGE = "当前构建未配置 BUYWISE_BETA_TOKEN，无法记录购买或提交反馈。"
     }
 }
+
+data class AuthTokens(
+    val accessToken: String,
+    val refreshToken: String,
+)
+
+data class AccountState(
+    val isLoggedIn: Boolean = false,
+    val phoneMasked: String? = null,
+    val canUseGuestMode: Boolean = false,
+    val phoneInput: String = "",
+    val codeInput: String = "",
+    val debugOtp: String? = null,
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null,
+    val statusMessage: String? = null,
+)

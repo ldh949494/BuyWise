@@ -8,10 +8,13 @@ from app.models import (
     ChatSession,
     Order,
     OrderItem,
+    OtpChallenge,
     PriceHistory,
     Product,
     Recommendation,
     Review,
+    User,
+    UserSession,
 )
 
 
@@ -130,6 +133,25 @@ def test_chat_session_table_schema() -> None:
     assert isinstance(column(ChatSession, "title").type, String)
     assert isinstance(column(ChatSession, "created_at").type, DateTime)
     assert ("session_id",) in index_columns(ChatSession)
+
+
+def test_user_auth_table_schemas() -> None:
+    assert User.__tablename__ == "users"
+    assert isinstance(column(User, "phone_e164").type, String)
+    assert column(User, "phone_e164").nullable is False
+    assert isinstance(column(User, "status").type, String)
+    assert isinstance(column(User, "created_at").type, DateTime)
+    assert ("phone_e164",) in index_columns(User)
+
+    assert OtpChallenge.__tablename__ == "otp_challenges"
+    assert isinstance(column(OtpChallenge, "code_hash").type, String)
+    assert isinstance(column(OtpChallenge, "attempt_count").type, Integer)
+    assert isinstance(column(OtpChallenge, "expires_at").type, DateTime)
+
+    assert UserSession.__tablename__ == "user_sessions"
+    assert isinstance(column(UserSession, "refresh_token_hash").type, String)
+    assert isinstance(column(UserSession, "expires_at").type, DateTime)
+    assert ("refresh_token_hash",) in index_columns(UserSession)
 
 
 def test_chat_message_table_schema() -> None:
