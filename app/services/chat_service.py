@@ -9,6 +9,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.ai.llm_client import LLMClient
+from app.ai.model_gateway import AIModelGateway
 from app.ai.rag_pipeline import RAGPipeline
 from app.core.metrics import count_llm_failure, observe_chat_latency
 from app.core.traffic import is_capacity_limited
@@ -38,7 +39,7 @@ class ChatService:
         rag_pipeline: RAGPipeline | None = None,
         recommend_service: RecommendService | None = None,
         bundle_recommend_service: BundleRecommendService | None = None,
-        llm_client: LLMClient | None = None,
+        llm_client: AIModelGateway | None = None,
     ) -> None:
         self.speech_service = speech_service or SpeechService()
         self.vision_service = vision_service or VisionService()

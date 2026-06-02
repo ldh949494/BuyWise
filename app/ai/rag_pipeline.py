@@ -19,6 +19,7 @@ from app.ai.rag_policy import RagFallbackPolicy, RagFilterPolicy, RagRerankPolic
 from app.utils.logging import get_logger
 from app.utils.text_builder import build_query_from_need
 from app.vectorstore.chroma_client import ChromaProductStore
+from app.vectorstore.retrieval_gateway import VectorRetrievalGateway
 
 
 logger = get_logger(__name__)
@@ -26,7 +27,7 @@ logger = get_logger(__name__)
 class RAGPipeline:
     def __init__(
         self,
-        product_store: ChromaProductStore | None = None,
+        product_store: VectorRetrievalGateway | None = None,
         reranker: Any | None = None,
         feedback_metrics_builder: Callable[[Session, list[int]], dict[int, dict[str, object]]] | None = None,
         fallback_policy: RagFallbackPolicy | None = None,

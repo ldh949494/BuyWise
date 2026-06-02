@@ -14,11 +14,12 @@ from app.core.database import SessionLocal
 from app.repositories.product_repo import ProductRepository
 from app.utils.text_builder import build_product_chunks
 from app.vectorstore.chroma_client import ChromaProductStore
+from app.vectorstore.retrieval_gateway import VectorRetrievalGateway
 
 
 def build_vector_index(
     session_factory: Callable[[], Session] = SessionLocal,
-    store: ChromaProductStore | None = None,
+    store: VectorRetrievalGateway | None = None,
     mode: str = "rebuild",
     product_ids: list[int] | None = None,
     batch_size: int = 100,
@@ -35,7 +36,7 @@ def build_vector_index(
 def update_product_index(
     product_ids: list[int],
     session_factory: Callable[[], Session] = SessionLocal,
-    store: ChromaProductStore | None = None,
+    store: VectorRetrievalGateway | None = None,
 ) -> dict[str, int | str | bool]:
     return build_vector_index(
         session_factory=session_factory,
@@ -45,7 +46,7 @@ def update_product_index(
     )
 
 
-def _prepare_index_store(product_store: ChromaProductStore, mode: str) -> bool:
+def _prepare_index_store(product_store: VectorRetrievalGateway, mode: str) -> bool:
     if mode == "rebuild":
         product_store.reset()
         return True
@@ -69,7 +70,7 @@ def _load_product_docs(
 
 
 def _delete_replaced_product_documents(
-    product_store: ChromaProductStore,
+    product_store: VectorRetrievalGateway,
     mode: str,
     product_ids: list[int] | None,
 ) -> None:
@@ -80,7 +81,7 @@ def _delete_replaced_product_documents(
 
 
 def _write_product_documents(
-    product_store: ChromaProductStore,
+    product_store: VectorRetrievalGateway,
     docs: list[dict],
     batch_size: int,
 ) -> None:
@@ -90,7 +91,7 @@ def _write_product_documents(
 
 def validate_vector_index_health(
     session_factory: Callable[[], Session] = SessionLocal,
-    store: ChromaProductStore | None = None,
+    store: VectorRetrievalGateway | None = None,
     expected_product_ids: list[int] | None = None,
     profile: str | None = None,
 ) -> dict[str, object]:

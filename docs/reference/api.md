@@ -30,7 +30,7 @@
 - 已购评价通过服务端校验订单项归属和已收货状态后写入 `reviews`。Closed beta 外部购买记录使用 `purchase_evidence=buywise_recorded`，不声明平台验真；未来接入平台验真后才使用 `platform_verified` 等级。
 - 订单相关接口只表示 BuyWise 内部的购买记录和影子订单状态，不提供购物车、支付、地址和真实结算；`POST /api/v1/orders/{order_id}/advance` 仅用于 demo、smoke 或管理推进。
 - 聊天响应通过 `extra.session_id` 返回持久化会话标识。
-- 聊天流式响应使用 Server-Sent Events，事件包括 `meta`、`status`、`token`、`products`、`done` 和 `error`。
+- 聊天流式响应使用 Server-Sent Events，事件包括 `meta`、`status`、`token`、`products`、`heartbeat`、`done` 和 `error`。
 - 流式聊天不长期暴露 `fallback` 事件；降级通过 `status.stage=fallback` 和 `done.degraded=true` 表达。
 - 聊天商品卡片包含解释字段：`budget_match`、`scenario_match`、`conflicts` 和 `alternatives`。
 - RAG 搜索响应的 `items` 使用强类型 `RagItem`，只承诺 `product_id`、`name`、`price`、`score`、`reason`、`category`、`platform`、`product_url` 和 `stock_status`。
@@ -106,10 +106,11 @@
 | `status` | `{"stage": "intent|retrieval|generation|fallback", "message": "..."}` |
 | `token` | `{"text": "..."}` |
 | `products` | `{"need_clarify": false, "structured_need": StructuredNeed, "items": ProductCard[]}` |
+| `heartbeat` | `{"status": "ok"}` |
 | `done` | `{"reply": "...", "degraded": false, "degraded_reason": null}` |
-| `error` | `{"code": "chat_stream_failed", "message": "chat_stream_failed", "session_id": "..."}` |
+| `error` | `{"code": "chat_stream_failed|chat_stream_timeout", "message": "...", "session_id": "..."}` |
 
-`error` 只用于流已经开始后无法改 HTTP 状态的异常兜底。空结果和容量降级都不使用 `error`：空结果通过 `products.items=[]` 和 `done.reply` 表达，容量降级通过 `status.stage=fallback` 和 `done.degraded=true` 表达。`done.reply` 始终包含最终完整回复，供客户端补偿 token 拼接或处理无 token 的降级路径。
+`heartbeat` 用于连接空闲期间保持 SSE 长连接活跃。`error` 只用于流已经开始后无法改 HTTP 状态的异常兜底或总时长超时；空结果和容量降级都不使用 `error`：空结果通过 `products.items=[]` 和 `done.reply` 表达，容量降级通过 `status.stage=fallback` 和 `done.degraded=true` 表达。`done.reply` 始终包含最终完整回复，供客户端补偿 token 拼接或处理无 token 的降级路径。
 
 `app.scripts.seed_products.seed_android_contract_products` 提供这些流程使用的确定性商品数据。`tests/test_android_contract_api.py` 锁定 Android 使用的响应形状，后续真实 AI provider 可以调整排序和文案，但不能移除必需字段。
 

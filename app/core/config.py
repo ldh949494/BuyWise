@@ -118,6 +118,8 @@ class Settings(BaseSettings):
     ai_speech_max_concurrency: int = Field(default=2, validation_alias="AI_SPEECH_MAX_CONCURRENCY")
     ai_provider_timeout_seconds: float = Field(default=30.0, validation_alias="AI_PROVIDER_TIMEOUT_SECONDS")
     capacity_retry_after_seconds: int = Field(default=5, validation_alias="CAPACITY_RETRY_AFTER_SECONDS")
+    chat_stream_heartbeat_seconds: float = Field(default=15.0, validation_alias="CHAT_STREAM_HEARTBEAT_SECONDS")
+    chat_stream_max_seconds: float = Field(default=120.0, validation_alias="CHAT_STREAM_MAX_SECONDS")
     chat_rate_limit_per_minute: int = Field(default=60, validation_alias="CHAT_RATE_LIMIT_PER_MINUTE")
     vision_rate_limit_per_minute: int = Field(default=30, validation_alias="VISION_RATE_LIMIT_PER_MINUTE")
     speech_rate_limit_per_minute: int = Field(default=30, validation_alias="SPEECH_RATE_LIMIT_PER_MINUTE")

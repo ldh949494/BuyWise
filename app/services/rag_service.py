@@ -15,13 +15,14 @@ from app.repositories.product_repo import ProductRepository
 from app.schemas.rag import RagItem, RagSearchRequest, RagSearchResponse
 from app.utils.logging import get_logger
 from app.vectorstore.chroma_client import ChromaProductStore
+from app.vectorstore.retrieval_gateway import VectorRetrievalGateway
 
 
 logger = get_logger(__name__)
 
 
 class RagService:
-    def __init__(self, product_store: ChromaProductStore | None = None) -> None:
+    def __init__(self, product_store: VectorRetrievalGateway | None = None) -> None:
         self.product_store = product_store or ChromaProductStore()
 
     def search(self, request: RagSearchRequest, db: Session) -> RagSearchResponse:
