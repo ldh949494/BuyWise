@@ -154,6 +154,7 @@ class GuideViewModel(
             is ChatStreamEvent.Products -> applyProducts(event.intentSummary, event.recommendations)
             is ChatStreamEvent.Done -> applyDone(event.reply)
             is ChatStreamEvent.Error -> applyError(event.message)
+            ChatStreamEvent.Heartbeat -> state
         }
     }
 
@@ -180,7 +181,7 @@ class GuideViewModel(
             state
         } else {
             updateAssistantMessage { message ->
-                if (message.text.isBlank()) message.copy(text = reply) else message
+                message.copy(text = reply)
             }
         }
         activeAssistantMessageId = null
