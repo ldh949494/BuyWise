@@ -24,28 +24,10 @@ def build_vector_index(
     batch_size: int = 100,
 ) -> dict[str, int | str | bool]:
     product_store = store or ChromaProductStore()
-    deleted_collection = False
-    if mode == "rebuild":
-        product_store.reset()
-        deleted_collection = True
-    elif mode != "upsert":
-        raise ValueError("mode must be 'rebuild' or 'upsert'.")
-
-    with session_factory() as db:
-        repo = ProductRepository(db)
-        products = (
-            repo.get_by_ids(product_ids, include_inactive=True)
-            if product_ids
-            else repo.get_all(include_inactive=True)
-        )
-        docs = [doc for product in products for doc in _build_product_docs(product)]
-
-    if mode == "upsert" and product_ids:
-        for product_id in product_ids:
-            product_store.delete_product_documents(product_id)
-
-    for batch in _iter_batches(docs, batch_size):
-        product_store.add_documents(batch)
+    deleted_collection = _prepare_index_store(product_store, mode)
+    docs = _load_product_docs(session_factory, product_ids)
+    _delete_replaced_product_documents(product_store, mode, product_ids)
+    _write_product_documents(product_store, docs, batch_size)
 
     return {"indexed": len(docs), "mode": mode, "deleted_collection": deleted_collection}
 
@@ -61,6 +43,49 @@ def update_product_index(
         mode="upsert",
         product_ids=product_ids,
     )
+
+
+def _prepare_index_store(product_store: ChromaProductStore, mode: str) -> bool:
+    if mode == "rebuild":
+        product_store.reset()
+        return True
+    if mode != "upsert":
+        raise ValueError("mode must be 'rebuild' or 'upsert'.")
+    return False
+
+
+def _load_product_docs(
+    session_factory: Callable[[], Session],
+    product_ids: list[int] | None,
+) -> list[dict]:
+    with session_factory() as db:
+        repo = ProductRepository(db)
+        products = (
+            repo.get_by_ids(product_ids, include_inactive=True)
+            if product_ids
+            else repo.get_all(include_inactive=True)
+        )
+        return [doc for product in products for doc in _build_product_docs(product)]
+
+
+def _delete_replaced_product_documents(
+    product_store: ChromaProductStore,
+    mode: str,
+    product_ids: list[int] | None,
+) -> None:
+    if mode != "upsert" or not product_ids:
+        return
+    for product_id in product_ids:
+        product_store.delete_product_documents(product_id)
+
+
+def _write_product_documents(
+    product_store: ChromaProductStore,
+    docs: list[dict],
+    batch_size: int,
+) -> None:
+    for batch in _iter_batches(docs, batch_size):
+        product_store.add_documents(batch)
 
 
 def validate_vector_index_health(

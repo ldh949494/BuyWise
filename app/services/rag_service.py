@@ -90,22 +90,13 @@ class RagService:
         if not vector_items:
             return [], diagnostics
         repo = ProductRepository(db)
-        product_ids = [item.product_id for item in vector_items]
-        products_by_id = {product.id: product for product in repo.get_by_ids(product_ids)}
+        products_by_id = self._products_by_vector_id(repo, vector_items)
         diagnostics["candidate_count"] = len(vector_items)
         reasons: Counter[str] = Counter()
         valid_items = []
         for item in vector_items:
-            product = products_by_id.get(item.product_id)
-            if product is None:
-                reasons["stale_index"] += 1
-                continue
-            refreshed_item = self._item_from_product(
-                product,
-                score=item.score,
-                reason="\u5411\u91cf\u53ec\u56de\u7ed3\u679c",
-            )
-            reason = self._filter_reason(refreshed_item, request)
+            refreshed_item = self._refreshed_vector_item(item, products_by_id)
+            reason = self._vector_filter_reason(refreshed_item, request)
             if reason:
                 reasons[reason] += 1
                 continue
@@ -121,6 +112,33 @@ class RagService:
             "retrieved_ids": self._item_product_ids(vector_items),
         }
 
+    def _products_by_vector_id(
+        self,
+        repo: ProductRepository,
+        vector_items: list[RagItem],
+    ) -> dict[int, Product]:
+        product_ids = [item.product_id for item in vector_items]
+        return {product.id: product for product in repo.get_by_ids(product_ids)}
+
+    def _refreshed_vector_item(
+        self,
+        item: RagItem,
+        products_by_id: dict[int, Product],
+    ) -> RagItem | None:
+        product = products_by_id.get(item.product_id)
+        if product is None:
+            return None
+        return self._item_from_product(product, score=item.score, reason="\u5411\u91cf\u53ec\u56de\u7ed3\u679c")
+
+    def _vector_filter_reason(
+        self,
+        item: RagItem | None,
+        request: RagSearchRequest,
+    ) -> str | None:
+        if item is None:
+            return "stale_index"
+        return self._filter_reason(item, request)
+
     def _search_vector_store(self, request: RagSearchRequest) -> list[RagItem]:
         try:
             results = self.product_store.search(request.query, top_k=request.top_k)
@@ -133,27 +151,36 @@ class RagService:
             return []
         items_by_product_id: dict[int, RagItem] = {}
         for result in results:
-            metadata = result.get("metadata", {})
-            product_id = metadata.get("product_id")
-            if product_id is None:
+            item = self._vector_result_item(result)
+            if item is None:
                 continue
-            product_id = int(product_id)
-            score = self._to_float(result.get("score"))
-            existing = items_by_product_id.get(product_id)
-            if existing is not None and (existing.score or 0.0) >= (score or 0.0):
+            existing = items_by_product_id.get(item.product_id)
+            if self._keeps_existing_vector_item(existing, item):
                 continue
-            items_by_product_id[product_id] = RagItem(
-                product_id=product_id,
-                name=metadata.get("name") or result.get("id"),
-                category=metadata.get("category"),
-                platform=metadata.get("platform"),
-                product_url=metadata.get("product_url"),
-                stock_status=metadata.get("stock_status"),
-                price=self._to_float(metadata.get("price")),
-                score=score,
-                reason="\u5411\u91cf\u53ec\u56de\u7ed3\u679c",
-            )
+            items_by_product_id[item.product_id] = item
         return list(items_by_product_id.values())
+
+    def _vector_result_item(self, result: dict) -> RagItem | None:
+        metadata = result.get("metadata", {})
+        product_id = metadata.get("product_id")
+        if product_id is None:
+            return None
+        return RagItem(
+            product_id=int(product_id),
+            name=metadata.get("name") or result.get("id"),
+            category=metadata.get("category"),
+            platform=metadata.get("platform"),
+            product_url=metadata.get("product_url"),
+            stock_status=metadata.get("stock_status"),
+            price=self._to_float(metadata.get("price")),
+            score=self._to_float(result.get("score")),
+            reason="\u5411\u91cf\u53ec\u56de\u7ed3\u679c",
+        )
+
+    def _keeps_existing_vector_item(self, existing: RagItem | None, item: RagItem) -> bool:
+        if existing is None:
+            return False
+        return (existing.score or 0.0) >= (item.score or 0.0)
 
     def _search_database(self, request: RagSearchRequest, db: Session) -> list[RagItem]:
         filters = request.filters or {}
