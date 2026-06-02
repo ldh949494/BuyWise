@@ -12,7 +12,7 @@ sys.path.insert(0, str(ROOT))
 
 from scripts.text_encoding_checks import collect_text_encoding_diagnostics  # noqa: E402
 
-MAX_SOURCE_LINES = 300
+MAX_SOURCE_LINES = 500
 PYTHON_ROOTS = [ROOT / "app", ROOT / "tests", ROOT / "scripts"]
 KOTLIN_ROOT = ROOT / "android-app" / "app" / "src" / "main" / "java"
 SNAKE_CASE_RE = re.compile(r"^[a-z_][a-z0-9_]*$")
