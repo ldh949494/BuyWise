@@ -74,6 +74,32 @@ async def test_extract_bundle_recommendation_need_from_text() -> None:
 
 
 @pytest.mark.anyio
+async def test_extract_casual_browse_uses_explore_strategy_without_budget_clarify() -> None:
+    service = IntentService()
+
+    need = await service.extract("我随便看看蓝牙耳机，有什么类型可以先了解一下")
+
+    assert need.intent == "商品推荐"
+    assert need.category == "蓝牙耳机"
+    assert need.purchase_stage == "browse"
+    assert need.retrieval_strategy == "explore"
+    assert need.need_clarify is False
+    assert need.missing_fields == []
+
+
+@pytest.mark.anyio
+async def test_extract_casual_browse_still_asks_for_missing_category() -> None:
+    service = IntentService()
+
+    need = await service.extract("我随便看看")
+
+    assert need.purchase_stage == "browse"
+    assert need.retrieval_strategy == "explore"
+    assert need.need_clarify is True
+    assert need.missing_fields == ["category"]
+
+
+@pytest.mark.anyio
 async def test_extract_marks_underspecified_request_for_clarification() -> None:
     service = IntentService()
 
@@ -114,6 +140,8 @@ async def test_extract_prefers_llm_structured_need_when_available() -> None:
           "scenario": "通勤",
           "preferences": ["降噪", "轻便"],
           "avoid": ["入耳压迫"],
+          "purchase_stage": "buy_ready",
+          "retrieval_strategy": "strict",
           "need_clarify": false,
           "missing_fields": []
         }
@@ -129,6 +157,8 @@ async def test_extract_prefers_llm_structured_need_when_available() -> None:
     assert need.scenario == "通勤"
     assert need.preferences == ["降噪", "轻便"]
     assert need.avoid == ["入耳压迫"]
+    assert need.purchase_stage == "buy_ready"
+    assert need.retrieval_strategy == "strict"
     assert need.need_clarify is False
     assert llm.messages
 
@@ -156,6 +186,8 @@ async def test_extract_normalizes_llm_intent_and_ignores_non_core_missing_fields
     assert need.category == "机械键盘"
     assert need.scenario == "宿舍"
     assert need.preferences == ["低噪音", "无线", "性价比"]
+    assert need.purchase_stage == "buy_ready"
+    assert need.retrieval_strategy == "strict"
     assert need.need_clarify is False
     assert need.missing_fields == []
 

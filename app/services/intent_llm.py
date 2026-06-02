@@ -10,7 +10,7 @@ from app.schemas.chat import StructuredNeed
 from app.utils.list_values import dedupe_strings
 
 
-MissingFieldsFn = Callable[[str, str | None, float | None, str | None, list[str]], list[str]]
+MissingFieldsFn = Callable[[str, str | None, float | None, str | None, list[str], str], list[str]]
 
 CORE_MISSING_FIELDS = {"category", "budget_max", "scenario", "preferences"}
 INTENT_ALIASES = {
@@ -79,8 +79,11 @@ class LlmIntentExtractor:
                 "content": (
                     "You extract shopping intent for BuyWise. Return only strict JSON "
                     "with keys: intent, category, budget_max, scenario, preferences, "
-                    "avoid, need_clarify, missing_fields. Use Chinese values when the "
-                    "user speaks Chinese. Do not invent product names."
+                    "avoid, purchase_stage, retrieval_strategy, need_clarify, "
+                    "missing_fields. purchase_stage must be browse, consider, or "
+                    "buy_ready. retrieval_strategy must be explore, balanced, strict, "
+                    "or bundle. Use Chinese values when the user speaks Chinese. "
+                    "Do not invent product names."
                 ),
             },
             {
@@ -113,6 +116,7 @@ class LlmIntentExtractor:
             values["budget_max"],
             values["scenario"],
             values["preferences"],
+            values["purchase_stage"],
         )
         supplied_missing = [
             field
@@ -128,18 +132,35 @@ class LlmIntentExtractor:
             scenario=values["scenario"],
             preferences=values["preferences"],
             avoid=values["avoid"],
+            purchase_stage=values["purchase_stage"],
+            retrieval_strategy=values["retrieval_strategy"],
             need_clarify=bool(missing_fields),
             missing_fields=missing_fields,
         )
 
     def _payload_values(self, payload: dict[str, Any]) -> dict[str, Any]:
+        intent = self._normalize_intent(payload.get("intent"))
+        budget_max = self._optional_float(payload.get("budget_max"))
+        scenario = self._normalize_scenario(payload.get("scenario"))
+        preferences = self._normalize_preferences(payload.get("preferences"))
+        purchase_stage = self._normalize_purchase_stage(
+            payload.get("purchase_stage"),
+            budget_max=budget_max,
+            scenario=scenario,
+            preferences=preferences,
+        )
+        retrieval_strategy = self._normalize_retrieval_strategy(payload.get("retrieval_strategy"))
+        if payload.get("retrieval_strategy") in (None, ""):
+            retrieval_strategy = self._default_retrieval_strategy(intent, purchase_stage)
         return {
-            "intent": self._normalize_intent(payload.get("intent")),
+            "intent": intent,
             "category": self._normalize_category(payload.get("category")),
-            "budget_max": self._optional_float(payload.get("budget_max")),
-            "scenario": self._normalize_scenario(payload.get("scenario")),
-            "preferences": self._normalize_preferences(payload.get("preferences")),
+            "budget_max": budget_max,
+            "scenario": scenario,
+            "preferences": preferences,
             "avoid": dedupe_strings(self._text_list(payload.get("avoid"))),
+            "purchase_stage": purchase_stage,
+            "retrieval_strategy": retrieval_strategy,
         }
 
     def _normalize_intent(self, value: Any) -> str:
@@ -170,12 +191,64 @@ class LlmIntentExtractor:
             preferences.append(PREFERENCE_ALIASES.get(item, item))
         return dedupe_strings(preferences)
 
+    def _normalize_purchase_stage(
+        self,
+        value: Any,
+        *,
+        budget_max: float | None,
+        scenario: str | None,
+        preferences: list[str],
+    ) -> str:
+        stage_text = self._optional_text(value)
+        if stage_text is None:
+            if budget_max is not None and (scenario is not None or preferences):
+                return "buy_ready"
+            return "consider"
+        stage = stage_text.lower()
+        aliases = {
+            "explore": "browse",
+            "浏览": "browse",
+            "随便看看": "browse",
+            "考虑": "consider",
+            "明确购买": "buy_ready",
+            "购买": "buy_ready",
+            "ready": "buy_ready",
+        }
+        normalized = aliases.get(stage, stage)
+        return normalized if normalized in {"browse", "consider", "buy_ready"} else "consider"
+
+    def _normalize_retrieval_strategy(self, value: Any) -> str:
+        strategy = (self._optional_text(value) or "balanced").lower()
+        aliases = {
+            "浏览": "explore",
+            "探索": "explore",
+            "精确": "strict",
+            "严格": "strict",
+            "组合": "bundle",
+        }
+        normalized = aliases.get(strategy, strategy)
+        return normalized if normalized in {"explore", "balanced", "strict", "bundle"} else "balanced"
+
+    def _default_retrieval_strategy(self, intent: str, purchase_stage: str) -> str:
+        if intent == "场景化组合推荐":
+            return "bundle"
+        if purchase_stage == "browse":
+            return "explore"
+        if purchase_stage == "buy_ready":
+            return "strict"
+        return "balanced"
+
     def _prompt(self, text: str, image_info: dict, history_context: dict) -> str:
         return (
             "Extract shopping intent as JSON with fields: intent, category, "
-            "budget_max, scenario, preferences, avoid, need_clarify, "
+            "budget_max, scenario, preferences, avoid, purchase_stage, "
+            "retrieval_strategy, need_clarify, "
             "Use intent 场景化组合推荐 when the user asks for a bundle, kit, "
             "set, checklist, or cross-category scenario plan. "
+            "Use purchase_stage=browse and retrieval_strategy=explore for casual "
+            "browsing such as 随便看看 or 了解一下. Use purchase_stage=buy_ready "
+            "and retrieval_strategy=strict when budget, scenario, or purchase wording "
+            "shows a clear buying decision. "
             f"missing_fields. text={text!r}, image_info={image_info!r}, "
             f"history_context={history_context!r}"
         )
