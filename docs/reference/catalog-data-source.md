@@ -143,4 +143,4 @@ beta-keyboard-keynova-k75,KeyNova K75 静音三模机械键盘,机械键盘,KeyN
 - `import_products --require-real-assets` 可成功导入。
 - 商品列表和详情接口返回的 `image_url` 能直接在浏览器打开。
 - Android 商品卡片能稳定显示主图。
-- Chroma 商品索引完成重建或 upsert，`check_vector_index` 无缺失 active 商品。
+- Chroma 商品索引完成重建或 upsert，`check_vector_index` 无缺失、陈旧或内容过期的 active 商品。

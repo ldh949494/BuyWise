@@ -147,3 +147,69 @@ def test_rag_service_filters_stale_vector_product_ids() -> None:
     )
 
     assert [item.product_id for item in response.items] == [1]
+
+
+def test_rag_service_refreshes_vector_hits_from_database() -> None:
+    client = make_client()
+    db_override = next(iter(client.app.dependency_overrides.values()))
+    db = next(db_override())
+
+    class FakeStore:
+        def search(self, query: str, top_k: int = 5):
+            return [
+                {
+                    "id": "product_1:marketing_copy",
+                    "metadata": {
+                        "product_id": 1,
+                        "name": "Old indexed name",
+                        "category": KEYBOARD_CATEGORY,
+                        "price": 999,
+                        "stock_status": "out_of_stock",
+                    },
+                    "score": 0.9,
+                }
+            ]
+
+    response = RagService(product_store=FakeStore()).search(
+        RagSearchRequest(query="静音键盘", filters={"category": KEYBOARD_CATEGORY, "price_max": 300}, top_k=5),
+        db,
+    )
+
+    assert response.total == 1
+    assert response.items[0].name == KEYBOARD_NAME
+    assert response.items[0].price == 269.0
+    assert response.items[0].stock_status is None
+
+
+def test_rag_service_filters_unavailable_database_product_after_vector_hit() -> None:
+    client = make_client()
+    db_override = next(iter(client.app.dependency_overrides.values()))
+    db = next(db_override())
+    product = db.get(Product, 1)
+    product.stock_status = "discontinued"
+    db.commit()
+
+    class FakeStore:
+        def search(self, query: str, top_k: int = 5):
+            return [
+                {
+                    "id": "product_1:product_core",
+                    "metadata": {
+                        "product_id": 1,
+                        "name": KEYBOARD_NAME,
+                        "category": KEYBOARD_CATEGORY,
+                        "price": 269,
+                        "stock_status": "in_stock",
+                    },
+                    "score": 0.9,
+                }
+            ]
+
+    response = RagService(product_store=FakeStore()).search(
+        RagSearchRequest(query="静音键盘", filters={"category": KEYBOARD_CATEGORY}, top_k=5),
+        db,
+    )
+
+    assert response.total == 1
+    assert response.items[0].product_id == 2
+    assert response.items[0].reason == "数据库 fallback 结果"

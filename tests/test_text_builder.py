@@ -2,7 +2,7 @@ from decimal import Decimal
 from types import SimpleNamespace
 
 from app.schemas.chat import StructuredNeed
-from app.utils.text_builder import build_product_text, build_query_from_need
+from app.utils.text_builder import build_product_chunks, build_product_text, build_query_from_need
 
 
 def test_build_product_text_formats_product_fields_for_embedding() -> None:
@@ -38,6 +38,31 @@ def test_build_product_text_formats_product_fields_for_embedding() -> None:
     assert "商品主图：" not in text
     assert "商品图片：" not in text
     assert "https://example.com" not in text
+
+
+def test_build_product_chunks_splits_retrieval_fields_by_source() -> None:
+    product = SimpleNamespace(
+        name="K87 静音红轴机械键盘",
+        category="机械键盘",
+        brand="KeyNova",
+        sku="beta-keyboard-k87",
+        platform="京东",
+        description="静音轴体和三模连接，适合宿舍写代码。",
+        specs={"轴体": "静音红轴", "材质": "PBT键帽"},
+        tags=["静音", "三模"],
+        suitable_scene=["宿舍", "写代码"],
+        review_summary="按键声音低，蓝牙稳定。",
+    )
+
+    chunks = build_product_chunks(product)
+    chunks_by_type = {chunk["chunk_type"]: chunk for chunk in chunks}
+
+    assert set(chunks_by_type) == {"product_core", "specs", "marketing_copy", "review_summary"}
+    assert chunks_by_type["product_core"]["field_path"] == "core"
+    assert "商品名称：K87 静音红轴机械键盘" in chunks_by_type["product_core"]["text"]
+    assert "商品参数：轴体：静音红轴；材质：PBT键帽" in chunks_by_type["specs"]["text"]
+    assert "商品描述：静音轴体和三模连接" in chunks_by_type["marketing_copy"]["text"]
+    assert "评论摘要：按键声音低" in chunks_by_type["review_summary"]["text"]
 
 
 def test_build_product_text_handles_str_list_dict_and_none_values() -> None:
