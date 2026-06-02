@@ -14,6 +14,7 @@ sealed interface ChatStreamEvent {
     data class Products(val intentSummary: String, val recommendations: List<Recommendation>) : ChatStreamEvent
     data class Done(val reply: String) : ChatStreamEvent
     data class Error(val message: String) : ChatStreamEvent
+    data object Heartbeat : ChatStreamEvent
 }
 
 class GuideRepository internal constructor(
@@ -48,10 +49,20 @@ class GuideRepository internal constructor(
             "status" -> ChatStreamEvent.Status(json.optString("message", json.optString("stage")))
             "token" -> ChatStreamEvent.Token(json.optString("text"))
             "products" -> parseProductsEvent(json)
+            "heartbeat" -> ChatStreamEvent.Heartbeat
             "done" -> ChatStreamEvent.Done(json.optString("reply"))
-            "error" -> ChatStreamEvent.Error(json.optString("message", "导购建议生成失败"))
+            "error" -> parseErrorEvent(json)
             else -> ChatStreamEvent.Status(type ?: "message")
         }
+    }
+
+    private fun parseErrorEvent(json: JSONObject): ChatStreamEvent.Error {
+        val code = json.optString("code")
+        val message = when (code) {
+            "chat_stream_timeout" -> "导购回复超时，请稍后重试。"
+            else -> json.optString("message", "导购建议生成失败")
+        }
+        return ChatStreamEvent.Error(message)
     }
 
     private fun parseProductsEvent(json: JSONObject): ChatStreamEvent.Products {
