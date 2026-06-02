@@ -275,9 +275,10 @@ class ChatService:
     async def _rank_recommendations(self, need: Any, db: Session) -> list[Any]:
         if self._get_need_value(need, "intent") == "场景化组合推荐":
             return await self._rank_bundle_recommendations(need, db)
-        products = await self.rag_pipeline.search_products(need, db)
+        strategy = self._get_need_value(need, "retrieval_strategy") or "balanced"
+        products = await self.rag_pipeline.search_products(need, db, top_k=self._retrieval_top_k(strategy))
         self._attach_quality_signals(products, db)
-        return self.recommend_service.rank(products, need)[:5]
+        return self.recommend_service.rank(products, need)[: self._result_limit(strategy)]
 
     async def _rank_bundle_recommendations(self, need: Any, db: Session) -> list[Any]:
         products = await self.rag_pipeline.search_products(need, db, top_k=30)
@@ -288,6 +289,18 @@ class ChatService:
         if isinstance(need, dict):
             return need.get(key)
         return getattr(need, key, None)
+
+    def _retrieval_top_k(self, strategy: str) -> int:
+        if strategy == "explore":
+            return 30
+        if strategy == "strict":
+            return 12
+        return 20
+
+    def _result_limit(self, strategy: str) -> int:
+        if strategy == "explore":
+            return 8
+        return 5
 
     def _attach_quality_signals(self, products: list[Any], db: Session) -> None:
         if not hasattr(db, "execute"):

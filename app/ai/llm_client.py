@@ -5,8 +5,28 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from typing import Any, Protocol
 
+from app.ai.prompts import RECOMMEND_PROMPT
 from app.core.config import settings
 from app.core.resilience import provider_policy, provider_stream, run_provider_call_async
+
+
+UNSUPPORTED_CLAIM_KEYWORDS = [
+    "优惠券",
+    "券",
+    "满减",
+    "折扣",
+    "打折",
+    "促销",
+    "包邮",
+    "免邮",
+    "保修",
+    "售后",
+    "官方认证",
+    "正品保证",
+    "闪购",
+    "秒杀",
+]
+UNSUPPORTED_CLAIM_FALLBACK = "我只能基于当前商品卡片做推荐，暂无可验证的优惠券、促销或额外平台功能信息。"
 
 
 class LLMProvider(Protocol):
@@ -113,7 +133,8 @@ class LLMClient:
     async def generate_recommendation(self, need: Any, products: list[Any]) -> str:
         if not products:
             return "暂时没有找到完全匹配的商品，可以放宽预算或调整条件。"
-        return await self.chat(self.recommendation_messages(need, products))
+        reply = await self.chat(self.recommendation_messages(need, products))
+        return self._guard_recommendation_reply(reply, products)
 
     async def stream_recommendation(self, need: Any, products: list[Any]) -> AsyncIterator[str]:
         if not products:
@@ -126,10 +147,7 @@ class LLMClient:
         return [
             {
                 "role": "system",
-                "content": (
-                    "You are BuyWise, a shopping guide. Write a concise Chinese "
-                    "recommendation based only on the provided products."
-                ),
+                "content": RECOMMEND_PROMPT.strip(),
             },
             {
                 "role": "user",
@@ -185,7 +203,11 @@ class LLMClient:
         raise ValueError("LLM_PROVIDER must be 'mock', 'openai', or 'openai-compatible'.")
 
     def _recommendation_prompt(self, need: Any, products: list[Any]) -> str:
-        lines = ["Need:", self._format_mapping(need), "Products:"]
+        lines = [
+            "Need:",
+            self._format_mapping(need),
+            "Products:",
+        ]
         for product in products:
             lines.append(self._format_mapping(product))
         return "\n".join(lines)
@@ -221,6 +243,39 @@ class LLMClient:
         if isinstance(source, dict):
             return source.get(key)
         return getattr(source, key, None)
+
+    def _guard_recommendation_reply(self, reply: str, products: list[Any]) -> str:
+        if not reply:
+            return self._template_recommendation_reply(products)
+        if self._has_unsupported_claim(reply, products):
+            return self._template_recommendation_reply(products)
+        return reply
+
+    def _has_unsupported_claim(self, reply: str, products: list[Any]) -> bool:
+        for keyword in UNSUPPORTED_CLAIM_KEYWORDS:
+            if keyword not in reply:
+                continue
+            if not self._claim_supported(keyword, products):
+                return True
+        return False
+
+    def _claim_supported(self, keyword: str, products: list[Any]) -> bool:
+        return any(keyword in self._format_mapping(product) for product in products)
+
+    def _template_recommendation_reply(self, products: list[Any]) -> str:
+        product_lines = []
+        for product in products[:3]:
+            name = self._get_value(product, "name")
+            reason = self._get_value(product, "reason")
+            if not name:
+                continue
+            if reason:
+                product_lines.append(f"{name}：{reason}")
+            else:
+                product_lines.append(str(name))
+        if not product_lines:
+            return "暂时没有找到完全匹配的商品，可以放宽预算或调整条件。"
+        return "基于当前商品卡片，建议优先看：" + "；".join(product_lines) + "。" + UNSUPPORTED_CLAIM_FALLBACK
 
     def _coerce_list(self, value: Any) -> list[str]:
         if value is None:

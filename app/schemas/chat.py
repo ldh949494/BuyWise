@@ -21,6 +21,8 @@ class StructuredNeed(BaseSchema):
     scenario: str | None = None
     preferences: list[str] = Field(default_factory=list)
     avoid: list[str] = Field(default_factory=list)
+    purchase_stage: str = "consider"
+    retrieval_strategy: str = "balanced"
     need_clarify: bool = False
     missing_fields: list[str] = Field(default_factory=list)
 

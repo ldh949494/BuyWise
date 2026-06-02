@@ -157,6 +157,53 @@ async def test_handle_chat_runs_multimodal_recommendation_flow() -> None:
 
 
 @pytest.mark.anyio
+async def test_handle_chat_uses_explore_retrieval_for_casual_browse() -> None:
+    need = StructuredNeed(
+        intent="商品推荐",
+        category="机械键盘",
+        purchase_stage="browse",
+        retrieval_strategy="explore",
+    )
+    products = [make_product(f"键盘 {index}") for index in range(10)]
+    rag_pipeline = FakeRAGPipeline(products)
+    service = ChatService(
+        intent_service=FakeIntentService(need),
+        rag_pipeline=rag_pipeline,
+        recommend_service=FakeRecommendService(),
+        llm_client=FakeLLMClient(),
+    )
+
+    response = await service.handle_chat(ChatRequest(message="随便看看键盘"), db=object())
+
+    assert rag_pipeline.calls[0]["top_k"] == 30
+    assert len(response.products) == 8
+
+
+@pytest.mark.anyio
+async def test_handle_chat_uses_strict_retrieval_for_buy_ready_need() -> None:
+    need = StructuredNeed(
+        intent="商品推荐",
+        category="机械键盘",
+        budget_max=300,
+        scenario="宿舍",
+        preferences=["低噪音"],
+        purchase_stage="buy_ready",
+        retrieval_strategy="strict",
+    )
+    rag_pipeline = FakeRAGPipeline([make_product()])
+    service = ChatService(
+        intent_service=FakeIntentService(need),
+        rag_pipeline=rag_pipeline,
+        recommend_service=FakeRecommendService(),
+        llm_client=FakeLLMClient(),
+    )
+
+    await service.handle_chat(ChatRequest(message="准备买一个键盘"), db=object())
+
+    assert rag_pipeline.calls[0]["top_k"] == 12
+
+
+@pytest.mark.anyio
 async def test_generate_chat_stream_emits_products_tokens_and_done() -> None:
     need = StructuredNeed(
         intent="商品推荐",

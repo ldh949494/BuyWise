@@ -12,6 +12,19 @@ from app.ai.prompts import (
 from app.schemas.chat import ProductCard, StructuredNeed
 
 
+class StaticProvider:
+    def __init__(self, reply: str) -> None:
+        self.reply = reply
+        self.messages = []
+
+    async def chat(self, messages):
+        self.messages.append(messages)
+        return self.reply
+
+    async def stream_chat(self, messages):
+        yield self.reply
+
+
 def test_prompt_constants_are_defined_for_future_llm_calls() -> None:
     assert "结构化购物需求" in INTENT_EXTRACT_PROMPT
     assert "电商导购助手" in RECOMMEND_PROMPT
@@ -84,6 +97,37 @@ async def test_generate_recommendation_uses_only_given_products() -> None:
     assert "机械键盘" in reply
     assert "不存在的商品" not in reply
     assert "价格符合预算" in reply
+
+
+@pytest.mark.anyio
+async def test_generate_recommendation_blocks_unsupported_coupon_claims() -> None:
+    provider = StaticProvider("推荐 K87 静音红轴机械键盘，现在有隐藏优惠券和包邮福利。")
+    client = LLMClient(provider=provider)
+    need = StructuredNeed(intent="商品推荐", category="机械键盘")
+    products = [
+        ProductCard(
+            id=1,
+            name="K87 静音红轴机械键盘",
+            price=299,
+            reason="价格符合预算；适合宿舍场景",
+        )
+    ]
+
+    reply = await client.generate_recommendation(need, products)
+
+    assert "隐藏优惠券" not in reply
+    assert "包邮福利" not in reply
+    assert "暂无可验证的优惠券" in reply
+    assert "K87 静音红轴机械键盘" in reply
+
+
+def test_recommendation_messages_use_hardened_prompt() -> None:
+    client = LLMClient(provider_name="mock")
+
+    messages = client.recommendation_messages({"category": "机械键盘"}, [])
+
+    assert "严禁编造优惠券" in messages[0]["content"]
+    assert "平台不存在的功能" in messages[0]["content"]
 
 
 @pytest.mark.anyio

@@ -7,6 +7,7 @@ from typing import Any
 
 from app.schemas.chat import StructuredNeed
 from app.services.intent_llm import LlmIntentExtractor
+from app.utils.intent_strategy import retrieval_strategy_for
 from app.utils.list_values import dedupe_strings
 
 
@@ -71,6 +72,8 @@ class IntentService:
             r"(?:\u4ee5\u5185|\u4ee5\u4e0b|\u4e4b\u5185)"
         ),
     ]
+    BROWSE_KEYWORDS = ["随便看看", "先看看", "看看", "逛逛", "了解一下", "有什么", "推荐几类"]
+    BUY_READY_KEYWORDS = ["想买", "准备买", "马上买", "下单", "入手", "就买", "要买"]
 
     def __init__(self, llm_client: Any | None = None) -> None:
         self.llm_client = llm_client
@@ -106,6 +109,7 @@ class IntentService:
             budget_max=values["budget_max"],
             scenario=values["scenario"],
             preferences=values["preferences"],
+            purchase_stage=values["purchase_stage"],
         )
         return StructuredNeed(
             **values,
@@ -131,6 +135,7 @@ class IntentService:
 
         scenario = self._extract_scenario(normalized_text) or history_context.get("scenario")
         preferences = self._rule_preferences(normalized_text, image_info, history_context)
+        purchase_stage = self._purchase_stage(normalized_text, budget_max, scenario, preferences)
         return {
             "intent": intent,
             "category": category,
@@ -138,6 +143,8 @@ class IntentService:
             "scenario": scenario,
             "preferences": preferences,
             "avoid": self._extract_avoid(normalized_text),
+            "purchase_stage": purchase_stage,
+            "retrieval_strategy": retrieval_strategy_for(intent, purchase_stage),
         }
 
     def _rule_preferences(
@@ -192,6 +199,21 @@ class IntentService:
 
     def _contains_keyword(self, text: str, keywords: list[str]) -> bool:
         return any(keyword in text for keyword in keywords)
+
+    def _purchase_stage(
+        self,
+        text: str,
+        budget_max: float | None,
+        scenario: str | None,
+        preferences: list[str],
+    ) -> str:
+        if self._contains_keyword(text, self.BROWSE_KEYWORDS):
+            return "browse"
+        if self._contains_keyword(text, self.BUY_READY_KEYWORDS):
+            return "buy_ready"
+        if budget_max is not None and (scenario is not None or preferences):
+            return "buy_ready"
+        return "consider"
 
     def _extract_category(self, text: str) -> str | None:
         for category, keywords in self.CATEGORY_KEYWORDS.items():
@@ -249,16 +271,32 @@ class IntentService:
         budget_max: float | None,
         scenario: str | None,
         preferences: list[str],
+        purchase_stage: str = "consider",
     ) -> list[str]:
+        if purchase_stage == "browse":
+            return self._browse_missing_fields(category)
+
         if intent == "\u573a\u666f\u5316\u7ec4\u5408\u63a8\u8350":
-            missing_fields = []
-            if scenario is None:
-                missing_fields.append("scenario")
-            return missing_fields
+            return self._bundle_missing_fields(scenario)
 
         if intent not in {"\u5546\u54c1\u63a8\u8350", "\u627e\u5e73\u66ff"}:
             return []
 
+        return self._recommendation_missing_fields(category, budget_max, scenario, preferences)
+
+    def _browse_missing_fields(self, category: str | None) -> list[str]:
+        return ["category"] if category is None else []
+
+    def _bundle_missing_fields(self, scenario: str | None) -> list[str]:
+        return ["scenario"] if scenario is None else []
+
+    def _recommendation_missing_fields(
+        self,
+        category: str | None,
+        budget_max: float | None,
+        scenario: str | None,
+        preferences: list[str],
+    ) -> list[str]:
         missing_fields = []
         if category is None:
             missing_fields.append("category")
