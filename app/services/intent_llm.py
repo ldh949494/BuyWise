@@ -7,6 +7,7 @@ from typing import Any, Callable
 
 from app.core.providers import AppError
 from app.schemas.chat import StructuredNeed
+from app.utils.intent_strategy import retrieval_strategy_for
 from app.utils.list_values import dedupe_strings
 
 
@@ -110,6 +111,10 @@ class LlmIntentExtractor:
         values = self._payload_values(payload)
         if not values["intent"]:
             return None
+        missing_fields = self._combined_missing_fields(values, payload)
+        return self._build_need(values, missing_fields)
+
+    def _combined_missing_fields(self, values: dict[str, Any], payload: dict[str, Any]) -> list[str]:
         missing_fields = self.missing_fields(
             values["intent"],
             values["category"],
@@ -118,13 +123,13 @@ class LlmIntentExtractor:
             values["preferences"],
             values["purchase_stage"],
         )
-        supplied_missing = [
-            field
-            for field in self._text_list(payload.get("missing_fields"))
-            if field in CORE_MISSING_FIELDS
-        ]
-        if supplied_missing:
-            missing_fields = dedupe_strings(missing_fields + supplied_missing)
+        supplied_missing = self._supplied_core_missing_fields(payload)
+        return dedupe_strings(missing_fields + supplied_missing) if supplied_missing else missing_fields
+
+    def _supplied_core_missing_fields(self, payload: dict[str, Any]) -> list[str]:
+        return [field for field in self._text_list(payload.get("missing_fields")) if field in CORE_MISSING_FIELDS]
+
+    def _build_need(self, values: dict[str, Any], missing_fields: list[str]) -> StructuredNeed:
         return StructuredNeed(
             intent=values["intent"],
             category=values["category"],
@@ -151,7 +156,7 @@ class LlmIntentExtractor:
         )
         retrieval_strategy = self._normalize_retrieval_strategy(payload.get("retrieval_strategy"))
         if payload.get("retrieval_strategy") in (None, ""):
-            retrieval_strategy = self._default_retrieval_strategy(intent, purchase_stage)
+            retrieval_strategy = retrieval_strategy_for(intent, purchase_stage)
         return {
             "intent": intent,
             "category": self._normalize_category(payload.get("category")),
@@ -228,15 +233,6 @@ class LlmIntentExtractor:
         }
         normalized = aliases.get(strategy, strategy)
         return normalized if normalized in {"explore", "balanced", "strict", "bundle"} else "balanced"
-
-    def _default_retrieval_strategy(self, intent: str, purchase_stage: str) -> str:
-        if intent == "场景化组合推荐":
-            return "bundle"
-        if purchase_stage == "browse":
-            return "explore"
-        if purchase_stage == "buy_ready":
-            return "strict"
-        return "balanced"
 
     def _prompt(self, text: str, image_info: dict, history_context: dict) -> str:
         return (

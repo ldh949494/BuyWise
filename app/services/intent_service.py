@@ -7,6 +7,7 @@ from typing import Any
 
 from app.schemas.chat import StructuredNeed
 from app.services.intent_llm import LlmIntentExtractor
+from app.utils.intent_strategy import retrieval_strategy_for
 from app.utils.list_values import dedupe_strings
 
 
@@ -143,7 +144,7 @@ class IntentService:
             "preferences": preferences,
             "avoid": self._extract_avoid(normalized_text),
             "purchase_stage": purchase_stage,
-            "retrieval_strategy": self._retrieval_strategy(intent, purchase_stage),
+            "retrieval_strategy": retrieval_strategy_for(intent, purchase_stage),
         }
 
     def _rule_preferences(
@@ -214,15 +215,6 @@ class IntentService:
             return "buy_ready"
         return "consider"
 
-    def _retrieval_strategy(self, intent: str, purchase_stage: str) -> str:
-        if intent == "场景化组合推荐":
-            return "bundle"
-        if purchase_stage == "browse":
-            return "explore"
-        if purchase_stage == "buy_ready":
-            return "strict"
-        return "balanced"
-
     def _extract_category(self, text: str) -> str | None:
         for category, keywords in self.CATEGORY_KEYWORDS.items():
             if any(keyword in text for keyword in keywords):
@@ -282,20 +274,29 @@ class IntentService:
         purchase_stage: str = "consider",
     ) -> list[str]:
         if purchase_stage == "browse":
-            missing_fields = []
-            if category is None:
-                missing_fields.append("category")
-            return missing_fields
+            return self._browse_missing_fields(category)
 
         if intent == "\u573a\u666f\u5316\u7ec4\u5408\u63a8\u8350":
-            missing_fields = []
-            if scenario is None:
-                missing_fields.append("scenario")
-            return missing_fields
+            return self._bundle_missing_fields(scenario)
 
         if intent not in {"\u5546\u54c1\u63a8\u8350", "\u627e\u5e73\u66ff"}:
             return []
 
+        return self._recommendation_missing_fields(category, budget_max, scenario, preferences)
+
+    def _browse_missing_fields(self, category: str | None) -> list[str]:
+        return ["category"] if category is None else []
+
+    def _bundle_missing_fields(self, scenario: str | None) -> list[str]:
+        return ["scenario"] if scenario is None else []
+
+    def _recommendation_missing_fields(
+        self,
+        category: str | None,
+        budget_max: float | None,
+        scenario: str | None,
+        preferences: list[str],
+    ) -> list[str]:
         missing_fields = []
         if category is None:
             missing_fields.append("category")
