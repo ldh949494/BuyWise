@@ -263,7 +263,7 @@ Content-Type: application/json
 Accept: text/event-stream
 ```
 
-SSE 事件类型固定为 `meta`、`status`、`token`、`products`、`done` 和 `error`。客户端不应依赖其他事件类型。
+SSE 事件类型固定为 `meta`、`status`、`token`、`products`、`heartbeat`、`done` 和 `error`。客户端不应依赖其他事件类型。
 
 | 事件 | payload |
 | --- | --- |
@@ -271,10 +271,11 @@ SSE 事件类型固定为 `meta`、`status`、`token`、`products`、`done` 和 
 | `status` | `{"stage": "intent|retrieval|generation|fallback", "message": "..."}` |
 | `token` | `{"text": "..."}` |
 | `products` | `{"need_clarify": false, "structured_need": {...}, "items": [...]}` |
+| `heartbeat` | `{"status": "ok"}` |
 | `done` | `{"reply": "...", "degraded": false, "degraded_reason": null}` |
-| `error` | `{"code": "chat_stream_failed", "message": "chat_stream_failed", "session_id": "..."}` |
+| `error` | `{"code": "chat_stream_failed|chat_stream_timeout", "message": "...", "session_id": "..."}` |
 
-降级不使用独立 `fallback` 事件；通过 `status.stage=fallback` 和 `done.degraded=true` 表达。`done.reply` 始终是最终完整回复。
+客户端收到 `heartbeat` 时只需保持连接状态，不应追加到聊天正文。降级不使用独立 `fallback` 事件；通过 `status.stage=fallback` 和 `done.degraded=true` 表达。`done.reply` 始终是最终完整回复。
 
 ## 上传
 

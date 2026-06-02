@@ -1,5 +1,9 @@
+import asyncio
+
 from fastapi.testclient import TestClient
 
+from app.api.v1.chat import _format_sse, _stream_with_keepalive
+from app.core.config import Settings
 from app.core.dependencies import get_chat_service
 from app.main import create_app
 from app.schemas.chat import ProductCard, StructuredNeed
@@ -42,3 +46,45 @@ def test_chat_stream_endpoint_returns_sse_events() -> None:
     assert "event: products" in body
     assert "event: done" in body
     assert "degraded_reason" in body
+
+
+def test_format_sse_supports_heartbeat_event() -> None:
+    body = _format_sse("heartbeat", {"status": "ok"})
+
+    assert body == 'event: heartbeat\ndata: {"status":"ok"}\n\n'
+
+
+def test_stream_keepalive_emits_heartbeat_during_idle_gap() -> None:
+    async def run() -> list[dict]:
+        return await _collect_events(_delayed_done_stream(), _fast_stream_settings())
+
+    events = asyncio.run(run())
+
+    assert {"event": "heartbeat", "data": {"status": "ok"}} in events
+    assert events[-1] == {"event": "done", "data": {"reply": "ok"}}
+
+
+def test_stream_keepalive_times_out_stalled_stream() -> None:
+    events = asyncio.run(_collect_events(_stalled_stream(), _fast_stream_settings(max_seconds=0.025)))
+
+    assert events[-1]["event"] == "error"
+    assert events[-1]["data"].code == "chat_stream_timeout"
+    assert events[-1]["data"].session_id == "sse-session"
+
+
+async def _delayed_done_stream():
+    await asyncio.sleep(0.02)
+    yield {"event": "done", "data": {"reply": "ok"}}
+
+
+async def _stalled_stream():
+    await asyncio.sleep(1)
+    yield {"event": "done", "data": {"reply": "late"}}
+
+
+async def _collect_events(stream, settings: Settings) -> list[dict]:
+    return [event async for event in _stream_with_keepalive(stream, "sse-session", settings)]
+
+
+def _fast_stream_settings(max_seconds: float = 1.0) -> Settings:
+    return Settings(chat_stream_heartbeat_seconds=0.01, chat_stream_max_seconds=max_seconds)

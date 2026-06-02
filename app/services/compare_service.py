@@ -9,6 +9,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.ai.llm_client import LLMClient
+from app.ai.model_gateway import AIModelGateway
 from app.core.concurrency import run_blocking_io
 from app.core.providers import get_logging_provider
 from app.repositories.price_repo import PriceHistoryRepository
@@ -21,7 +22,7 @@ from app.utils.list_values import coerce_string_list, parse_json_or_none
 
 
 class CompareService:
-    def __init__(self, llm_client: LLMClient | None = None) -> None:
+    def __init__(self, llm_client: AIModelGateway | None = None) -> None:
         self.llm_client = llm_client or LLMClient()
 
     async def compare(

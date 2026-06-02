@@ -11,6 +11,7 @@ from fastapi import Depends, FastAPI, Request
 from sqlalchemy.orm import Session
 
 from app.ai.llm_client import LLMClient
+from app.ai.model_gateway import AIModelGateway
 from app.ai.rag_pipeline import RAGPipeline
 from app.core.config import Settings, settings
 from app.core.database import SessionLocal, get_db
@@ -26,6 +27,7 @@ from app.services.speech_service import SpeechService
 from app.services.upload_service import UploadService
 from app.services.vision_service import VisionService
 from app.vectorstore.chroma_client import ChromaProductStore
+from app.vectorstore.retrieval_gateway import VectorRetrievalGateway
 
 
 T = TypeVar("T")
@@ -37,8 +39,8 @@ _APP_CONTAINER_BUILDERS: WeakKeyDictionary[FastAPI, AppContainerBuilder] = WeakK
 class AppContainer:
     settings: Settings
     session_factory: Callable[[], Session]
-    llm_client: LLMClient
-    product_store: ChromaProductStore
+    llm_client: AIModelGateway
+    product_store: VectorRetrievalGateway
     rag_pipeline: RAGPipeline
     rag_service: RagService
     compare_service: CompareService
@@ -58,8 +60,8 @@ class AppContainer:
 class AppContainerBuilder:
     settings: Settings = field(default_factory=lambda: settings)
     session_factory: Callable[[], Session] = SessionLocal
-    llm_client: LLMClient | None = None
-    product_store: ChromaProductStore | None = None
+    llm_client: AIModelGateway | None = None
+    product_store: VectorRetrievalGateway | None = None
     rag_pipeline: RAGPipeline | None = None
     rag_service: RagService | None = None
     compare_service: CompareService | None = None
@@ -75,10 +77,10 @@ class AppContainerBuilder:
     def with_session_factory(self, session_factory: Callable[[], Session]) -> AppContainerBuilder:
         return replace(self, session_factory=session_factory)
 
-    def with_llm_client(self, llm_client: LLMClient) -> AppContainerBuilder:
+    def with_llm_client(self, llm_client: AIModelGateway) -> AppContainerBuilder:
         return replace(self, llm_client=llm_client)
 
-    def with_product_store(self, product_store: ChromaProductStore) -> AppContainerBuilder:
+    def with_product_store(self, product_store: VectorRetrievalGateway) -> AppContainerBuilder:
         return replace(self, product_store=product_store)
 
     def with_rag_pipeline(self, rag_pipeline: RAGPipeline) -> AppContainerBuilder:
@@ -182,11 +184,11 @@ def get_container_attr(request: Request, getter: Callable[[AppContainer], T]) ->
     return getter(get_app_container(request))
 
 
-def get_llm_client(request: Request) -> LLMClient:
+def get_llm_client(request: Request) -> AIModelGateway:
     return get_container_attr(request, lambda container: container.llm_client)
 
 
-def get_product_store(request: Request) -> ChromaProductStore:
+def get_product_store(request: Request) -> VectorRetrievalGateway:
     return get_container_attr(request, lambda container: container.product_store)
 
 

@@ -8,10 +8,10 @@ from app.ai.rag_pipeline import RAGPipeline
 from app.repositories.review_repo import ReviewRepository
 from app.services.recommend_service import RecommendService
 from app.services.review_signal_service import ReviewSignalService
-from app.vectorstore.chroma_client import ChromaProductStore
+from app.vectorstore.retrieval_gateway import VectorRetrievalGateway
 
 
-def build_rag_pipeline(product_store: ChromaProductStore | None = None) -> RAGPipeline:
+def build_rag_pipeline(product_store: VectorRetrievalGateway | None = None) -> RAGPipeline:
     return RAGPipeline(
         product_store=product_store,
         reranker=RecommendService(),
