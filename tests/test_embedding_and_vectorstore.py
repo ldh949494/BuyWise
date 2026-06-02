@@ -148,6 +148,34 @@ def test_chroma_product_store_upserts_and_resets_documents(tmp_path) -> None:
     assert store.search("wireless headphones") == []
 
 
+def test_chroma_product_store_deletes_existing_product_chunks(tmp_path) -> None:
+    store = make_store(tmp_path)
+    store.add_documents(
+        [
+            {
+                "id": "product_1:product_core",
+                "text": "quiet keyboard",
+                "metadata": {"product_id": 1, "name": "K87", "chunk_type": "product_core"},
+            },
+            {
+                "id": "product_1:review_summary",
+                "text": "quiet reviews",
+                "metadata": {"product_id": 1, "name": "K87", "chunk_type": "review_summary"},
+            },
+            {
+                "id": "product_2:product_core",
+                "text": "wireless headphones",
+                "metadata": {"product_id": 2, "name": "AirBuds", "chunk_type": "product_core"},
+            },
+        ]
+    )
+
+    store.delete_product_documents(1)
+    results = store.search("quiet keyboard wireless headphones", top_k=5)
+
+    assert {item["metadata"]["product_id"] for item in results} == {2}
+
+
 def test_build_vector_index_rebuilds_all_products(tmp_path) -> None:
     session_factory = make_session_factory()
     seed_products(session_factory)
@@ -157,9 +185,12 @@ def test_build_vector_index_rebuilds_all_products(tmp_path) -> None:
     results = store.search("keyboard", top_k=5)
 
     assert result == {"indexed": 2, "mode": "rebuild", "deleted_collection": True}
-    assert len(results) == 2
+    assert store.count() == 2
     assert {item["metadata"]["product_id"] for item in results} == {1, 2}
     assert {item["metadata"]["name"] for item in results} == {"K87 quiet keyboard", "AirBuds Lite"}
+    assert {item["metadata"]["chunk_type"] for item in results} == {"product_core"}
+    assert all(item["metadata"]["content_hash"] for item in results)
+    assert all(item["metadata"]["indexed_at"] for item in results)
 
 
 def test_build_vector_index_upserts_selected_product(tmp_path) -> None:
@@ -176,7 +207,7 @@ def test_build_vector_index_upserts_selected_product(tmp_path) -> None:
     results = store.search("headphones", top_k=5)
 
     assert result == {"indexed": 1, "mode": "upsert", "deleted_collection": False}
-    assert len(results) == 1
+    assert store.count() == 1
     assert results[0]["metadata"]["product_id"] == 2
 
 
@@ -212,3 +243,26 @@ def test_validate_vector_index_health_reports_missing_and_stale_ids(tmp_path) ->
     assert report["db_product_count"] == 2
     assert report["missing_in_index"] == [2]
     assert report["stale_in_index"] == [999]
+
+
+def test_validate_vector_index_health_reports_content_stale_products(tmp_path) -> None:
+    session_factory = make_session_factory()
+    seed_products(session_factory)
+    store = make_store(tmp_path)
+    build_vector_index(session_factory=session_factory, store=store)
+    with session_factory() as db:
+        product = db.get(Product, 1)
+        product.tags = ["quiet", "wireless"]
+        db.commit()
+
+    report = validate_vector_index_health(
+        session_factory=session_factory,
+        store=store,
+        expected_product_ids=[1, 2],
+        profile="test",
+    )
+
+    assert report["ok"] is False
+    assert report["missing_in_index"] == []
+    assert report["stale_in_index"] == []
+    assert report["content_stale_in_index"] == [1]

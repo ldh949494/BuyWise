@@ -6,6 +6,18 @@ from decimal import Decimal
 from typing import Any
 
 
+def build_product_chunks(product: Any) -> list[dict[str, str]]:
+    """Build field-scoped product chunks for embedding."""
+
+    chunks = [
+        _chunk("product_core", "core", _product_core_fields(product)),
+        _chunk("specs", "specs", [("商品参数", _get_value(product, "specs"))]),
+        _chunk("marketing_copy", "description", [("商品描述", _get_value(product, "description"))]),
+        _chunk("review_summary", "review_summary", [("评论摘要", _get_value(product, "review_summary"))]),
+    ]
+    return [chunk for chunk in chunks if chunk["text"]]
+
+
 def build_product_text(product: Any) -> str:
     """Build product text suitable for embedding."""
 
@@ -36,6 +48,27 @@ def _product_fields(product: Any) -> list[tuple[str, Any]]:
         ("适合场景", _get_value(product, "suitable_scene")),
         ("评论摘要", _get_value(product, "review_summary")),
     ]
+
+
+def _product_core_fields(product: Any) -> list[tuple[str, Any]]:
+    return [
+        ("商品名称", _get_value(product, "name")),
+        ("类别", _get_value(product, "category")),
+        ("品牌", _get_value(product, "brand")),
+        ("SKU", _get_value(product, "sku")),
+        ("平台", _get_value(product, "platform")),
+        ("商品标签", _get_value(product, "tags")),
+        ("适合场景", _get_value(product, "suitable_scene")),
+    ]
+
+
+def _chunk(chunk_type: str, field_path: str, fields: list[tuple[str, Any]]) -> dict[str, str]:
+    lines = []
+    for label, value in fields:
+        formatted = _format_value(value)
+        if formatted:
+            lines.append(f"{label}：{formatted}")
+    return {"chunk_type": chunk_type, "field_path": field_path, "text": "\n".join(lines)}
 
 
 def build_query_from_need(need: Any) -> str:

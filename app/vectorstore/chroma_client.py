@@ -81,22 +81,31 @@ class ChromaProductStore:
             pass
         self.collection = self._get_or_create_collection()
 
+    def delete_product_documents(self, product_id: int) -> None:
+        run_provider_call(
+            provider_policy("chroma", "delete_product_documents"),
+            lambda: self.collection.delete(where={"product_id": int(product_id)}),
+        )
+
     def count(self) -> int:
         return int(run_provider_call(provider_policy("chroma", "count"), self.collection.count))
 
     def indexed_product_ids(self) -> list[int]:
-        if self.count() == 0:
-            return []
-        result = run_provider_call(
-            provider_policy("chroma", "get_indexed_product_ids"),
-            lambda: self.collection.get(include=["metadatas"]),
-        )
         product_ids = []
-        for metadata in result.get("metadatas", []):
+        for metadata in self.indexed_product_metadata():
             if not metadata or metadata.get("product_id") is None:
                 continue
             product_ids.append(int(metadata["product_id"]))
         return sorted(set(product_ids))
+
+    def indexed_product_metadata(self) -> list[dict[str, Any]]:
+        if self.count() == 0:
+            return []
+        result = run_provider_call(
+            provider_policy("chroma", "get_indexed_product_metadata"),
+            lambda: self.collection.get(include=["metadatas"]),
+        )
+        return [metadata or {} for metadata in result.get("metadatas", [])]
 
     def _get_or_create_collection(self):
         return run_provider_call(

@@ -46,7 +46,7 @@
 - `app.scripts.check_mysql_backup`：校验指定 MySQL 备份文件存在、是普通文件、非空，并可选校验最小字节数和最大文件年龄；只验证备份证据，不创建或恢复备份。示例：`python -m app.scripts.check_mysql_backup --path .\backup-20260531-213000.sql --min-bytes 1024 --max-age-hours 2 --artifact-json .\artifacts\release\20260531-213000\backup-check.json`。
 - `scripts/set_utf8.ps1`：将 PowerShell 和 Python 进程编码设置为 UTF-8。如果终端查看 seed 数据时出现乱码，先点加载它：`. .\scripts\set_utf8.ps1`。
 - `app.scripts.build_vector_index`：重建或增量 upsert 持久化 ChromaDB 商品索引。`--mode rebuild` 会重置完整 collection，`--mode upsert` 会全量 upsert 但不重置，`--mode upsert --product-id <id>` 只更新指定商品。可传入 `--artifact-json <path>` 留存统一 job artifact。
-- `app.scripts.check_vector_index`：输出商品向量索引健康 JSON，包括 collection count、DB 商品数、缺失索引 ID 和陈旧索引 ID。可传入 `--profile android-contract` 或 `--profile demo` 校验固定 seed 商品 ID；索引缺失或陈旧时返回非 0 exit code。
+- `app.scripts.check_vector_index`：输出商品向量索引健康 JSON，包括 collection count、DB 商品数、缺失索引 ID、陈旧索引 ID 和内容哈希过期 ID。可传入 `--profile android-contract` 或 `--profile demo` 校验固定 seed 商品 ID；索引缺失、陈旧或内容过期时返回非 0 exit code。
 - `app.scripts.readiness_check`：输出详细 readiness JSON 并在失败时返回非 0 exit code。检查 prod 配置、MySQL、商品数量、Chroma collection 和 active 商品索引覆盖。可传入 `--expected-active-products <count>`，用于 closed beta 等固定目录规模发布门禁。
 - `app.scripts.print_runtime_config_summary`：输出非敏感运行配置摘要，用于确认实际加载的环境、provider、MySQL 和 Chroma 配置；不会打印 API key、密码或 token。
 - `app.scripts.cleanup_uploads`：清理本地 `UPLOAD_DIR` 下超过 TTL 的上传文件。示例：`python -m app.scripts.cleanup_uploads --max-age-hours 24 --dry-run`。仅清理允许扩展名的普通文件；COS 上传的生命周期应在 bucket 上配置。

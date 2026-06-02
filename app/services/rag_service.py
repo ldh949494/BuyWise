@@ -10,6 +10,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.core.metrics import count_rag_empty_results, count_rag_fallback
+from app.models.product import Product
 from app.repositories.product_repo import ProductRepository
 from app.schemas.rag import RagItem, RagSearchRequest, RagSearchResponse
 from app.utils.logging import get_logger
@@ -89,20 +90,17 @@ class RagService:
         if not vector_items:
             return [], diagnostics
         repo = ProductRepository(db)
-        product_ids = [item.product_id for item in vector_items]
-        valid_ids = {product.id for product in repo.get_by_ids(product_ids)}
+        products_by_id = self._products_by_vector_id(repo, vector_items)
         diagnostics["candidate_count"] = len(vector_items)
         reasons: Counter[str] = Counter()
         valid_items = []
         for item in vector_items:
-            if item.product_id not in valid_ids:
-                reasons["stale_index"] += 1
-                continue
-            reason = self._filter_reason(item, request)
+            refreshed_item = self._refreshed_vector_item(item, products_by_id)
+            reason = self._vector_filter_reason(refreshed_item, request)
             if reason:
                 reasons[reason] += 1
                 continue
-            valid_items.append(item)
+            valid_items.append(refreshed_item)
         diagnostics["filter_reasons"] = dict(reasons)
         return valid_items, diagnostics
 
@@ -114,6 +112,33 @@ class RagService:
             "retrieved_ids": self._item_product_ids(vector_items),
         }
 
+    def _products_by_vector_id(
+        self,
+        repo: ProductRepository,
+        vector_items: list[RagItem],
+    ) -> dict[int, Product]:
+        product_ids = [item.product_id for item in vector_items]
+        return {product.id: product for product in repo.get_by_ids(product_ids)}
+
+    def _refreshed_vector_item(
+        self,
+        item: RagItem,
+        products_by_id: dict[int, Product],
+    ) -> RagItem | None:
+        product = products_by_id.get(item.product_id)
+        if product is None:
+            return None
+        return self._item_from_product(product, score=item.score, reason="\u5411\u91cf\u53ec\u56de\u7ed3\u679c")
+
+    def _vector_filter_reason(
+        self,
+        item: RagItem | None,
+        request: RagSearchRequest,
+    ) -> str | None:
+        if item is None:
+            return "stale_index"
+        return self._filter_reason(item, request)
+
     def _search_vector_store(self, request: RagSearchRequest) -> list[RagItem]:
         try:
             results = self.product_store.search(request.query, top_k=request.top_k)
@@ -124,26 +149,38 @@ class RagService:
                 extra={"top_k": request.top_k},
             )
             return []
-        items = []
+        items_by_product_id: dict[int, RagItem] = {}
         for result in results:
-            metadata = result.get("metadata", {})
-            product_id = metadata.get("product_id")
-            if product_id is None:
+            item = self._vector_result_item(result)
+            if item is None:
                 continue
-            items.append(
-                RagItem(
-                    product_id=int(product_id),
-                    name=metadata.get("name") or result.get("id"),
-                    category=metadata.get("category"),
-                    platform=metadata.get("platform"),
-                    product_url=metadata.get("product_url"),
-                    stock_status=metadata.get("stock_status"),
-                    price=self._to_float(metadata.get("price")),
-                    score=self._to_float(result.get("score")),
-                    reason="\u5411\u91cf\u53ec\u56de\u7ed3\u679c",
-                )
-            )
-        return items
+            existing = items_by_product_id.get(item.product_id)
+            if self._keeps_existing_vector_item(existing, item):
+                continue
+            items_by_product_id[item.product_id] = item
+        return list(items_by_product_id.values())
+
+    def _vector_result_item(self, result: dict) -> RagItem | None:
+        metadata = result.get("metadata", {})
+        product_id = metadata.get("product_id")
+        if product_id is None:
+            return None
+        return RagItem(
+            product_id=int(product_id),
+            name=metadata.get("name") or result.get("id"),
+            category=metadata.get("category"),
+            platform=metadata.get("platform"),
+            product_url=metadata.get("product_url"),
+            stock_status=metadata.get("stock_status"),
+            price=self._to_float(metadata.get("price")),
+            score=self._to_float(result.get("score")),
+            reason="\u5411\u91cf\u53ec\u56de\u7ed3\u679c",
+        )
+
+    def _keeps_existing_vector_item(self, existing: RagItem | None, item: RagItem) -> bool:
+        if existing is None:
+            return False
+        return (existing.score or 0.0) >= (item.score or 0.0)
 
     def _search_database(self, request: RagSearchRequest, db: Session) -> list[RagItem]:
         filters = request.filters or {}
@@ -156,17 +193,7 @@ class RagService:
         )
 
         return [
-            RagItem(
-                product_id=product.id,
-                name=product.name,
-                price=self._to_float(product.price),
-                score=1.0,
-                reason="\u6570\u636e\u5e93 fallback \u7ed3\u679c",
-                category=product.category,
-                platform=product.platform,
-                product_url=product.product_url,
-                stock_status=product.stock_status,
-            )
+            self._item_from_product(product, score=1.0, reason="\u6570\u636e\u5e93 fallback \u7ed3\u679c")
             for product in products
         ]
 
@@ -181,7 +208,22 @@ class RagService:
             return "category_mismatch"
         if price_max is not None and self._exceeds_price(item.price, price_max):
             return "over_budget"
+        if item.stock_status in {"out_of_stock", "discontinued"}:
+            return "unavailable"
         return None
+
+    def _item_from_product(self, product: Product, *, score: float | None, reason: str) -> RagItem:
+        return RagItem(
+            product_id=product.id,
+            name=product.name,
+            price=self._to_float(product.price),
+            score=score,
+            reason=reason,
+            category=product.category,
+            platform=product.platform,
+            product_url=product.product_url,
+            stock_status=product.stock_status,
+        )
 
     def _exceeds_price(self, price: Any, price_max: Any) -> bool:
         if price is None:
