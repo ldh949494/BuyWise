@@ -17,8 +17,6 @@ import androidx.compose.material.icons.outlined.ImageSearch
 import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -32,13 +30,17 @@ import androidx.compose.ui.unit.dp
 import com.buywise.android.data.Product
 import com.buywise.android.ui.BuyWiseDimens
 import com.buywise.android.ui.BuyWiseTheme
+import com.buywise.android.ui.components.EvidenceTag
+import com.buywise.android.ui.components.EvidenceTone
+import com.buywise.android.ui.components.FloatingGlassCard
+import com.buywise.android.ui.components.FloatingGlassTone
 import com.buywise.android.ui.components.SoftTag
 import com.buywise.android.ui.displayFitTags
 import com.buywise.android.ui.displayPrice
 
 @Composable
 fun HeroPanel(title: String, subtitle: String, previewProducts: List<Product>, onOpenGuide: () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(22.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -77,23 +79,43 @@ fun HeroPanel(title: String, subtitle: String, previewProducts: List<Product>, o
                 )
             }
         }
-        Text(title, style = MaterialTheme.typography.headlineMedium, color = BuyWiseTheme.colors.ink)
-        Text(subtitle, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            CapabilityPill("预算匹配", Icons.Outlined.ShoppingBag)
-            CapabilityPill("需求结构化", Icons.Outlined.Storefront)
-            CapabilityPill("可解释推荐", Icons.Outlined.Lightbulb)
-        }
-        Card(
-            colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
-            shape = RoundedCornerShape(BuyWiseDimens.HeroRadius.dp),
-            border = CardDefaults.outlinedCardBorder(),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        FloatingGlassCard(
+            tone = FloatingGlassTone.Primary,
+            radius = BuyWiseDimens.HeroRadius.dp,
+            contentPadding = 18.dp,
         ) {
-            Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("实时推荐预览", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
-                    Text("查看全部 ›", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(title, style = MaterialTheme.typography.titleLarge, color = BuyWiseTheme.colors.ink)
+                Text(subtitle, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
+                Button(onClick = onOpenGuide) {
+                    Icon(Icons.Outlined.AutoAwesome, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("开始导购")
+                }
+            }
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            EvidenceTag("宿舍桌面")
+            EvidenceTag("通勤耳机")
+            EvidenceTag("摄影入门", tone = EvidenceTone.Warning)
+            EvidenceTag("办公升级", tone = EvidenceTone.Success)
+        }
+        FloatingGlassCard(
+            tone = FloatingGlassTone.Neutral,
+            radius = BuyWiseDimens.HeroRadius.dp,
+            contentPadding = 20.dp,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column {
+                        Text("实时推荐预览", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
+                        Text("按真实目录和反馈信号排序", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
+                    }
+                    Text("全部 ›", color = BuyWiseTheme.colors.primary, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
                 }
                 if (previewProducts.isNotEmpty()) {
                     previewProducts.forEach { product ->
@@ -102,11 +124,6 @@ fun HeroPanel(title: String, subtitle: String, previewProducts: List<Product>, o
                 } else {
                     Text("商品加载后会在这里显示推荐预览。", color = BuyWiseTheme.colors.muted)
                 }
-                Button(onClick = onOpenGuide, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Outlined.AutoAwesome, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("打开 AI 导购")
-                }
             }
         }
     }
@@ -114,13 +131,13 @@ fun HeroPanel(title: String, subtitle: String, previewProducts: List<Product>, o
 
 @Composable
 private fun PreviewProductRow(product: Product) {
-    Surface(
-        color = BuyWiseTheme.colors.panel,
-        shape = RoundedCornerShape(12.dp),
-        border = CardDefaults.outlinedCardBorder(),
+    FloatingGlassCard(
+        tone = FloatingGlassTone.Neutral,
+        elevated = false,
+        contentPadding = 12.dp,
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -133,7 +150,9 @@ private fun PreviewProductRow(product: Product) {
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                product.displayFitTags().firstOrNull()?.let { SoftTag(it) }
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    product.displayFitTags().take(2).forEach { SoftTag(it) }
+                }
             }
             Spacer(modifier = Modifier.width(12.dp))
             Text(product.price.displayPrice(), color = BuyWiseTheme.colors.primary, style = MaterialTheme.typography.titleLarge)
@@ -143,11 +162,12 @@ private fun PreviewProductRow(product: Product) {
 
 @Composable
 private fun CapabilityPill(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
-    Surface(
-        color = BuyWiseTheme.colors.panel,
-        shape = RoundedCornerShape(999.dp),
-        border = CardDefaults.outlinedCardBorder(),
-        shadowElevation = 0.dp,
+    FloatingGlassCard(
+        tone = FloatingGlassTone.Neutral,
+        radius = 999.dp,
+        elevated = false,
+        fillMaxWidth = false,
+        contentPadding = 0.dp,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
@@ -183,16 +203,13 @@ fun QuickEntryPanel(
                 onClick = onOpenCompare,
             )
         }
-        Card(
-            colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
-            shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
-            border = CardDefaults.outlinedCardBorder(),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-            modifier = Modifier.fillMaxWidth(),
+        FloatingGlassCard(
+            tone = FloatingGlassTone.Warm,
+            radius = BuyWiseDimens.CardRadius.dp,
+            contentPadding = 18.dp,
             onClick = onOpenVision,
         ) {
             Row(
-                modifier = Modifier.padding(18.dp),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -217,16 +234,14 @@ private fun StatusTile(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
-        shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
-        border = CardDefaults.outlinedCardBorder(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    FloatingGlassCard(
         modifier = modifier,
+        tone = FloatingGlassTone.Primary,
+        radius = BuyWiseDimens.CardRadius.dp,
+        contentPadding = 16.dp,
         onClick = onClick,
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

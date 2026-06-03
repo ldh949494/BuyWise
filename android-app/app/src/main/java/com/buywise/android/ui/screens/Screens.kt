@@ -15,8 +15,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -31,8 +29,9 @@ import com.buywise.android.data.FeedbackPrompt
 import com.buywise.android.data.FeedbackUiState
 import com.buywise.android.data.HomeState
 import com.buywise.android.data.Product
-import com.buywise.android.ui.BuyWiseDimens
 import com.buywise.android.ui.BuyWiseTheme
+import com.buywise.android.ui.components.FloatingGlassCard
+import com.buywise.android.ui.components.FloatingGlassTone
 import com.buywise.android.ui.components.ProductCard
 import com.buywise.android.ui.components.SectionTitle
 
@@ -128,14 +127,9 @@ fun HomeScreen(
 
 @Composable
 fun InfoPanel(icon: @Composable () -> Unit, title: String, body: String) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
-        shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
-        border = CardDefaults.outlinedCardBorder(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-    ) {
+    FloatingGlassCard(tone = FloatingGlassTone.Success, contentPadding = 16.dp) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Surface(color = BuyWiseTheme.colors.secondarySoft, shape = RoundedCornerShape(8.dp), modifier = Modifier.size(40.dp)) {
@@ -153,12 +147,8 @@ fun InfoPanel(icon: @Composable () -> Unit, title: String, body: String) {
 
 @Composable
 fun ErrorPanel(message: String, actionLabel: String? = null, onAction: (() -> Unit)? = null) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.dangerSoft),
-        shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
-        border = CardDefaults.outlinedCardBorder(),
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    FloatingGlassCard(tone = FloatingGlassTone.Warm, contentPadding = 16.dp) {
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(message, color = BuyWiseTheme.colors.danger, style = MaterialTheme.typography.bodyMedium)
             if (actionLabel != null && onAction != null) {
                 Button(onClick = onAction) {

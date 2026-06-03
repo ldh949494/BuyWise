@@ -18,8 +18,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -36,9 +34,12 @@ import com.buywise.android.data.GuideState
 import com.buywise.android.data.Product
 import com.buywise.android.ui.BuyWiseDimens
 import com.buywise.android.ui.BuyWiseTheme
+import com.buywise.android.ui.components.EvidenceTag
+import com.buywise.android.ui.components.EvidenceTone
+import com.buywise.android.ui.components.FloatingGlassCard
+import com.buywise.android.ui.components.FloatingGlassTone
 import com.buywise.android.ui.components.ProductCard
 import com.buywise.android.ui.components.SectionTitle
-import com.buywise.android.ui.components.SoftTag
 import com.buywise.android.ui.displayPrice
 
 @Composable
@@ -63,7 +64,7 @@ fun GuideScreen(
         item {
             SectionTitle(
                 title = "推荐结果",
-                subtitle = "基于你的需求，AI 为你精选了最合适的商品",
+                subtitle = "按预算、场景、库存和已购反馈信号排序",
             )
         }
         if (!state.isStreaming && state.recommendations.isEmpty()) {
@@ -72,7 +73,10 @@ fun GuideScreen(
         itemsIndexed(state.recommendations) { index, recommendation ->
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (index == 0) {
-                    TopRecommendationStrip(recommendation.product)
+                    TopRecommendationStrip(
+                        product = recommendation.product,
+                        onClick = { onProductClick(recommendation.product.id) },
+                    )
                 }
                 ProductCard(
                     product = recommendation.product,
@@ -80,6 +84,7 @@ fun GuideScreen(
                     isInCompareBasket = isInCompareBasket(recommendation.product.id),
                     onToggleCompare = { onToggleCompare(recommendation.product, state.query) },
                     recommendationReason = recommendation.reason,
+                    isFeatured = index == 0,
                 )
             }
         }
@@ -96,7 +101,7 @@ private fun WorkbenchHeader() {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
             Text("AI 导购工作台", style = MaterialTheme.typography.headlineMedium, color = BuyWiseTheme.colors.ink)
             Text(
-                "告诉我预算、用途和偏好，我帮你找到最适合的宿舍数码好物。",
+                "先提取需求，再给出候选商品和可核查理由。",
                 color = BuyWiseTheme.colors.muted,
                 style = MaterialTheme.typography.bodyMedium,
             )
@@ -124,13 +129,12 @@ private fun GuideInputPanel(
     onSubmit: () -> Unit,
     onOpenChat: () -> Unit,
 ) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
-        shape = RoundedCornerShape(BuyWiseDimens.HeroRadius.dp),
-        border = CardDefaults.outlinedCardBorder(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    FloatingGlassCard(
+        tone = FloatingGlassTone.Neutral,
+        radius = BuyWiseDimens.HeroRadius.dp,
+        contentPadding = 18.dp,
     ) {
-        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Surface(color = BuyWiseTheme.colors.primarySoft, shape = RoundedCornerShape(16.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
@@ -171,10 +175,11 @@ private fun GuideInputPanel(
                     Text("进入对话导购")
                 }
             }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SoftTag("预算300内")
-                SoftTag("宿舍场景")
-                SoftTag("低噪音")
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                EvidenceTag("预算 500 内")
+                EvidenceTag("宿舍场景", tone = EvidenceTone.Success)
+                EvidenceTag("低噪音")
+                EvidenceTag("图片/语音可带入", tone = EvidenceTone.Warning)
             }
         }
     }
@@ -182,13 +187,9 @@ private fun GuideInputPanel(
 
 @Composable
 private fun RecommendationEmptyState() {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
-        shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
-        border = CardDefaults.outlinedCardBorder(),
-    ) {
+    FloatingGlassCard(tone = FloatingGlassTone.Neutral, contentPadding = 20.dp) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(20.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -198,7 +199,7 @@ private fun RecommendationEmptyState() {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("还没有推荐结果", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
                 Text(
-                    "输入预算、用途和偏好后，BuyWise 会生成候选商品和推荐理由。",
+                    "输入预算、用途和偏好后，这里会展示候选商品、推荐理由和冲突点。",
                     color = BuyWiseTheme.colors.muted,
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -208,16 +209,22 @@ private fun RecommendationEmptyState() {
 }
 
 @Composable
-private fun TopRecommendationStrip(product: Product) {
-    Surface(color = BuyWiseTheme.colors.secondarySoft, shape = RoundedCornerShape(16.dp)) {
+private fun TopRecommendationStrip(product: Product, onClick: () -> Unit) {
+    FloatingGlassCard(
+        tone = FloatingGlassTone.Success,
+        radius = 16.dp,
+        contentPadding = 14.dp,
+        onClick = onClick,
+    ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("优先推荐", color = BuyWiseTheme.colors.secondary, fontWeight = FontWeight.Bold)
                 Text(product.name, color = BuyWiseTheme.colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("预算、场景和已购反馈综合最稳", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
             }
             Text(product.price.displayPrice(), color = BuyWiseTheme.colors.primary, style = MaterialTheme.typography.titleMedium)
         }

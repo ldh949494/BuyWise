@@ -23,8 +23,6 @@ import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -47,6 +45,11 @@ import com.buywise.android.ui.displayPrice
 import com.buywise.android.ui.displayRating
 import com.buywise.android.ui.displayRecommendationReason
 import com.buywise.android.ui.displaySales
+import com.buywise.android.ui.displayStockLabel
+import com.buywise.android.ui.components.EvidenceTag
+import com.buywise.android.ui.components.EvidenceTone
+import com.buywise.android.ui.components.FloatingGlassCard
+import com.buywise.android.ui.components.FloatingGlassTone
 import com.buywise.android.ui.components.MetricPill
 import com.buywise.android.ui.components.ProductImagePreview
 import com.buywise.android.ui.components.SoftTag
@@ -101,6 +104,7 @@ fun ProductDetailScreen(
             }
         }
         if (product != null) {
+            item { DetailEvidenceCard(product = product) }
             item { PurchaseAdviceCard(product = product) }
             item { SignalSummaryCard(product = product) }
             item { DetailBlock("适合原因", product.advantages, BuyWiseTheme.colors.secondarySoft) }
@@ -112,13 +116,12 @@ fun ProductDetailScreen(
 
 @Composable
 private fun PurchaseAdviceCard(product: Product) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
-        shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
-        border = CardDefaults.outlinedCardBorder(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    FloatingGlassCard(
+        tone = FloatingGlassTone.Primary,
+        radius = BuyWiseDimens.CardRadius.dp,
+        contentPadding = 16.dp,
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = BuyWiseTheme.colors.primary)
                 Text("AI 购买建议", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
@@ -133,13 +136,12 @@ private fun PurchaseAdviceCard(product: Product) {
 
 @Composable
 private fun SignalSummaryCard(product: Product) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
-        shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
-        border = CardDefaults.outlinedCardBorder(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    FloatingGlassCard(
+        tone = FloatingGlassTone.Success,
+        radius = BuyWiseDimens.CardRadius.dp,
+        contentPadding = 16.dp,
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.AutoMirrored.Outlined.TrendingUp, contentDescription = null, tint = BuyWiseTheme.colors.secondary)
                 Text("价格与口碑信号", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
@@ -174,26 +176,31 @@ private fun ProductHeader(
     onToggleCompare: () -> Unit,
     onRecordPurchase: () -> Unit,
 ) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
-        shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
-        border = CardDefaults.outlinedCardBorder(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    FloatingGlassCard(
+        tone = if (isInCompareBasket) FloatingGlassTone.Success else FloatingGlassTone.Neutral,
+        radius = BuyWiseDimens.CardRadius.dp,
+        contentPadding = 16.dp,
     ) {
-        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             ProductImagePreview(
                 product = product,
-                modifier = Modifier.fillMaxWidth().aspectRatio(1.35f),
+                modifier = Modifier.fillMaxWidth().aspectRatio(1.28f),
             )
-            Text(product.displayBrandCategory(), color = BuyWiseTheme.colors.secondary, fontWeight = FontWeight.Bold)
+            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                EvidenceTag(product.displayBrandCategory(), tone = EvidenceTone.Success)
+                EvidenceTag(product.displayStockLabel(), tone = EvidenceTone.Success)
+            }
             Text(product.name, style = MaterialTheme.typography.headlineMedium, color = BuyWiseTheme.colors.ink)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                MetricPill("价格", product.price.displayPrice(), modifier = Modifier.weight(1f))
-                MetricPill("评分", product.rating.displayRating(), modifier = Modifier.weight(1f))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            ) {
+                Text(product.price.displayPrice(), color = BuyWiseTheme.colors.primary, style = MaterialTheme.typography.headlineMedium)
+                Text("★ ${product.rating.displayRating()} · ${product.displaySales()}", color = BuyWiseTheme.colors.accent, fontWeight = FontWeight.Bold)
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SoftTag(product.displayPlatform())
-                SoftTag(product.displaySales())
                 product.displayFitTags().take(2).forEach { SoftTag(it) }
             }
             Text(product.displayRecommendationReason(), color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
@@ -203,7 +210,7 @@ private fun ProductHeader(
             Button(onClick = onToggleCompare, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.AutoMirrored.Outlined.CompareArrows, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(if (isInCompareBasket) "已加入对比" else "+ 加入对比")
+                Text(if (isInCompareBasket) "已加入对比" else "加入对比")
             }
             Button(onClick = onRecordPurchase, enabled = canRecordPurchase, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Outlined.ShoppingBag, contentDescription = null)
@@ -222,14 +229,31 @@ private fun ProductHeader(
 }
 
 @Composable
-private fun DetailBlock(title: String, items: List<String>, tone: androidx.compose.ui.graphics.Color) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
-        shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
-        border = CardDefaults.outlinedCardBorder(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+private fun DetailEvidenceCard(product: Product) {
+    FloatingGlassCard(
+        tone = FloatingGlassTone.Neutral,
+        radius = BuyWiseDimens.CardRadius.dp,
+        contentPadding = 16.dp,
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("推荐证据", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                MetricPill("预算", if ((product.price ?: Double.MAX_VALUE) <= 500.0) "匹配" else "需确认", modifier = Modifier.weight(1f))
+                MetricPill("场景", product.displayFitTags().firstOrNull() ?: "日常", modifier = Modifier.weight(1f))
+                MetricPill("反馈", product.rating.displayRating(), modifier = Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailBlock(title: String, items: List<String>, tone: androidx.compose.ui.graphics.Color) {
+    FloatingGlassCard(
+        tone = FloatingGlassTone.Neutral,
+        radius = BuyWiseDimens.CardRadius.dp,
+        contentPadding = 16.dp,
+    ) {
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
             if (items.isEmpty()) {
                 Text("暂无", color = BuyWiseTheme.colors.muted)

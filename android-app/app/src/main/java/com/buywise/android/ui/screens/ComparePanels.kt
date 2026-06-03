@@ -14,13 +14,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.CompareArrows
 import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -38,6 +36,10 @@ import com.buywise.android.data.CompareState
 import com.buywise.android.data.Product
 import com.buywise.android.ui.BuyWiseDimens
 import com.buywise.android.ui.BuyWiseTheme
+import com.buywise.android.ui.components.EvidenceTag
+import com.buywise.android.ui.components.EvidenceTone
+import com.buywise.android.ui.components.FloatingGlassCard
+import com.buywise.android.ui.components.FloatingGlassTone
 import com.buywise.android.ui.components.SoftTag
 import com.buywise.android.ui.displayMatchPercent
 import com.buywise.android.ui.displayPrice
@@ -51,13 +53,12 @@ fun CompareDecisionCard(state: CompareState) {
     val winner = state.products.firstOrNull { it.id == state.winnerId }
         ?: state.products.maxByOrNull { it.matchPercent() }
     var showReason by remember { mutableStateOf(false) }
-    Card(
-        colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
-        shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
-        border = CardDefaults.outlinedCardBorder(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    FloatingGlassCard(
+        tone = FloatingGlassTone.Warm,
+        radius = BuyWiseDimens.CardRadius.dp,
+        contentPadding = 16.dp,
     ) {
-        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Outlined.EmojiEvents, contentDescription = null, tint = BuyWiseTheme.colors.accent)
                 Text("AI 对比结论", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
@@ -68,18 +69,19 @@ fun CompareDecisionCard(state: CompareState) {
                 style = MaterialTheme.typography.bodyMedium,
             )
             winner?.let {
-                Surface(color = BuyWiseTheme.colors.secondarySoft, shape = RoundedCornerShape(16.dp)) {
-                    Column(modifier = Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("优先推荐", color = BuyWiseTheme.colors.secondary, fontWeight = FontWeight.Bold)
-                        Text(it.name, color = BuyWiseTheme.colors.ink, style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            "推荐指数 ${it.displayMatchPercent()}，性价比高，综合表现最均衡。",
-                            color = BuyWiseTheme.colors.muted,
-                            style = MaterialTheme.typography.bodyMedium,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
+                FloatingGlassCard(tone = FloatingGlassTone.Success, elevated = false, contentPadding = 14.dp) {
+                    EvidenceTag("优先推荐", tone = EvidenceTone.Success)
+                    Text(it.name, color = BuyWiseTheme.colors.ink, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "推荐指数 ${it.displayMatchPercent()}，性价比高，综合表现最均衡。",
+                        color = BuyWiseTheme.colors.muted,
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    CompareMetricBar("预算匹配", it.matchPercent())
+                    CompareMetricBar("场景适配", it.fitPercent())
+                    CompareMetricBar("已购反馈", it.feedbackPercent())
                 }
                 CompareSummaryChips(products = state.products, winner = it)
                 FilledTonalButton(onClick = { showReason = !showReason }, modifier = Modifier.fillMaxWidth()) { Text("生成购买理由") }
@@ -99,6 +101,24 @@ fun CompareDecisionCard(state: CompareState) {
 }
 
 @Composable
+private fun CompareMetricBar(label: String, value: Int) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(72.dp))
+        LinearProgressIndicator(
+            progress = { value.coerceIn(0, 100) / 100f },
+            modifier = Modifier.weight(1f),
+            color = BuyWiseTheme.colors.secondary,
+            trackColor = BuyWiseTheme.colors.panelAlt,
+        )
+        Text(value.toString(), color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold, modifier = Modifier.width(30.dp))
+    }
+}
+
+@Composable
 private fun CompareSummaryChips(products: List<Product>, winner: Product) {
     val cheapest = products.minByOrNull { it.price ?: Double.MAX_VALUE } ?: winner
     val topRated = products.maxByOrNull { it.rating ?: -1.0 } ?: winner
@@ -111,13 +131,12 @@ private fun CompareSummaryChips(products: List<Product>, winner: Product) {
 
 @Composable
 fun CompareTable(rows: List<CompareRow>, products: List<Product>) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
-        shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
-        border = CardDefaults.outlinedCardBorder(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    FloatingGlassCard(
+        tone = FloatingGlassTone.Neutral,
+        radius = BuyWiseDimens.CardRadius.dp,
+        contentPadding = 18.dp,
     ) {
-        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.AutoMirrored.Outlined.CompareArrows, contentDescription = null, tint = BuyWiseTheme.colors.primary)
                 Text("对比维度", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
@@ -174,3 +193,11 @@ private fun List<Product>.defaultCompareRows(): List<CompareRow> = listOf(
 )
 
 private fun Product.matchPercent(): Int = displayMatchPercent().removeSuffix("%").toIntOrNull() ?: 0
+
+private fun Product.fitPercent(): Int = when (fitLevel()) {
+    "高" -> 91
+    "中" -> 78
+    else -> 64
+}
+
+private fun Product.feedbackPercent(): Int = ((rating ?: 3.6) * 20).toInt().coerceIn(0, 100)

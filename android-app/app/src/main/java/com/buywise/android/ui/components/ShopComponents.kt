@@ -2,7 +2,6 @@ package com.buywise.android.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,13 +19,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.CompareArrows
-import androidx.compose.material.icons.outlined.AutoAwesome
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -42,7 +37,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -65,7 +59,7 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun SectionTitle(title: String, subtitle: String? = null) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(title, style = MaterialTheme.typography.titleLarge, color = BuyWiseTheme.colors.ink)
         subtitle?.let {
             Text(it, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
@@ -80,10 +74,12 @@ fun ProductCard(
     isInCompareBasket: Boolean = false,
     onToggleCompare: (() -> Unit)? = null,
     recommendationReason: String? = null,
+    isFeatured: Boolean = false,
 ) {
     var comparePressed by remember { mutableStateOf(false) }
+    val motionEnabled = rememberBuyWiseMotionEnabled()
     val compareScale by animateFloatAsState(
-        targetValue = if (comparePressed) 0.94f else 1f,
+        targetValue = if (comparePressed && motionEnabled) 0.94f else 1f,
         label = "productCompareButtonScale",
     )
     LaunchedEffect(comparePressed) {
@@ -92,34 +88,44 @@ fun ProductCard(
             comparePressed = false
         }
     }
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
-        shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
-        border = CardDefaults.outlinedCardBorder().copy(width = 1.dp, brush = SolidColor(BuyWiseTheme.colors.border)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    val cardTone = when {
+        isInCompareBasket -> FloatingGlassTone.Success
+        isFeatured -> FloatingGlassTone.Primary
+        else -> FloatingGlassTone.Neutral
+    }
+    FloatingGlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        tone = cardTone,
+        elevated = isFeatured || isInCompareBasket,
+        onClick = onClick,
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            if (isFeatured || isInCompareBasket) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (isFeatured) {
+                        EvidenceTag("首推候选", tone = EvidenceTone.Info)
+                    }
+                    if (isInCompareBasket) {
+                        EvidenceTag("已进入对比", tone = EvidenceTone.Success)
+                    }
+                }
+            }
             Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 ProductImagePreview(
                     product = product,
-                    modifier = Modifier.size(width = 112.dp, height = 112.dp),
+                    modifier = Modifier.size(width = 96.dp, height = 104.dp),
                 )
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text(
-                        product.displayBrandCategory(),
-                        color = BuyWiseTheme.colors.secondary,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    EvidenceTag(product.displayBrandCategory(), tone = EvidenceTone.Success)
                     Text(
                         product.name,
                         style = MaterialTheme.typography.titleMedium,
@@ -127,25 +133,20 @@ fun ProductCard(
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("★", color = BuyWiseTheme.colors.accent, fontWeight = FontWeight.Bold)
-                        Text(product.rating.displayRating(), color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold)
-                        Text("|", color = BuyWiseTheme.colors.border)
-                        Text(product.category ?: "精选商品", color = BuyWiseTheme.colors.muted)
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(product.price.displayPrice(), color = BuyWiseTheme.colors.primary, style = MaterialTheme.typography.titleLarge)
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("★", color = BuyWiseTheme.colors.accent, fontWeight = FontWeight.Bold)
+                            Text(product.rating.displayRating(), color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold)
+                        }
                     }
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Surface(color = BuyWiseTheme.colors.primarySoft, shape = RoundedCornerShape(10.dp)) {
-                    Text(
-                        product.price.displayPrice(),
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        color = BuyWiseTheme.colors.primary,
-                        fontWeight = FontWeight.Bold,
-                    )
                 }
             }
             ProductScoreBar(product = product)
-            AiTagRow(product = product, reason = recommendationReason)
             Text(
                 product.displayRecommendationReason(recommendationReason),
                 color = BuyWiseTheme.colors.muted,
@@ -153,13 +154,13 @@ fun ProductCard(
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
             )
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                product.displayFitTags(recommendationReason).take(3).forEach { tag ->
-                    SoftTag(tag)
-                }
-            }
-            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                Text("● ${product.displayStockLabel()}", fontWeight = FontWeight.Bold, color = BuyWiseTheme.colors.secondary)
+            ProductEvidenceRow(product = product, reason = recommendationReason)
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                EvidenceTag(product.displayStockLabel(), tone = EvidenceTone.Success)
                 ProductCommerceSignals(product = product)
             }
             if (onToggleCompare != null) {
@@ -233,26 +234,32 @@ private fun ImagePlaceholder(product: Product) {
 
 @Composable
 private fun ProductScoreBar(product: Product) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-        MetricPill("推荐指数", product.displayMatchPercent(), modifier = Modifier.weight(1f))
-        MetricPill("口碑评分", product.rating.displayRating(), modifier = Modifier.weight(1f))
+    val percent = product.displayMatchPercent().removeSuffix("%").toIntOrNull()?.coerceIn(0, 100) ?: 0
+    Column(verticalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("推荐指数", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
+            Text(product.displayMatchPercent(), color = BuyWiseTheme.colors.secondary, fontWeight = FontWeight.Bold)
+        }
+        LinearProgressIndicator(
+            progress = { percent / 100f },
+            modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(999.dp)),
+            color = BuyWiseTheme.colors.secondary,
+            trackColor = BuyWiseTheme.colors.panelAlt,
+        )
     }
 }
 
 @Composable
-private fun AiTagRow(product: Product, reason: String?) {
+private fun ProductEvidenceRow(product: Product, reason: String?) {
     val tags = product.displayFitTags(reason).take(3)
     if (tags.isEmpty()) return
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         tags.forEach { tag ->
-            AssistChip(
-                onClick = {},
-                colors = AssistChipDefaults.assistChipColors(containerColor = BuyWiseTheme.colors.primarySoft),
-                label = { Text(tag, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                leadingIcon = {
-                    Icon(Icons.Outlined.AutoAwesome, contentDescription = null)
-                },
-            )
+            EvidenceTag(tag, tone = EvidenceTone.Info)
         }
     }
 }
@@ -275,6 +282,40 @@ fun SoftTag(label: String, modifier: Modifier = Modifier) {
             .padding(horizontal = 10.dp, vertical = 6.dp),
         color = BuyWiseTheme.colors.primary,
         style = MaterialTheme.typography.labelMedium,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+enum class EvidenceTone {
+    Info,
+    Success,
+    Warning,
+    Danger,
+}
+
+@Composable
+fun EvidenceTag(label: String, modifier: Modifier = Modifier, tone: EvidenceTone = EvidenceTone.Info) {
+    val background = when (tone) {
+        EvidenceTone.Info -> BuyWiseTheme.colors.primarySoft
+        EvidenceTone.Success -> BuyWiseTheme.colors.secondarySoft
+        EvidenceTone.Warning -> BuyWiseTheme.colors.accentSoft
+        EvidenceTone.Danger -> BuyWiseTheme.colors.dangerSoft
+    }
+    val foreground = when (tone) {
+        EvidenceTone.Info -> BuyWiseTheme.colors.primary
+        EvidenceTone.Success -> BuyWiseTheme.colors.secondary
+        EvidenceTone.Warning -> BuyWiseTheme.colors.accent
+        EvidenceTone.Danger -> BuyWiseTheme.colors.danger
+    }
+    Text(
+        label,
+        modifier = modifier
+            .background(background, RoundedCornerShape(BuyWiseDimens.ChipRadius.dp))
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        color = foreground,
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.Bold,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
     )
