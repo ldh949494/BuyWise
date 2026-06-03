@@ -23,7 +23,7 @@ class CompareRepository internal constructor(
         return CompareState(
             products = products,
             rows = buildCompareRows(products),
-            summary = response.summary,
+            summary = response.summary?.cleanMarkdownText(),
             winnerId = response.winnerId?.toString(),
         )
     }

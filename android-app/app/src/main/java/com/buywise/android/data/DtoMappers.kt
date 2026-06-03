@@ -41,6 +41,8 @@ internal fun ProductCardDto.toProduct(category: String, fallbackReason: String):
 
 internal fun CompareItemDto.toProduct(): Product {
     val resolvedId = productId ?: id ?: 0
+    val cleanPros = pros.cleanMarkdownTextList()
+    val cleanCons = cons.cleanMarkdownTextList()
     return Product(
         id = resolvedId.toString(),
         name = name,
@@ -49,10 +51,10 @@ internal fun CompareItemDto.toProduct(): Product {
         price = price,
         rating = rating,
         recommendationScore = score,
-        headline = pros.firstOrNull() ?: "已生成对比结果",
-        tags = pros.ifEmpty { listOf("对比结果") },
-        advantages = pros,
-        cautions = cons,
+        headline = cleanPros.firstOrNull() ?: "已生成对比结果",
+        tags = cleanPros.ifEmpty { listOf("对比结果") },
+        advantages = cleanPros,
+        cautions = cleanCons,
         imageUrl = imageUrl,
     )
 }

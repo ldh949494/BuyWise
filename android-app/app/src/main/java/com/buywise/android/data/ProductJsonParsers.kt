@@ -45,8 +45,8 @@ internal fun parseProductCard(json: JSONObject, category: String, reason: String
 }
 
 internal fun parseCompareItem(json: JSONObject): Product {
-    val pros = json.optJSONArray("pros").toStringList()
-    val cons = json.optJSONArray("cons").toStringList()
+    val pros = json.optJSONArray("pros").toStringList().cleanMarkdownTextList()
+    val cons = json.optJSONArray("cons").toStringList().cleanMarkdownTextList()
     return Product(
         id = (json.optIntOrNull("product_id") ?: json.optInt("id")).toString(),
         name = json.optString("name", "未命名商品"),
