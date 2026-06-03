@@ -18,6 +18,9 @@ def isolate_mutable_settings():
         "auth_otp_cooldown_seconds": settings.auth_otp_cooldown_seconds,
         "app_debug": settings.app_debug,
         "app_env": settings.app_env,
+        "chat_stream_fast_products_enabled": settings.chat_stream_fast_products_enabled,
+        "chat_stream_fast_products_limit": settings.chat_stream_fast_products_limit,
+        "chat_stream_fast_reply_max_tokens": settings.chat_stream_fast_reply_max_tokens,
         "cors_allowed_origins": settings.cors_allowed_origins,
         "cors_allow_credentials": settings.cors_allow_credentials,
         "external_purchase_feedback_mode": settings.external_purchase_feedback_mode,
@@ -38,6 +41,9 @@ def isolate_mutable_settings():
     settings.admin_jwt_secret = "test-admin-secret"
     settings.user_jwt_secret = "test-user-secret"
     settings.auth_otp_mock_enabled = True
+    settings.chat_stream_fast_products_enabled = True
+    settings.chat_stream_fast_products_limit = 5
+    settings.chat_stream_fast_reply_max_tokens = 220
     settings.embedding_provider = "mock"
     settings.llm_provider = "mock"
     settings.speech_provider = "mock"

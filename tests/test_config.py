@@ -45,6 +45,9 @@ def test_settings_reads_new_env_names() -> None:
         "EXTERNAL_PURCHASE_FEEDBACK_MODE": "immediate",
         "UPLOAD_PROVIDER": "cos",
         "UPLOAD_PUBLIC_BASE_URL": "https://cdn.example.com",
+        "CHAT_STREAM_FAST_PRODUCTS_ENABLED": "false",
+        "CHAT_STREAM_FAST_PRODUCTS_LIMIT": "7",
+        "CHAT_STREAM_FAST_REPLY_MAX_TOKENS": "180",
     }
     previous = {key: os.environ.get(key) for key in env}
     os.environ.update(env)
@@ -103,6 +106,9 @@ def test_settings_reads_new_env_names() -> None:
     assert settings.external_purchase_feedback_mode == "immediate"
     assert settings.upload_provider == "cos"
     assert settings.upload_public_base_url == "https://cdn.example.com"
+    assert settings.chat_stream_fast_products_enabled is False
+    assert settings.chat_stream_fast_products_limit == 7
+    assert settings.chat_stream_fast_reply_max_tokens == 180
 
 
 def test_settings_database_url_uses_pymysql() -> None:
@@ -296,4 +302,3 @@ def test_prod_requires_non_mock_embedding_provider_by_default() -> None:
         message = ""
 
     assert "EMBEDDING_PROVIDER must not be mock in prod." in message
-

@@ -49,6 +49,17 @@ class FakeIntentService:
         )
         return self.need
 
+    def extract_by_rules(self, text, image_info=None, history_context=None):
+        self.calls.append(
+            {
+                "text": text,
+                "image_info": image_info,
+                "history_context": history_context,
+                "rules_only": True,
+            }
+        )
+        return self.need
+
 
 class FakeRAGPipeline:
     def __init__(self, products=None, should_fail=False) -> None:
@@ -87,7 +98,7 @@ class FakeLLMClient:
     async def generate_recommendation(self, need, products):
         return "推荐：" + "、".join(product.name for product in products)
 
-    async def stream_recommendation(self, need, products):
+    async def stream_recommendation(self, need, products, **kwargs):
         yield await self.generate_recommendation(need, products)
 
 
@@ -237,6 +248,100 @@ async def test_generate_chat_stream_emits_products_tokens_and_done() -> None:
 
 
 @pytest.mark.anyio
+async def test_generate_chat_stream_fast_products_uses_db_before_rag() -> None:
+    need = StructuredNeed(
+        intent="商品推荐",
+        category="机械键盘",
+        budget_max=300,
+        need_clarify=True,
+        missing_fields=["scenario", "preferences"],
+    )
+    rag_pipeline = FakeRAGPipeline([make_product("RAG 键盘")])
+    service = ChatService(
+        intent_service=FakeIntentService(need),
+        rag_pipeline=rag_pipeline,
+        recommend_service=FakeRecommendService(),
+        llm_client=FakeLLMClient(),
+    )
+    db = _sqlite_session_with_products([make_product("DB 快速键盘")])
+
+    try:
+        events = [
+            event
+            async for event in service.generate_chat_stream(
+                ChatRequest(session_id="fast-session", message="推荐一个机械键盘"),
+                db=db,
+            )
+        ]
+    finally:
+        db.close()
+
+    product_events = [event for event in events if event["event"] == "products"]
+    assert product_events[0]["data"]["items"][0]["name"] == "DB 快速键盘"
+    assert rag_pipeline.calls == []
+    assert any(event["event"] == "token" for event in events)
+
+
+@pytest.mark.anyio
+async def test_generate_chat_stream_fast_products_can_be_disabled() -> None:
+    from app.core.config import settings
+
+    settings.chat_stream_fast_products_enabled = False
+    need = StructuredNeed(intent="商品推荐", category="机械键盘", budget_max=300)
+    rag_pipeline = FakeRAGPipeline([make_product("RAG 键盘")])
+    service = ChatService(
+        intent_service=FakeIntentService(need),
+        rag_pipeline=rag_pipeline,
+        recommend_service=FakeRecommendService(),
+        llm_client=FakeLLMClient(),
+    )
+    db = _sqlite_session_with_products([make_product("DB 快速键盘")])
+
+    try:
+        events = [
+            event
+            async for event in service.generate_chat_stream(
+                ChatRequest(session_id="full-session", message="推荐一个机械键盘"),
+                db=db,
+            )
+        ]
+    finally:
+        db.close()
+
+    product_events = [event for event in events if event["event"] == "products"]
+    assert product_events[0]["data"]["items"][0]["name"] == "RAG 键盘"
+    assert rag_pipeline.calls
+
+
+@pytest.mark.anyio
+async def test_generate_chat_stream_fast_products_falls_back_when_db_empty() -> None:
+    need = StructuredNeed(intent="商品推荐", category="机械键盘", budget_max=300)
+    rag_pipeline = FakeRAGPipeline([make_product("RAG 兜底键盘")])
+    service = ChatService(
+        intent_service=FakeIntentService(need),
+        rag_pipeline=rag_pipeline,
+        recommend_service=FakeRecommendService(),
+        llm_client=FakeLLMClient(),
+    )
+    db = _sqlite_session_with_products([])
+
+    try:
+        events = [
+            event
+            async for event in service.generate_chat_stream(
+                ChatRequest(session_id="fallback-session", message="推荐一个机械键盘"),
+                db=db,
+            )
+        ]
+    finally:
+        db.close()
+
+    product_events = [event for event in events if event["event"] == "products"]
+    assert product_events[0]["data"]["items"][0]["name"] == "RAG 兜底键盘"
+    assert rag_pipeline.calls
+
+
+@pytest.mark.anyio
 async def test_handle_chat_returns_friendly_error_response() -> None:
     need = StructuredNeed(intent="商品推荐", category="机械键盘", budget_max=300)
     service = ChatService(
@@ -314,3 +419,17 @@ def test_chat_api_route_is_registered_and_returns_response() -> None:
     assert [message.role for message in messages] == ["user", "assistant"]
     assert recommendations
     assert recommendations[0].explanation["budget_match"] is True
+
+
+def _sqlite_session_with_products(products: list[Product]):
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    session_factory = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    db = session_factory()
+    db.add_all(products)
+    db.commit()
+    return db

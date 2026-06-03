@@ -10,6 +10,16 @@ CHAT_LATENCY_SECONDS = Histogram(
     "End-to-end chat latency in seconds.",
     labelnames=("mode", "outcome"),
 )
+CHAT_STREAM_FIRST_PRODUCTS_LATENCY_SECONDS = Histogram(
+    "buywise_chat_stream_first_products_latency_seconds",
+    "Latency until the first chat stream products event is emitted.",
+    labelnames=("path",),
+)
+CHAT_STREAM_DONE_LATENCY_SECONDS = Histogram(
+    "buywise_chat_stream_done_latency_seconds",
+    "Latency until the chat stream done event is emitted.",
+    labelnames=("path",),
+)
 LLM_FAILURES_TOTAL = Counter(
     "buywise_llm_failures_total",
     "LLM failure count.",
@@ -59,6 +69,14 @@ FEEDBACK_SUBMIT_FAILURES_TOTAL = Counter(
 
 def observe_chat_latency(mode: str, outcome: str, seconds: float) -> None:
     CHAT_LATENCY_SECONDS.labels(mode=mode, outcome=outcome).observe(seconds)
+
+
+def observe_chat_stream_first_products_latency(path: str, seconds: float) -> None:
+    CHAT_STREAM_FIRST_PRODUCTS_LATENCY_SECONDS.labels(path=path).observe(seconds)
+
+
+def observe_chat_stream_done_latency(path: str, seconds: float) -> None:
+    CHAT_STREAM_DONE_LATENCY_SECONDS.labels(path=path).observe(seconds)
 
 
 def count_llm_failure(operation: str, reason: str) -> None:
