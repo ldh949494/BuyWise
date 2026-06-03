@@ -1,7 +1,9 @@
 package com.buywise.android.ui.screens
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -26,6 +28,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -126,6 +130,7 @@ private fun GuideInputPanel(
     onSubmit: () -> Unit,
     onOpenChat: () -> Unit,
 ) {
+    val haptic = LocalHapticFeedback.current
     FloatingGlassCard(
         tone = FloatingGlassTone.Neutral,
         radius = BuyWiseDimens.HeroRadius.dp,
@@ -148,6 +153,12 @@ private fun GuideInputPanel(
                 }
             }
             Text("购物需求", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
+            DemandTemplateRow(
+                onTemplateClick = { template ->
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onQueryChange(template)
+                },
+            )
             OutlinedTextField(
                 value = state.query,
                 onValueChange = onQueryChange,
@@ -155,18 +166,31 @@ private fun GuideInputPanel(
                 minLines = 4,
                 placeholder = { Text("宿舍写代码用，预算300以内，想要低噪音机械键盘，最好便于收纳。") },
             )
+            Text(
+                if (state.query.isBlank()) "选择一个模板，或直接输入你的需求。" else "已记录 ${state.query.length} 字需求，可继续补充。",
+                color = BuyWiseTheme.colors.muted,
+                style = MaterialTheme.typography.labelMedium,
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                 Button(
-                    onClick = onSubmit,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onSubmit()
+                    },
                     modifier = Modifier.weight(1f),
-                    enabled = !state.isStreaming,
+                    enabled = !state.isStreaming && state.query.isNotBlank(),
                 ) {
                     Icon(Icons.Outlined.AutoAwesome, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(if (state.isStreaming) "生成中..." else "生成推荐")
+                    AnimatedContent(targetState = state.isStreaming, label = "guideSubmitLabel") { isStreaming ->
+                        Text(if (isStreaming) "生成中..." else "生成推荐")
+                    }
                 }
                 androidx.compose.material3.OutlinedButton(
-                    onClick = onOpenChat,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onOpenChat()
+                    },
                     modifier = Modifier.weight(1f),
                 ) {
                     Text("进入对话导购")
@@ -175,6 +199,25 @@ private fun GuideInputPanel(
         }
     }
 }
+
+@Composable
+private fun DemandTemplateRow(onTemplateClick: (String) -> Unit) {
+    val templates = listOf(
+        DemandTemplate("宿舍低噪键盘", "宿舍写代码用，预算300以内，想要低噪音机械键盘，最好便于收纳。"),
+        DemandTemplate("通勤降噪耳机", "通勤和办公室都能用，预算500以内，想要降噪好、佩戴舒服的耳机。"),
+        DemandTemplate("办公显示器", "日常办公和轻度修图，预算1000以内，想要护眼、接口方便的显示器。"),
+    )
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        templates.forEach { template ->
+            androidx.compose.material3.AssistChip(
+                onClick = { onTemplateClick(template.query) },
+                label = { Text(template.label) },
+            )
+        }
+    }
+}
+
+private data class DemandTemplate(val label: String, val query: String)
 
 @Composable
 private fun RecommendationEmptyState() {

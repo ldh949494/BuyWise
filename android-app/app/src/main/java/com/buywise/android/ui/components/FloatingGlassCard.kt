@@ -21,7 +21,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.buywise.android.ui.BuyWiseDimens
@@ -49,6 +51,7 @@ fun FloatingGlassCard(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val motionEnabled = rememberBuyWiseMotionEnabled()
+    val haptic = LocalHapticFeedback.current
     val activePress = isPressed && onClick != null
     val scale by animateFloatAsState(
         targetValue = if (activePress && motionEnabled) 0.965f else 1f,
@@ -72,7 +75,10 @@ fun FloatingGlassCard(
         Modifier.clickable(
             interactionSource = interactionSource,
             indication = null,
-            onClick = onClick,
+            onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onClick()
+            },
         )
     }
 
