@@ -30,9 +30,9 @@ fun DemandPanel(query: String, summary: String) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Outlined.Tune, contentDescription = null, tint = BuyWiseTheme.colors.primary)
-                Text("AI 已提取", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
+                Text("需求摘要", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
                 Spacer(modifier = Modifier.weight(1f))
-                EvidenceTag("可调整")
+                EvidenceTag("可修改")
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                 DemandTile("意图", "商品推荐", tone = EvidenceTone.Info, modifier = Modifier.weight(1f))

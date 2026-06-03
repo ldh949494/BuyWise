@@ -2,7 +2,6 @@ package com.buywise.android.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,11 +10,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.CompareArrows
 import androidx.compose.material.icons.outlined.AutoAwesome
-import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.ImageSearch
 import androidx.compose.material.icons.outlined.ShoppingBag
-import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -30,12 +28,8 @@ import androidx.compose.ui.unit.dp
 import com.buywise.android.data.Product
 import com.buywise.android.ui.BuyWiseDimens
 import com.buywise.android.ui.BuyWiseTheme
-import com.buywise.android.ui.components.EvidenceTag
-import com.buywise.android.ui.components.EvidenceTone
 import com.buywise.android.ui.components.FloatingGlassCard
 import com.buywise.android.ui.components.FloatingGlassTone
-import com.buywise.android.ui.components.SoftTag
-import com.buywise.android.ui.displayFitTags
 import com.buywise.android.ui.displayPrice
 
 @Composable
@@ -94,29 +88,13 @@ fun HeroPanel(title: String, subtitle: String, previewProducts: List<Product>, o
                 }
             }
         }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            EvidenceTag("宿舍桌面")
-            EvidenceTag("通勤耳机")
-            EvidenceTag("摄影入门", tone = EvidenceTone.Warning)
-            EvidenceTag("办公升级", tone = EvidenceTone.Success)
-        }
         FloatingGlassCard(
             tone = FloatingGlassTone.Neutral,
             radius = BuyWiseDimens.HeroRadius.dp,
             contentPadding = 20.dp,
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column {
-                        Text("实时推荐预览", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
-                        Text("按真实目录和反馈信号排序", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
-                    }
-                    Text("全部 ›", color = BuyWiseTheme.colors.primary, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                }
+                Text("推荐预览", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
                 if (previewProducts.isNotEmpty()) {
                     previewProducts.forEach { product ->
                         PreviewProductRow(product = product)
@@ -150,9 +128,6 @@ private fun PreviewProductRow(product: Product) {
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    product.displayFitTags().take(2).forEach { SoftTag(it) }
-                }
             }
             Spacer(modifier = Modifier.width(12.dp))
             Text(product.price.displayPrice(), color = BuyWiseTheme.colors.primary, style = MaterialTheme.typography.titleLarge)
@@ -189,16 +164,16 @@ fun QuickEntryPanel(
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxWidth()) {
             StatusTile(
-                label = "导购模式",
-                value = "MVP",
+                label = "导购推荐",
+                value = "描述需求",
                 icon = Icons.Outlined.AutoAwesome,
                 modifier = Modifier.weight(1f),
                 onClick = onOpenGuide,
             )
             StatusTile(
-                label = "后端地址",
-                value = "10.0.2.2",
-                icon = Icons.Outlined.Storefront,
+                label = "商品对比",
+                value = "比较候选",
+                icon = Icons.AutoMirrored.Outlined.CompareArrows,
                 modifier = Modifier.weight(1f),
                 onClick = onOpenCompare,
             )
@@ -217,8 +192,8 @@ fun QuickEntryPanel(
                     Icon(Icons.Outlined.ImageSearch, contentDescription = null, tint = BuyWiseTheme.colors.accent, modifier = Modifier.padding(14.dp))
                 }
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("多模态联调", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
-                    Text("用图片或语音提取 query，再带入导购推荐。", color = BuyWiseTheme.colors.muted)
+                    Text("识别商品", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
+                    Text("用图片或语音生成需求，再带入导购推荐。", color = BuyWiseTheme.colors.muted)
                 }
                 Text("›", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.titleLarge)
             }

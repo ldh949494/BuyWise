@@ -88,7 +88,7 @@ fun HomeScreen(
             }
         } else if (state.feedbackPrompts.isNotEmpty()) {
             item {
-                SectionTitle("待评价", "收货后的真实反馈会进入商品分析")
+                SectionTitle("待评价", "记录真实使用体验")
             }
             feedbackState.successMessage?.let { message ->
                 item { InfoPanel(icon = { Icon(Icons.Outlined.CheckCircle, contentDescription = null) }, title = "反馈", body = message) }
@@ -109,7 +109,7 @@ fun HomeScreen(
             }
         }
         item {
-            SectionTitle("精选商品", "为你精选的候选商品")
+            SectionTitle("精选商品", "价格、评分和理由优先展示")
         }
         if (!state.isLoading && state.products.isEmpty() && state.errorMessage == null) {
             item { Text("暂无商品。", color = BuyWiseTheme.colors.muted) }

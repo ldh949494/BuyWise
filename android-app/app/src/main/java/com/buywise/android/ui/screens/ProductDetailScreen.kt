@@ -19,7 +19,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.CompareArrows
-import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.Button
@@ -37,22 +36,12 @@ import com.buywise.android.data.Product
 import com.buywise.android.data.ProductDetailState
 import com.buywise.android.ui.BuyWiseDimens
 import com.buywise.android.ui.BuyWiseTheme
-import com.buywise.android.ui.displayBrandCategory
-import com.buywise.android.ui.displayFitTags
-import com.buywise.android.ui.displayMatchPercent
-import com.buywise.android.ui.displayPlatform
 import com.buywise.android.ui.displayPrice
 import com.buywise.android.ui.displayRating
 import com.buywise.android.ui.displayRecommendationReason
-import com.buywise.android.ui.displaySales
-import com.buywise.android.ui.displayStockLabel
-import com.buywise.android.ui.components.EvidenceTag
-import com.buywise.android.ui.components.EvidenceTone
 import com.buywise.android.ui.components.FloatingGlassCard
 import com.buywise.android.ui.components.FloatingGlassTone
-import com.buywise.android.ui.components.MetricPill
 import com.buywise.android.ui.components.ProductImagePreview
-import com.buywise.android.ui.components.SoftTag
 
 @Composable
 fun ProductDetailScreen(
@@ -104,12 +93,10 @@ fun ProductDetailScreen(
             }
         }
         if (product != null) {
-            item { DetailEvidenceCard(product = product) }
             item { PurchaseAdviceCard(product = product) }
-            item { SignalSummaryCard(product = product) }
-            item { DetailBlock("适合原因", product.advantages, BuyWiseTheme.colors.secondarySoft) }
-            item { DetailBlock("注意事项", product.cautions, BuyWiseTheme.colors.dangerSoft) }
-            item { DetailBlock("标签", product.tags, BuyWiseTheme.colors.primarySoft) }
+            if (product.cautions.isNotEmpty()) {
+                item { DetailBlock("购买前注意", product.cautions, BuyWiseTheme.colors.dangerSoft) }
+            }
         }
     }
 }
@@ -124,37 +111,14 @@ private fun PurchaseAdviceCard(product: Product) {
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = BuyWiseTheme.colors.primary)
-                Text("AI 购买建议", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
+                Text("为什么推荐", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
             }
-            AdviceLine("适合人群", product.audienceAdvice())
-            AdviceLine("核心优势", product.advantages.take(2).joinToString(" / ").ifBlank { product.headline })
-            AdviceLine("不适合", product.cautions.take(2).joinToString(" / ").ifBlank { "暂未发现明显限制，建议结合预算和平台售后确认。" })
-            AdviceLine("购买建议", product.buyingAdvice())
-        }
-    }
-}
-
-@Composable
-private fun SignalSummaryCard(product: Product) {
-    FloatingGlassCard(
-        tone = FloatingGlassTone.Success,
-        radius = BuyWiseDimens.CardRadius.dp,
-        contentPadding = 16.dp,
-    ) {
-        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.AutoMirrored.Outlined.TrendingUp, contentDescription = null, tint = BuyWiseTheme.colors.secondary)
-                Text("价格与口碑信号", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
+            val reasons = product.advantages.take(3).ifEmpty {
+                listOf(product.displayRecommendationReason())
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                MetricPill("当前价格", product.price.displayPrice(), modifier = Modifier.weight(1f))
-                MetricPill("AI 匹配度", product.displayMatchPercent(), modifier = Modifier.weight(1f))
+            reasons.forEachIndexed { index, reason ->
+                AdviceLine("理由 ${index + 1}", reason)
             }
-            Text(
-                product.reviewSummary ?: "当前建议主要依据商品参数、标签、价格和口碑信号生成。",
-                color = BuyWiseTheme.colors.muted,
-                style = MaterialTheme.typography.bodyMedium,
-            )
         }
     }
 }
@@ -186,10 +150,6 @@ private fun ProductHeader(
                 product = product,
                 modifier = Modifier.fillMaxWidth().aspectRatio(1.28f),
             )
-            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                EvidenceTag(product.displayBrandCategory(), tone = EvidenceTone.Success)
-                EvidenceTag(product.displayStockLabel(), tone = EvidenceTone.Success)
-            }
             Text(product.name, style = MaterialTheme.typography.headlineMedium, color = BuyWiseTheme.colors.ink)
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -197,11 +157,7 @@ private fun ProductHeader(
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
                 Text(product.price.displayPrice(), color = BuyWiseTheme.colors.primary, style = MaterialTheme.typography.headlineMedium)
-                Text("★ ${product.rating.displayRating()} · ${product.displaySales()}", color = BuyWiseTheme.colors.accent, fontWeight = FontWeight.Bold)
-            }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SoftTag(product.displayPlatform())
-                product.displayFitTags().take(2).forEach { SoftTag(it) }
+                Text("★ ${product.rating.displayRating()}", color = BuyWiseTheme.colors.accent, fontWeight = FontWeight.Bold)
             }
             Text(product.displayRecommendationReason(), color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
             product.reviewSummary?.let {
@@ -229,24 +185,6 @@ private fun ProductHeader(
 }
 
 @Composable
-private fun DetailEvidenceCard(product: Product) {
-    FloatingGlassCard(
-        tone = FloatingGlassTone.Neutral,
-        radius = BuyWiseDimens.CardRadius.dp,
-        contentPadding = 16.dp,
-    ) {
-        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("推荐证据", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                MetricPill("预算", if ((product.price ?: Double.MAX_VALUE) <= 500.0) "匹配" else "需确认", modifier = Modifier.weight(1f))
-                MetricPill("场景", product.displayFitTags().firstOrNull() ?: "日常", modifier = Modifier.weight(1f))
-                MetricPill("反馈", product.rating.displayRating(), modifier = Modifier.weight(1f))
-            }
-        }
-    }
-}
-
-@Composable
 private fun DetailBlock(title: String, items: List<String>, tone: androidx.compose.ui.graphics.Color) {
     FloatingGlassCard(
         tone = FloatingGlassTone.Neutral,
@@ -255,39 +193,19 @@ private fun DetailBlock(title: String, items: List<String>, tone: androidx.compo
     ) {
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
-            if (items.isEmpty()) {
-                Text("暂无", color = BuyWiseTheme.colors.muted)
-            } else {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items.forEach { item ->
-                        Text(
-                            item,
-                            modifier = Modifier
-                                .background(tone, RoundedCornerShape(6.dp))
-                                .padding(horizontal = 10.dp, vertical = 7.dp),
-                            color = BuyWiseTheme.colors.ink,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items.take(3).forEach { item ->
+                    Text(
+                        item,
+                        modifier = Modifier
+                            .background(tone, RoundedCornerShape(6.dp))
+                            .padding(horizontal = 10.dp, vertical = 7.dp),
+                        color = BuyWiseTheme.colors.ink,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
         }
-    }
-}
-
-private fun Product.audienceAdvice(): String {
-    val scenes = tags.filter { it.length <= 8 }.take(2)
-    val categoryText = category ?: "数码产品"
-    return (scenes + categoryText).distinct().joinToString("、").ifBlank { "关注预算、实用性和购买确定性的用户" }
-}
-
-private fun Product.buyingAdvice(): String {
-    val score = displayMatchPercent().removeSuffix("%").toIntOrNull() ?: 0
-    return when {
-        score >= 90 -> "AI 匹配度很高，若价格符合预算，可以优先考虑入手。"
-        score >= 80 -> "整体匹配度较高，建议和同价位候选商品对比后决定。"
-        price != null -> "当前价格为 ${price.displayPrice()}，建议结合预算、评价摘要和售后再判断。"
-        else -> "价格信息不足，建议确认实时价格和平台售后后再购买。"
     }
 }

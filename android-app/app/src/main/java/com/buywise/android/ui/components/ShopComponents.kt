@@ -5,7 +5,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
@@ -21,7 +20,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.CompareArrows
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -46,15 +44,9 @@ import coil3.compose.AsyncImage
 import com.buywise.android.data.Product
 import com.buywise.android.ui.BuyWiseDimens
 import com.buywise.android.ui.BuyWiseTheme
-import com.buywise.android.ui.displayBrandCategory
-import com.buywise.android.ui.displayFitTags
-import com.buywise.android.ui.displayMatchPercent
-import com.buywise.android.ui.displayPlatform
 import com.buywise.android.ui.displayPrice
 import com.buywise.android.ui.displayRating
 import com.buywise.android.ui.displayRecommendationReason
-import com.buywise.android.ui.displaySales
-import com.buywise.android.ui.displayStockLabel
 import kotlinx.coroutines.delay
 
 @Composable
@@ -125,7 +117,6 @@ fun ProductCard(
                     modifier = Modifier.size(width = 96.dp, height = 104.dp),
                 )
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    EvidenceTag(product.displayBrandCategory(), tone = EvidenceTone.Success)
                     Text(
                         product.name,
                         style = MaterialTheme.typography.titleMedium,
@@ -146,7 +137,6 @@ fun ProductCard(
                     }
                 }
             }
-            ProductScoreBar(product = product)
             Text(
                 product.displayRecommendationReason(recommendationReason),
                 color = BuyWiseTheme.colors.muted,
@@ -154,15 +144,6 @@ fun ProductCard(
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
             )
-            ProductEvidenceRow(product = product, reason = recommendationReason)
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                EvidenceTag(product.displayStockLabel(), tone = EvidenceTone.Success)
-                ProductCommerceSignals(product = product)
-            }
             if (onToggleCompare != null) {
                 if (isInCompareBasket) {
                     Button(
@@ -229,46 +210,6 @@ private fun ImagePlaceholder(product: Product) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-    }
-}
-
-@Composable
-private fun ProductScoreBar(product: Product) {
-    val percent = product.displayMatchPercent().removeSuffix("%").toIntOrNull()?.coerceIn(0, 100) ?: 0
-    Column(verticalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("推荐指数", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
-            Text(product.displayMatchPercent(), color = BuyWiseTheme.colors.secondary, fontWeight = FontWeight.Bold)
-        }
-        LinearProgressIndicator(
-            progress = { percent / 100f },
-            modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(999.dp)),
-            color = BuyWiseTheme.colors.secondary,
-            trackColor = BuyWiseTheme.colors.panelAlt,
-        )
-    }
-}
-
-@Composable
-private fun ProductEvidenceRow(product: Product, reason: String?) {
-    val tags = product.displayFitTags(reason).take(3)
-    if (tags.isEmpty()) return
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        tags.forEach { tag ->
-            EvidenceTag(tag, tone = EvidenceTone.Info)
-        }
-    }
-}
-
-@Composable
-private fun ProductCommerceSignals(product: Product) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SoftTag(product.displayPlatform())
-        SoftTag(product.displaySales())
     }
 }
 
