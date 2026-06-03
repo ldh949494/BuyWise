@@ -3,7 +3,6 @@ package com.buywise.android.ui.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,13 +21,10 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -94,11 +90,12 @@ private fun BasketButton(count: Int, expanded: Boolean, onClick: () -> Unit) {
         pulsing = false
     }
 
-    Surface(
-        modifier = Modifier.clickable(onClick = onClick),
-        color = BuyWiseTheme.colors.primary,
-        shape = RoundedCornerShape(999.dp),
-        shadowElevation = 8.dp,
+    FloatingGlassCard(
+        tone = FloatingGlassTone.SolidPrimary,
+        radius = 999.dp,
+        fillMaxWidth = false,
+        contentPadding = 0.dp,
+        onClick = onClick,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -131,12 +128,12 @@ private fun ExpandedBasket(
     onClear: () -> Unit,
     onStartCompare: () -> Unit,
 ) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
-        shape = RoundedCornerShape(8.dp),
-        border = CardDefaults.outlinedCardBorder(),
+    FloatingGlassCard(
+        tone = FloatingGlassTone.Neutral,
+        radius = 8.dp,
+        contentPadding = 14.dp,
     ) {
-        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.AutoMirrored.Outlined.CompareArrows, contentDescription = null, tint = BuyWiseTheme.colors.primary)
                 Text("已选商品", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)

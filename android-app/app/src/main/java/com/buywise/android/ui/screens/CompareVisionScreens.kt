@@ -26,8 +26,6 @@ import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -62,6 +60,8 @@ import com.buywise.android.ui.components.ProductCard
 import com.buywise.android.ui.components.ProductImagePreview
 import com.buywise.android.ui.components.SectionTitle
 import com.buywise.android.ui.components.SoftTag
+import com.buywise.android.ui.components.FloatingGlassCard
+import com.buywise.android.ui.components.FloatingGlassTone
 
 @Composable
 fun CompareScreen(
@@ -182,16 +182,15 @@ fun VisionScreen(
 private fun CompareCandidateStrip(products: List<Product>, onProductClick: (String) -> Unit) {
     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         items(products) { product ->
-            Card(
-                colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
-                shape = RoundedCornerShape(16.dp),
-                border = CardDefaults.outlinedCardBorder(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            FloatingGlassCard(
                 modifier = Modifier.width(190.dp),
+                tone = FloatingGlassTone.Neutral,
+                radius = 16.dp,
+                fillMaxWidth = false,
+                contentPadding = 10.dp,
                 onClick = { onProductClick(product.id) },
             ) {
                 Row(
-                    modifier = Modifier.padding(10.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {

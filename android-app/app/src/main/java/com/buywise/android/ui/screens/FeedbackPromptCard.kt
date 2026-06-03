@@ -1,12 +1,14 @@
 package com.buywise.android.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -14,23 +16,27 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.RateReview
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.buywise.android.data.FeedbackDraft
 import com.buywise.android.data.FeedbackPrompt
 import com.buywise.android.ui.BuyWiseTheme
+import com.buywise.android.ui.components.EvidenceTag
+import com.buywise.android.ui.components.EvidenceTone
+import com.buywise.android.ui.components.FloatingGlassCard
+import com.buywise.android.ui.components.FloatingGlassTone
 
-private val ProTags = listOf("good_value", "easy_to_use", "quiet", "comfortable", "durable")
-private val ConTags = listOf("noisy", "overpriced", "fragile", "uncomfortable", "hard_to_use")
+private val ProTags = listOf("低噪", "连接稳定", "性价比", "手感好", "耐用")
+private val ConTags = listOf("偏吵", "偏贵", "易损", "不舒服", "上手慢")
 
 @Composable
 fun FeedbackPromptCard(
@@ -45,18 +51,22 @@ fun FeedbackPromptCard(
     onDraftChange: (FeedbackDraft) -> Unit,
     onSubmit: () -> Unit,
 ) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
-        shape = RoundedCornerShape(8.dp),
-        border = CardDefaults.outlinedCardBorder(),
+    FloatingGlassCard(
+        tone = if (expanded) FloatingGlassTone.Warm else FloatingGlassTone.Neutral,
+        contentPadding = 16.dp,
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Icon(Icons.Outlined.RateReview, contentDescription = null, tint = BuyWiseTheme.colors.primary)
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Surface(color = BuyWiseTheme.colors.primarySoft, shape = RoundedCornerShape(12.dp), modifier = Modifier.size(46.dp)) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Outlined.RateReview, contentDescription = null, tint = BuyWiseTheme.colors.primary)
+                    }
+                }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(prompt.productName, style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
-                    Text("提交收货后反馈", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
+                    Text("购买证据：BuyWise recorded · 已收货", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
                 }
+                EvidenceTag("待反馈", tone = EvidenceTone.Warning)
             }
             tokenRequiredMessage?.takeIf { !canUseFeedback }?.let {
                 Text(it, color = BuyWiseTheme.colors.danger, style = MaterialTheme.typography.bodyMedium)
@@ -92,7 +102,7 @@ private fun FeedbackForm(
                 FilterChip(
                     selected = draft.rating == rating,
                     onClick = { onDraftChange(draft.copy(rating = rating)) },
-                    label = { Text("$rating 星") },
+                    label = { Text("★".repeat(rating)) },
                 )
             }
         }

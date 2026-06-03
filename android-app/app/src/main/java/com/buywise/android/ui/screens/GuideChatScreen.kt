@@ -28,8 +28,6 @@ import androidx.compose.material.icons.outlined.ImageSearch
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.SmartToy
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.DropdownMenu
@@ -55,6 +53,8 @@ import com.buywise.android.data.GuideChatRole
 import com.buywise.android.data.GuideState
 import com.buywise.android.data.Recommendation
 import com.buywise.android.ui.BuyWiseTheme
+import com.buywise.android.ui.components.FloatingGlassCard
+import com.buywise.android.ui.components.FloatingGlassTone
 import com.buywise.android.ui.components.ProductImagePreview
 import com.buywise.android.ui.displayPrice
 import com.buywise.android.ui.displayRating
@@ -201,13 +201,15 @@ private fun AssistantBubble(
 @Composable
 private fun CompactRecommendationCard(recommendation: Recommendation, onClick: () -> Unit) {
     val product = recommendation.product
-    Card(
-        colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
-        shape = RoundedCornerShape(16.dp),
-        border = CardDefaults.outlinedCardBorder(),
-        modifier = Modifier.width(210.dp).clickable(onClick = onClick),
+    FloatingGlassCard(
+        modifier = Modifier.width(210.dp),
+        tone = FloatingGlassTone.Primary,
+        radius = 16.dp,
+        fillMaxWidth = false,
+        contentPadding = 10.dp,
+        onClick = onClick,
     ) {
-        Row(modifier = Modifier.padding(10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             ProductImagePreview(product = product, modifier = Modifier.size(64.dp))
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(product.name, color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)

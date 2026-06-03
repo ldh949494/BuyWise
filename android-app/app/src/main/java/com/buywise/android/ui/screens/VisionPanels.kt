@@ -17,7 +17,6 @@ import androidx.compose.material.icons.outlined.ImageSearch
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
@@ -33,6 +32,8 @@ import androidx.compose.ui.unit.dp
 import com.buywise.android.data.VisionResult
 import com.buywise.android.ui.BuyWiseDimens
 import com.buywise.android.ui.BuyWiseTheme
+import com.buywise.android.ui.components.FloatingGlassCard
+import com.buywise.android.ui.components.FloatingGlassTone
 import com.buywise.android.ui.components.SoftTag
 
 @Composable
@@ -46,13 +47,12 @@ fun UploadPanel(
     onRunSpeechDemo: () -> Unit,
     onUseQuery: () -> Unit,
 ) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
-        shape = RoundedCornerShape(BuyWiseDimens.HeroRadius.dp),
-        border = CardDefaults.outlinedCardBorder(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    FloatingGlassCard(
+        tone = FloatingGlassTone.Warm,
+        radius = BuyWiseDimens.HeroRadius.dp,
+        contentPadding = 20.dp,
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Surface(color = BuyWiseTheme.colors.accentSoft, shape = RoundedCornerShape(14.dp), modifier = Modifier.size(56.dp)) {
                     Icon(Icons.Outlined.CameraAlt, contentDescription = null, tint = BuyWiseTheme.colors.accent, modifier = Modifier.padding(14.dp))

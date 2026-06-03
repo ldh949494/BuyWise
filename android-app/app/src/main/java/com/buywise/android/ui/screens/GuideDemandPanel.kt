@@ -2,23 +2,14 @@ package com.buywise.android.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AutoAwesome
-import androidx.compose.material.icons.outlined.Category
-import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Tune
-import androidx.compose.material.icons.outlined.Wallet
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -26,32 +17,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.buywise.android.ui.BuyWiseDimens
 import com.buywise.android.ui.BuyWiseTheme
+import com.buywise.android.ui.components.EvidenceTag
+import com.buywise.android.ui.components.EvidenceTone
+import com.buywise.android.ui.components.FloatingGlassCard
+import com.buywise.android.ui.components.FloatingGlassTone
 
 @Composable
 fun DemandPanel(query: String, summary: String) {
     val profile = demandProfile(query = query, summary = summary)
-    Card(
-        colors = CardDefaults.cardColors(containerColor = BuyWiseTheme.colors.panel),
-        shape = RoundedCornerShape(BuyWiseDimens.CardRadius.dp),
-        border = CardDefaults.outlinedCardBorder(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-    ) {
-        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    FloatingGlassCard(tone = FloatingGlassTone.Primary, contentPadding = 16.dp) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Outlined.Tune, contentDescription = null, tint = BuyWiseTheme.colors.primary)
-                Text("结构化需求画像", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
+                Text("AI 已提取", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
                 Spacer(modifier = Modifier.weight(1f))
-                Text("AI 已提取", color = BuyWiseTheme.colors.primary, fontWeight = FontWeight.Bold)
+                EvidenceTag("可调整")
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                DemandTile("预算", profile.budget, Icons.Outlined.Wallet, Modifier.weight(1f))
-                DemandTile("场景", profile.scene, Icons.Outlined.Inventory2, Modifier.weight(1f))
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                DemandTile("偏好", profile.preference, Icons.Outlined.AutoAwesome, Modifier.weight(1f))
-                DemandTile("品类", profile.category, Icons.Outlined.Category, Modifier.weight(1f))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                DemandTile("意图", "商品推荐", tone = EvidenceTone.Info, modifier = Modifier.weight(1f))
+                DemandTile("预算", profile.budget, tone = EvidenceTone.Warning, modifier = Modifier.weight(1f))
+                DemandTile("场景", profile.scene, tone = EvidenceTone.Success, modifier = Modifier.weight(1f))
+                DemandTile("偏好", profile.preference, tone = EvidenceTone.Info, modifier = Modifier.weight(1f))
             }
             if (summary.isNotBlank()) {
                 Text(summary, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
@@ -64,35 +51,34 @@ fun DemandPanel(query: String, summary: String) {
 private fun DemandTile(
     label: String,
     value: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    tone: EvidenceTone,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        color = BuyWiseTheme.colors.panel,
-        shape = RoundedCornerShape(16.dp),
-        border = CardDefaults.outlinedCardBorder(),
+    FloatingGlassCard(
         modifier = modifier,
+        tone = tone.toFloatingGlassTone(),
+        elevated = false,
+        fillMaxWidth = false,
+        contentPadding = 12.dp,
     ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Surface(color = BuyWiseTheme.colors.primarySoft, shape = RoundedCornerShape(12.dp), modifier = Modifier.size(42.dp)) {
-                Icon(icon, contentDescription = null, tint = BuyWiseTheme.colors.primary, modifier = Modifier.padding(10.dp))
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
-                Text(label, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
-                Text(
-                    value,
-                    color = BuyWiseTheme.colors.ink,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            EvidenceTag(label, tone = tone)
+            Text(
+                value,
+                color = BuyWiseTheme.colors.ink,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
+}
+
+private fun EvidenceTone.toFloatingGlassTone(): FloatingGlassTone = when (this) {
+    EvidenceTone.Info -> FloatingGlassTone.Primary
+    EvidenceTone.Success -> FloatingGlassTone.Success
+    EvidenceTone.Warning -> FloatingGlassTone.Warm
+    EvidenceTone.Danger -> FloatingGlassTone.Warm
 }
 
 private data class DemandProfile(val budget: String, val scene: String, val preference: String, val category: String)
