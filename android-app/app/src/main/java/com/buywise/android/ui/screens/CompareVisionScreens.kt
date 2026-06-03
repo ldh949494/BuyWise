@@ -1,9 +1,7 @@
 package com.buywise.android.ui.screens
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,24 +13,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.CompareArrows
 import androidx.compose.material.icons.outlined.CameraAlt
-import androidx.compose.material.icons.outlined.ImageSearch
 import androidx.compose.material.icons.outlined.Inventory2
-import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -50,16 +39,12 @@ import com.buywise.android.data.Product
 import com.buywise.android.data.VisionState
 import com.buywise.android.ui.BuyWiseDimens
 import com.buywise.android.ui.BuyWiseTheme
-import com.buywise.android.ui.displayMatchPercent
 import com.buywise.android.ui.displayPrice
 import com.buywise.android.ui.displayRating
-import com.buywise.android.ui.fitLevel
-import com.buywise.android.ui.noiseLevel
 import com.buywise.android.ui.shortName
 import com.buywise.android.ui.components.ProductCard
 import com.buywise.android.ui.components.ProductImagePreview
 import com.buywise.android.ui.components.SectionTitle
-import com.buywise.android.ui.components.SoftTag
 import com.buywise.android.ui.components.FloatingGlassCard
 import com.buywise.android.ui.components.FloatingGlassTone
 
@@ -81,7 +66,7 @@ fun CompareScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    SectionTitle("商品对比", "对已选商品进行价格、评分、优点与注意事项分析。")
+                    SectionTitle("商品对比", "看清价格、评分和关键差异。")
                 }
                 OutlinedButton(onClick = onRefresh, enabled = !state.isLoading) {
                     Icon(Icons.Outlined.Refresh, contentDescription = null)
@@ -128,7 +113,7 @@ fun VisionScreen(
         contentPadding = PaddingValues(18.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item { SectionTitle("多模态联调", "使用图片、识图和语音能力完成后端联调，并将识别结果带入导购。") }
+        item { SectionTitle("识别商品", "用图片或语音生成购物需求。") }
         item {
             UploadPanel(
                 isLoading = state.isLoading,
@@ -150,7 +135,7 @@ fun VisionScreen(
         item {
             InfoPanel(
                 icon = { Icon(Icons.Outlined.Inventory2, contentDescription = null) },
-                title = "后端多模态联调",
+                title = "识别结果",
                 body = state.result.displayVisionSummary(state.recognizedQuery),
             )
         }
@@ -163,7 +148,7 @@ fun VisionScreen(
                 )
             }
         }
-        item { SectionTitle("识别关联商品", "可将识别 query 带入导购继续推荐。") }
+        item { SectionTitle("关联商品", "可带入导购继续推荐。") }
         if (state.result.similarProducts.isEmpty()) {
             item { Text("识别图片后，会展示同类候选商品。", color = BuyWiseTheme.colors.muted) }
         }

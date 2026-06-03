@@ -3,7 +3,6 @@ package com.buywise.android.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -34,7 +33,6 @@ import com.buywise.android.ui.BuyWiseDimens
 import com.buywise.android.ui.BuyWiseTheme
 import com.buywise.android.ui.components.FloatingGlassCard
 import com.buywise.android.ui.components.FloatingGlassTone
-import com.buywise.android.ui.components.SoftTag
 
 @Composable
 fun UploadPanel(
@@ -58,9 +56,9 @@ fun UploadPanel(
                     Icon(Icons.Outlined.CameraAlt, contentDescription = null, tint = BuyWiseTheme.colors.accent, modifier = Modifier.padding(14.dp))
                 }
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("上传商品图片", style = MaterialTheme.typography.titleLarge, color = BuyWiseTheme.colors.ink)
+                    Text("识别商品", style = MaterialTheme.typography.titleLarge, color = BuyWiseTheme.colors.ink)
                     Text(
-                        selectedImageName?.let { "已选择：$it" } ?: "图片和音频使用内置演示资源，不申请相机或麦克风权限。",
+                        selectedImageName?.let { "已选择：$it" } ?: "选择图片或用语音描述需求，再带入导购推荐。",
                         color = BuyWiseTheme.colors.muted,
                         style = MaterialTheme.typography.bodyMedium,
                     )
@@ -81,12 +79,12 @@ fun UploadPanel(
                     Button(onClick = onRunVisionDemo, enabled = !isLoading, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Outlined.ImageSearch, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("运行识图联调")
+                        Text("识别图片")
                     }
                     OutlinedButton(onClick = onRunSpeechDemo, enabled = !isLoading, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Outlined.CameraAlt, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("运行语音联调")
+                        Text("语音描述")
                     }
                     FilledTonalButton(onClick = onUseQuery, enabled = hasQuery && !isLoading, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Outlined.Inventory2, contentDescription = null)
@@ -94,12 +92,6 @@ fun UploadPanel(
                         Text("带入导购")
                     }
                 }
-            }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SoftTag("机械键盘")
-                SoftTag("白色")
-                SoftTag("紧凑布局")
-                SoftTag("低噪音")
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedButton(onClick = onPickImage, enabled = !isLoading, modifier = Modifier.weight(1f)) {
@@ -123,7 +115,7 @@ fun UploadPanel(
 }
 
 fun VisionResult.displayVisionSummary(query: String?): String {
-    val labelsText = labels.takeIf { it.isNotEmpty() }?.joinToString(" / ") ?: "机械键盘 / 白色 / 紧凑布局"
+    val labelsText = labels.takeIf { it.isNotEmpty() }?.joinToString(" / ") ?: "暂无明确标签"
     val generatedQuery = query?.takeIf { it.isNotBlank() } ?: title.takeIf { it != "等待识别商品" } ?: "白色 无线 紧凑机械键盘"
-    return "类别：机械键盘\n颜色：白色\n特征：$labelsText\n生成 query：$generatedQuery"
+    return "识别结果：$labelsText\n用于导购：$generatedQuery"
 }

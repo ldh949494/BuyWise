@@ -2,7 +2,6 @@ package com.buywise.android.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -34,8 +33,6 @@ import com.buywise.android.data.GuideState
 import com.buywise.android.data.Product
 import com.buywise.android.ui.BuyWiseDimens
 import com.buywise.android.ui.BuyWiseTheme
-import com.buywise.android.ui.components.EvidenceTag
-import com.buywise.android.ui.components.EvidenceTone
 import com.buywise.android.ui.components.FloatingGlassCard
 import com.buywise.android.ui.components.FloatingGlassTone
 import com.buywise.android.ui.components.ProductCard
@@ -64,7 +61,7 @@ fun GuideScreen(
         item {
             SectionTitle(
                 title = "推荐结果",
-                subtitle = "按预算、场景、库存和已购反馈信号排序",
+                subtitle = "先看首推，再对比关键差异。",
             )
         }
         if (!state.isStreaming && state.recommendations.isEmpty()) {
@@ -143,7 +140,7 @@ private fun GuideInputPanel(
                 ) {
                     Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = BuyWiseTheme.colors.primary)
                     Text(
-                        "一句话描述需求，BuyWise 会提取预算、场景和偏好，再推荐商品。",
+                        "描述预算、用途和偏好，BuyWise 会给出候选商品和理由。",
                         color = BuyWiseTheme.colors.primary,
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.bodyMedium,
@@ -174,12 +171,6 @@ private fun GuideInputPanel(
                 ) {
                     Text("进入对话导购")
                 }
-            }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                EvidenceTag("预算 500 内")
-                EvidenceTag("宿舍场景", tone = EvidenceTone.Success)
-                EvidenceTag("低噪音")
-                EvidenceTag("图片/语音可带入", tone = EvidenceTone.Warning)
             }
         }
     }
@@ -224,7 +215,7 @@ private fun TopRecommendationStrip(product: Product, onClick: () -> Unit) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("优先推荐", color = BuyWiseTheme.colors.secondary, fontWeight = FontWeight.Bold)
                 Text(product.name, color = BuyWiseTheme.colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("预算、场景和已购反馈综合最稳", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
+                Text("理由清楚，适合先看", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
             }
             Text(product.price.displayPrice(), color = BuyWiseTheme.colors.primary, style = MaterialTheme.typography.titleMedium)
         }

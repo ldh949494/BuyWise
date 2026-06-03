@@ -5,16 +5,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.RateReview
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -34,9 +30,6 @@ import com.buywise.android.ui.components.EvidenceTag
 import com.buywise.android.ui.components.EvidenceTone
 import com.buywise.android.ui.components.FloatingGlassCard
 import com.buywise.android.ui.components.FloatingGlassTone
-
-private val ProTags = listOf("低噪", "连接稳定", "性价比", "手感好", "耐用")
-private val ConTags = listOf("偏吵", "偏贵", "易损", "不舒服", "上手慢")
 
 @Composable
 fun FeedbackPromptCard(
@@ -64,7 +57,7 @@ fun FeedbackPromptCard(
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(prompt.productName, style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
-                    Text("购买证据：BuyWise recorded · 已收货", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
+                    Text("已购买", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
                 }
                 EvidenceTag("待反馈", tone = EvidenceTone.Warning)
             }
@@ -113,12 +106,6 @@ private fun FeedbackForm(
             minLines = 3,
             label = { Text("使用体验") },
         )
-        TagPicker("优点标签", ProTags, draft.prosTags) {
-            onDraftChange(draft.copy(prosTags = it))
-        }
-        TagPicker("缺点标签", ConTags, draft.consTags) {
-            onDraftChange(draft.copy(consTags = it))
-        }
         Text("是否符合预期", fontWeight = FontWeight.Bold, color = BuyWiseTheme.colors.ink)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
@@ -140,21 +127,6 @@ private fun FeedbackForm(
         errorMessage?.let { Text(it, color = BuyWiseTheme.colors.danger, style = MaterialTheme.typography.bodyMedium) }
         Button(onClick = onSubmit, enabled = !isSubmitting, modifier = Modifier.fillMaxWidth()) {
             Text(if (isSubmitting) "提交中..." else "提交反馈")
-        }
-    }
-}
-
-@Composable
-private fun TagPicker(label: String, tags: List<String>, selected: List<String>, onSelectedChange: (List<String>) -> Unit) {
-    Text(label, fontWeight = FontWeight.Bold, color = BuyWiseTheme.colors.ink)
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        tags.forEach { tag ->
-            AssistChip(
-                onClick = {
-                    onSelectedChange(if (tag in selected) selected - tag else selected + tag)
-                },
-                label = { Text(tag) },
-            )
         }
     }
 }

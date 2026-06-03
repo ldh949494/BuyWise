@@ -57,7 +57,6 @@ import com.buywise.android.ui.components.FloatingGlassCard
 import com.buywise.android.ui.components.FloatingGlassTone
 import com.buywise.android.ui.components.ProductImagePreview
 import com.buywise.android.ui.displayPrice
-import com.buywise.android.ui.displayRating
 
 @Composable
 fun GuideChatScreen(
@@ -214,7 +213,6 @@ private fun CompactRecommendationCard(recommendation: Recommendation, onClick: (
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(product.name, color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(product.price.displayPrice(), color = BuyWiseTheme.colors.primary, fontWeight = FontWeight.Bold)
-                Text("★ ${product.rating.displayRating()}", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
             }
         }
     }
@@ -260,7 +258,7 @@ private fun GuideChatInputBar(
                         },
                     )
                     DropdownMenuItem(
-                        text = { Text("演示识图") },
+                        text = { Text("快速识别") },
                         leadingIcon = { Icon(Icons.Outlined.AutoAwesome, contentDescription = null) },
                         onClick = {
                             imageMenuExpanded = false
@@ -270,7 +268,7 @@ private fun GuideChatInputBar(
                 }
             }
             IconButton(onClick = onRunSpeechDemo, enabled = !isStreaming) {
-                Icon(Icons.Outlined.Mic, contentDescription = "演示语音识别", tint = BuyWiseTheme.colors.primary)
+                Icon(Icons.Outlined.Mic, contentDescription = "语音描述", tint = BuyWiseTheme.colors.primary)
             }
             OutlinedTextField(
                 value = draft,
