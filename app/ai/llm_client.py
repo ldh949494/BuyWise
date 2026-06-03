@@ -30,15 +30,15 @@ UNSUPPORTED_CLAIM_FALLBACK = "我只能基于当前商品卡片做推荐，暂�
 
 
 class LLMProvider(Protocol):
-    async def chat(self, messages: list[dict[str, str]]) -> str:
+    async def chat(self, messages: list[dict[str, str]], *, max_tokens: int | None = None) -> str:
         ...
 
-    async def stream_chat(self, messages: list[dict[str, str]]) -> AsyncIterator[str]:
+    async def stream_chat(self, messages: list[dict[str, str]], *, max_tokens: int | None = None) -> AsyncIterator[str]:
         ...
 
 
 class MockLLMProvider:
-    async def chat(self, messages: list[dict[str, str]]) -> str:
+    async def chat(self, messages: list[dict[str, str]], *, max_tokens: int | None = None) -> str:
         user_messages = [
             message.get("content", "")
             for message in messages
@@ -47,8 +47,8 @@ class MockLLMProvider:
         content = user_messages[-1] if user_messages else ""
         return f"Mock shopping guidance for: {content}"
 
-    async def stream_chat(self, messages: list[dict[str, str]]) -> AsyncIterator[str]:
-        content = await self.chat(messages)
+    async def stream_chat(self, messages: list[dict[str, str]], *, max_tokens: int | None = None) -> AsyncIterator[str]:
+        content = await self.chat(messages, max_tokens=max_tokens)
         chunk_size = 8
         for index in range(0, len(content), chunk_size):
             yield content[index : index + chunk_size]
@@ -66,28 +66,31 @@ class OpenAICompatibleProvider:
         self.model = model or settings.llm_model
         self.client = client or self._create_client(base_url=base_url, api_key=api_key)
 
-    async def chat(self, messages: list[dict[str, str]]) -> str:
-        response = await self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=0.2,
-        )
+    async def chat(self, messages: list[dict[str, str]], *, max_tokens: int | None = None) -> str:
+        kwargs = self._completion_kwargs(messages, max_tokens=max_tokens)
+        response = await self.client.chat.completions.create(**kwargs)
         content = response.choices[0].message.content
         return content or ""
 
-    async def stream_chat(self, messages: list[dict[str, str]]) -> AsyncIterator[str]:
-        stream = await self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=0.2,
-            stream=True,
-        )
+    async def stream_chat(self, messages: list[dict[str, str]], *, max_tokens: int | None = None) -> AsyncIterator[str]:
+        kwargs = self._completion_kwargs(messages, max_tokens=max_tokens)
+        stream = await self.client.chat.completions.create(**kwargs, stream=True)
         async for chunk in stream:
             if not chunk.choices:
                 continue
             content = chunk.choices[0].delta.content
             if content:
                 yield content
+
+    def _completion_kwargs(self, messages: list[dict[str, str]], *, max_tokens: int | None = None) -> dict[str, Any]:
+        kwargs: dict[str, Any] = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": 0.2,
+        }
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
+        return kwargs
 
     def _create_client(self, *, base_url: str | None, api_key: str | None) -> Any:
         try:
@@ -113,41 +116,88 @@ class LLMClient:
     ) -> None:
         self.provider = provider or self._build_provider(provider_name or settings.llm_provider)
 
-    async def chat(self, messages: list[dict]) -> str:
+    async def chat(self, messages: list[dict], *, max_tokens: int | None = None) -> str:
         normalized = [
             {"role": str(message.get("role", "user")), "content": str(message.get("content", ""))}
             for message in messages
         ]
         policy = provider_policy("llm", "chat")
-        return await run_provider_call_async(policy, lambda: self.provider.chat(normalized), capacity_resource="llm")
+        return await run_provider_call_async(
+            policy,
+            lambda: self._provider_chat(normalized, max_tokens=max_tokens),
+            capacity_resource="llm",
+        )
 
-    async def stream_chat(self, messages: list[dict]) -> AsyncIterator[str]:
+    async def stream_chat(self, messages: list[dict], *, max_tokens: int | None = None) -> AsyncIterator[str]:
         normalized = [
             {"role": str(message.get("role", "user")), "content": str(message.get("content", ""))}
             for message in messages
         ]
         async with provider_stream(provider_policy("llm", "stream_chat"), capacity_resource="llm"):
-            async for chunk in self.provider.stream_chat(normalized):
+            async for chunk in self._provider_stream_chat(normalized, max_tokens=max_tokens):
                 yield chunk
 
-    async def generate_recommendation(self, need: Any, products: list[Any]) -> str:
+    async def _provider_chat(self, messages: list[dict[str, str]], *, max_tokens: int | None = None) -> str:
+        if max_tokens is None:
+            return await self.provider.chat(messages)
+        try:
+            return await self.provider.chat(messages, max_tokens=max_tokens)
+        except TypeError:
+            return await self.provider.chat(messages)
+
+    async def _provider_stream_chat(
+        self,
+        messages: list[dict[str, str]],
+        *,
+        max_tokens: int | None = None,
+    ) -> AsyncIterator[str]:
+        if max_tokens is None:
+            async for chunk in self.provider.stream_chat(messages):
+                yield chunk
+            return
+        try:
+            stream = self.provider.stream_chat(messages, max_tokens=max_tokens)
+        except TypeError:
+            stream = self.provider.stream_chat(messages)
+        async for chunk in stream:
+            yield chunk
+
+    async def generate_recommendation(self, need: Any, products: list[Any], *, concise: bool = False, max_tokens: int | None = None) -> str:
         if not products:
             return "暂时没有找到完全匹配的商品，可以放宽预算或调整条件。"
-        reply = await self.chat(self.recommendation_messages(need, products))
+        reply = await self.chat(self.recommendation_messages(need, products, concise=concise), max_tokens=max_tokens)
         return self._guard_recommendation_reply(reply, products)
 
-    async def stream_recommendation(self, need: Any, products: list[Any]) -> AsyncIterator[str]:
+    async def stream_recommendation(
+        self,
+        need: Any,
+        products: list[Any],
+        *,
+        concise: bool = False,
+        max_tokens: int | None = None,
+    ) -> AsyncIterator[str]:
         if not products:
             yield "暂时没有找到完全匹配的商品，可以放宽预算或调整条件。"
             return
-        async for chunk in self.stream_chat(self.recommendation_messages(need, products)):
+        async for chunk in self.stream_chat(
+            self.recommendation_messages(need, products, concise=concise),
+            max_tokens=max_tokens,
+        ):
             yield chunk
 
-    def recommendation_messages(self, need: Any, products: list[Any]) -> list[dict[str, str]]:
+    def recommendation_messages(self, need: Any, products: list[Any], *, concise: bool = False) -> list[dict[str, str]]:
+        system_prompt = RECOMMEND_PROMPT.strip()
+        if concise:
+            system_prompt = (
+                system_prompt
+                + "\nKeep the reply short: at most 3 concise bullet points. "
+                "Focus only on the top pick, why it fits, and one pre-purchase caution. "
+                "Do not repeat full price or rating lists already shown in product cards."
+            )
         return [
             {
                 "role": "system",
-                "content": RECOMMEND_PROMPT.strip(),
+                "content": system_prompt,
             },
             {
                 "role": "user",

@@ -96,6 +96,14 @@ class IntentService:
         llm_need = await extractor.extract(normalized_text, image_info, history_context)
         return llm_need or rule_need
 
+    def extract_by_rules(
+        self,
+        text: str,
+        image_info: dict | None = None,
+        history_context: dict | None = None,
+    ) -> StructuredNeed:
+        return self._extract_by_rules(text or "", image_info or {}, history_context or {})
+
     def _extract_by_rules(
         self,
         normalized_text: str,

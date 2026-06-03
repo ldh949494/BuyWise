@@ -7,16 +7,16 @@ from typing import Any, Protocol
 
 
 class AIModelGateway(Protocol):
-    async def chat(self, messages: list[dict]) -> str:
+    async def chat(self, messages: list[dict], *, max_tokens: int | None = None) -> str:
         ...
 
-    def stream_chat(self, messages: list[dict]) -> AsyncIterator[str]:
+    def stream_chat(self, messages: list[dict], *, max_tokens: int | None = None) -> AsyncIterator[str]:
         ...
 
-    async def generate_recommendation(self, need: Any, products: list[Any]) -> str:
+    async def generate_recommendation(self, need: Any, products: list[Any], **kwargs: Any) -> str:
         ...
 
-    def stream_recommendation(self, need: Any, products: list[Any]) -> AsyncIterator[str]:
+    def stream_recommendation(self, need: Any, products: list[Any], **kwargs: Any) -> AsyncIterator[str]:
         ...
 
     async def generate_clarify_question(self, need: Any) -> str:
