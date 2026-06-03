@@ -2,6 +2,10 @@ package com.buywise.android.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,6 +39,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -61,7 +67,11 @@ fun FloatingCompareBasket(
         horizontalAlignment = Alignment.End,
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        AnimatedVisibility(visible = state.isExpanded) {
+        AnimatedVisibility(
+            visible = state.isExpanded,
+            enter = fadeIn() + slideInVertically { it / 4 },
+            exit = fadeOut() + slideOutVertically { it / 4 },
+        ) {
             ExpandedBasket(
                 state = state,
                 onRemoveProduct = onRemoveProduct,
@@ -128,6 +138,7 @@ private fun ExpandedBasket(
     onClear: () -> Unit,
     onStartCompare: () -> Unit,
 ) {
+    val haptic = LocalHapticFeedback.current
     FloatingGlassCard(
         tone = FloatingGlassTone.Neutral,
         radius = 8.dp,
@@ -138,7 +149,13 @@ private fun ExpandedBasket(
                 Icon(Icons.AutoMirrored.Outlined.CompareArrows, contentDescription = null, tint = BuyWiseTheme.colors.primary)
                 Text("已选商品", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
                 Spacer(modifier = Modifier.weight(1f))
-                IconButton(onClick = onClear, modifier = Modifier.size(36.dp)) {
+                IconButton(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onClear()
+                    },
+                    modifier = Modifier.size(36.dp),
+                ) {
                     Icon(Icons.Outlined.DeleteSweep, contentDescription = "清空对比篮", tint = BuyWiseTheme.colors.muted)
                 }
             }
@@ -149,11 +166,23 @@ private fun ExpandedBasket(
                 BasketProductRow(product = product, onRemove = { onRemoveProduct(product) })
             }
             if (state.products.size < 2) {
-                OutlinedButton(onClick = onStartCompare, modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onStartCompare()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
                     Text("再选 1 件")
                 }
             } else {
-                Button(onClick = onStartCompare, modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onStartCompare()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
                     Icon(Icons.AutoMirrored.Outlined.CompareArrows, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("开始对比")
@@ -165,6 +194,7 @@ private fun ExpandedBasket(
 
 @Composable
 private fun BasketProductRow(product: Product, onRemove: () -> Unit) {
+    val haptic = LocalHapticFeedback.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -180,7 +210,13 @@ private fun BasketProductRow(product: Product, onRemove: () -> Unit) {
             )
             Text(product.price.displayPrice(), color = BuyWiseTheme.colors.primary, fontWeight = FontWeight.Bold)
         }
-        IconButton(onClick = onRemove, modifier = Modifier.size(34.dp)) {
+        IconButton(
+            onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onRemove()
+            },
+            modifier = Modifier.size(34.dp),
+        ) {
             Icon(Icons.Outlined.Close, contentDescription = "移除商品", tint = BuyWiseTheme.colors.muted)
         }
     }

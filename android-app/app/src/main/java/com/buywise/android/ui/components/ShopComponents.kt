@@ -36,7 +36,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -70,6 +72,7 @@ fun ProductCard(
 ) {
     var comparePressed by remember { mutableStateOf(false) }
     val motionEnabled = rememberBuyWiseMotionEnabled()
+    val haptic = LocalHapticFeedback.current
     val compareScale by animateFloatAsState(
         targetValue = if (comparePressed && motionEnabled) 0.94f else 1f,
         label = "productCompareButtonScale",
@@ -149,6 +152,7 @@ fun ProductCard(
                     Button(
                         onClick = {
                             comparePressed = true
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             onToggleCompare()
                         },
                         modifier = Modifier.fillMaxWidth().scale(compareScale),
@@ -161,6 +165,7 @@ fun ProductCard(
                     OutlinedButton(
                         onClick = {
                             comparePressed = true
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             onToggleCompare()
                         },
                         modifier = Modifier.fillMaxWidth().scale(compareScale),

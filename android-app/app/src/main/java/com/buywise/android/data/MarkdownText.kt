@@ -8,6 +8,7 @@ internal fun String.cleanMarkdownText(): String =
         .map { line -> line.cleanMarkdownLine() }
         .filter { it.isNotBlank() }
         .joinToString(" ")
+        .replace(Regex("""[*_~]{1,3}"""), "")
         .replace(Regex("""\s+"""), " ")
         .trim()
 
@@ -19,5 +20,5 @@ private fun String.cleanMarkdownLine(): String =
         .removePrefix(">")
         .trim()
         .replace(Regex("""^#{1,6}\s*"""), "")
-        .replace(Regex("""^[-*+]\s+"""), "")
+        .replace(Regex("""^[-*+]\s*"""), "")
         .replace(Regex("""^\d+[.)]\s+"""), "")

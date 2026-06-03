@@ -52,6 +52,7 @@ import com.buywise.android.data.GuideChatMessage
 import com.buywise.android.data.GuideChatRole
 import com.buywise.android.data.GuideState
 import com.buywise.android.data.Recommendation
+import com.buywise.android.data.cleanMarkdownText
 import com.buywise.android.ui.BuyWiseTheme
 import com.buywise.android.ui.components.FloatingGlassCard
 import com.buywise.android.ui.components.FloatingGlassTone
@@ -170,6 +171,7 @@ private fun AssistantBubble(
     recommendations: List<Recommendation>,
     onProductClick: (String) -> Unit,
 ) {
+    val displayText = text.cleanMarkdownText().ifBlank { text }
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Surface(color = BuyWiseTheme.colors.primarySoft, shape = CircleShape, modifier = Modifier.size(34.dp)) {
             Icon(Icons.Outlined.SmartToy, contentDescription = null, tint = BuyWiseTheme.colors.primary, modifier = Modifier.padding(7.dp))
@@ -177,7 +179,7 @@ private fun AssistantBubble(
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Surface(color = BuyWiseTheme.colors.panel, shape = RoundedCornerShape(18.dp, 18.dp, 18.dp, 4.dp), shadowElevation = 1.dp) {
                 Text(
-                    text,
+                    displayText,
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                     color = BuyWiseTheme.colors.ink,
                     style = MaterialTheme.typography.bodyMedium,

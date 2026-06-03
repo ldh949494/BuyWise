@@ -29,6 +29,7 @@ import com.buywise.android.data.FeedbackPrompt
 import com.buywise.android.data.FeedbackUiState
 import com.buywise.android.data.HomeState
 import com.buywise.android.data.Product
+import com.buywise.android.data.cleanMarkdownText
 import com.buywise.android.ui.BuyWiseTheme
 import com.buywise.android.ui.components.FloatingGlassCard
 import com.buywise.android.ui.components.FloatingGlassTone
@@ -127,6 +128,7 @@ fun HomeScreen(
 
 @Composable
 fun InfoPanel(icon: @Composable () -> Unit, title: String, body: String) {
+    val displayBody = body.cleanMarkdownText().ifBlank { body }
     FloatingGlassCard(tone = FloatingGlassTone.Success, contentPadding = 16.dp) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -139,7 +141,7 @@ fun InfoPanel(icon: @Composable () -> Unit, title: String, body: String) {
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
-                Text(body, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
+                Text(displayBody, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
             }
         }
     }
