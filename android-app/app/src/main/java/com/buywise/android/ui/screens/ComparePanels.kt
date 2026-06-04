@@ -26,11 +26,14 @@ import com.buywise.android.data.CompareRow
 import com.buywise.android.data.CompareState
 import com.buywise.android.data.Product
 import com.buywise.android.ui.BuyWiseDimens
+import com.buywise.android.ui.BuyWiseIcons
 import com.buywise.android.ui.BuyWiseTheme
 import com.buywise.android.ui.components.EvidenceTag
 import com.buywise.android.ui.components.EvidenceTone
+import com.buywise.android.ui.components.FloatingAssetBadge
 import com.buywise.android.ui.components.FloatingGlassCard
 import com.buywise.android.ui.components.FloatingGlassTone
+import com.buywise.android.ui.components.TactileIconTone
 import com.buywise.android.ui.displayPrice
 import com.buywise.android.ui.displayRating
 import com.buywise.android.ui.shortName
@@ -45,9 +48,18 @@ fun CompareDecisionCard(state: CompareState) {
         contentPadding = 16.dp,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.Outlined.EmojiEvents, contentDescription = null, tint = BuyWiseTheme.colors.accent)
-                Text("AI 对比结论", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                FloatingAssetBadge(
+                    icon = BuyWiseIcons.Trophy,
+                    contentDescription = null,
+                    tone = TactileIconTone.Warm,
+                    size = 46.dp,
+                    iconSize = 24.dp,
+                )
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("AI 对比结论", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
+                    Text("按价格、评分和场景适配排序", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
+                }
             }
             Text(
                 state.summary ?: "BuyWise 会优先比较价格、评分和明确的商品差异，帮助你缩小候选范围。",

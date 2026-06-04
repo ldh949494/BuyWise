@@ -81,7 +81,8 @@ def test_import_products_upserts_rows_by_sku() -> None:
     assert first_result == {"inserted": 50, "updated": 0, "failed": 0}
     assert second_result == {"inserted": 0, "updated": 50, "failed": 0}
     assert len(products) == 50
-    assert products[0].sku == "bulk-product-001"
+    assert products[0].sku == "beta-keyboard-keychron-k3-max-se"
+    assert products[0].image_url.startswith("https://")
     assert products[0].name
     assert isinstance(products[0].specs, dict)
     assert isinstance(products[0].tags, list)

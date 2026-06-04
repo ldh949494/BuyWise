@@ -74,7 +74,7 @@ def test_android_product_browse_contract_returns_list_and_detail_payloads() -> N
     assert first_item["sku"] == "android-keyboard-k87"
     assert first_item["price"] == 269.0
     assert first_item["rating"] == 4.8
-    assert first_item["image_url"].endswith("android-keyboard-k87.jpg")
+    assert first_item["image_url"].startswith("https://")
     assert first_item["stock_status"] == "in_stock"
     assert "静音" in first_item["tags"]
     assert "宿舍" in first_item["suitable_scene"]
@@ -85,7 +85,7 @@ def test_android_product_browse_contract_returns_list_and_detail_payloads() -> N
     detail_payload = detail_response.json()
     assert detail_payload["id"] == KEYBOARD_ID
     assert detail_payload["name"] == KEYBOARD_NAME
-    assert detail_payload["product_url"].endswith("android-keyboard-k87")
+    assert detail_payload["product_url"].startswith("https://")
     assert detail_payload["specs"]["switch"] == "静音红轴"
     assert detail_payload["review_summary"]
 

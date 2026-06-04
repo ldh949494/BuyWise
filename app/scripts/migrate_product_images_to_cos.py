@@ -3,7 +3,7 @@
 import argparse
 import hashlib
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from io import BytesIO
 from typing import Callable
 from urllib.parse import unquote, urlparse
@@ -26,9 +26,10 @@ class MigrationSummary:
     urls_migrated: int = 0
     urls_skipped: int = 0
     urls_failed: int = 0
+    url_failures: list[dict[str, str]] = field(default_factory=list)
 
-    def as_dict(self) -> dict[str, int]:
-        return {
+    def as_dict(self) -> dict[str, int | list[dict[str, str]]]:
+        payload: dict[str, int | list[dict[str, str]]] = {
             "products_seen": self.products_seen,
             "products_updated": self.products_updated,
             "urls_seen": self.urls_seen,
@@ -36,6 +37,20 @@ class MigrationSummary:
             "urls_skipped": self.urls_skipped,
             "urls_failed": self.urls_failed,
         }
+        if self.url_failures:
+            payload["url_failures"] = self.url_failures
+        return payload
+
+    def record_failure(self, product: Product, url: str, exc: Exception) -> None:
+        self.urls_failed += 1
+        self.url_failures.append(
+            {
+                "product_id": str(product.id),
+                "sku": str(product.sku or ""),
+                "url": url,
+                "error": f"{type(exc).__name__}: {exc}",
+            }
+        )
 
 
 ImageDownloader = Callable[[str], DownloadedImage]
@@ -156,8 +171,8 @@ def _migrate_single_url(
         cos_url = _upload_url_to_cos(product, url, storage_client=storage_client, downloader=downloader)
         summary.urls_migrated += 1
         return cos_url
-    except Exception:
-        summary.urls_failed += 1
+    except Exception as exc:
+        summary.record_failure(product, url, exc)
         return None
 
 

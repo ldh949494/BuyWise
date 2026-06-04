@@ -1,7 +1,6 @@
 package com.buywise.android.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,30 +8,25 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CameraAlt
-import androidx.compose.material.icons.outlined.ImageSearch
-import androidx.compose.material.icons.outlined.Inventory2
-import androidx.compose.material.icons.outlined.PhotoLibrary
-import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.buywise.android.data.VisionResult
+import com.buywise.android.ui.BuyWiseIcons
 import com.buywise.android.ui.BuyWiseDimens
 import com.buywise.android.ui.BuyWiseTheme
+import com.buywise.android.ui.components.FloatingAssetBadge
 import com.buywise.android.ui.components.FloatingGlassCard
 import com.buywise.android.ui.components.FloatingGlassTone
+import com.buywise.android.ui.components.TactileIconTone
 
 @Composable
 fun UploadPanel(
@@ -51,65 +45,78 @@ fun UploadPanel(
         contentPadding = 20.dp,
     ) {
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Surface(color = BuyWiseTheme.colors.accentSoft, shape = RoundedCornerShape(14.dp), modifier = Modifier.size(56.dp)) {
-                    Icon(Icons.Outlined.CameraAlt, contentDescription = null, tint = BuyWiseTheme.colors.accent, modifier = Modifier.padding(14.dp))
-                }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("识别商品", style = MaterialTheme.typography.titleLarge, color = BuyWiseTheme.colors.ink)
-                    Text(
-                        selectedImageName?.let { "已选择：$it" } ?: "选择图片或用语音描述需求，再带入导购推荐。",
-                        color = BuyWiseTheme.colors.muted,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                    Text("用图片或音频搜索", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
+                    Text(selectedImageName?.let { "已选择：$it" } ?: "上传图片或描述声音，生成可带入导购的需求。", color = BuyWiseTheme.colors.muted)
                 }
+                FloatingAssetBadge(
+                    icon = BuyWiseIcons.Camera,
+                    contentDescription = null,
+                    tone = TactileIconTone.Primary,
+                    size = 54.dp,
+                    iconSize = 28.dp,
+                )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxWidth()) {
-                Surface(
-                    color = BuyWiseTheme.colors.panelAlt,
-                    shape = RoundedCornerShape(16.dp),
-                    border = CardDefaults.outlinedCardBorder(),
-                    modifier = Modifier.size(width = 150.dp, height = 150.dp),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Outlined.ImageSearch, contentDescription = null, tint = BuyWiseTheme.colors.primary, modifier = Modifier.size(42.dp))
-                    }
-                }
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Button(onClick = onRunVisionDemo, enabled = !isLoading, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Outlined.ImageSearch, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("识别图片")
-                    }
-                    OutlinedButton(onClick = onRunSpeechDemo, enabled = !isLoading, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Outlined.CameraAlt, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("语音描述")
-                    }
-                    FilledTonalButton(onClick = onUseQuery, enabled = hasQuery && !isLoading, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Outlined.Inventory2, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("带入导购")
-                    }
-                }
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                UploadModeCard(
+                    title = "上传图片",
+                    subtitle = "点击上传",
+                    icon = BuyWiseIcons.Image,
+                    modifier = Modifier.weight(1f),
+                    enabled = !isLoading,
+                    onClick = onPickImage,
+                )
+                UploadModeCard(
+                    title = "上传音频",
+                    subtitle = "点击录制",
+                    icon = BuyWiseIcons.Speech,
+                    modifier = Modifier.weight(1f),
+                    enabled = !isLoading,
+                    onClick = onRunSpeechDemo,
+                )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedButton(onClick = onPickImage, enabled = !isLoading, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Outlined.PhotoLibrary, contentDescription = null)
+                    Icon(BuyWiseIcons.PhotoLibrary, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("相册")
                 }
                 OutlinedButton(onClick = onTakePhoto, enabled = !isLoading, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Outlined.CameraAlt, contentDescription = null)
+                    Icon(BuyWiseIcons.Camera, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("拍照")
                 }
-                OutlinedButton(onClick = onRunVisionDemo, enabled = !isLoading, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Outlined.Refresh, contentDescription = null)
+                FilledTonalButton(onClick = onUseQuery, enabled = hasQuery && !isLoading, modifier = Modifier.weight(1f)) {
+                    Icon(BuyWiseIcons.Guide, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("重识别")
+                    Text("导购")
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun UploadModeCard(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    FloatingGlassCard(
+        modifier = modifier,
+        tone = FloatingGlassTone.Neutral,
+        radius = 16.dp,
+        contentPadding = 16.dp,
+        onClick = if (enabled) onClick else null,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FloatingAssetBadge(icon = icon, contentDescription = null, size = 54.dp, iconSize = 26.dp)
+            Text(title, color = BuyWiseTheme.colors.ink, style = MaterialTheme.typography.labelMedium)
+            Text(subtitle, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
         }
     }
 }
