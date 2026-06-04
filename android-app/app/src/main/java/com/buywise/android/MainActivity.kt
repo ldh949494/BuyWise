@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
@@ -28,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -43,6 +45,7 @@ import com.buywise.android.ui.screens.AccountScreen
 import com.buywise.android.ui.screens.GuideChatScreen
 import com.buywise.android.ui.screens.GuideScreen
 import com.buywise.android.ui.screens.HomeScreen
+import com.buywise.android.ui.screens.LandingScreen
 import com.buywise.android.ui.screens.ProductDetailScreen
 import com.buywise.android.ui.screens.VisionScreen
 import com.buywise.android.viewmodel.BuyWiseViewModel
@@ -69,8 +72,8 @@ private fun BuyWiseRoot(
     val viewModel: BuyWiseViewModel = viewModel(factory = BuyWiseViewModel.factory(context))
     val destinations = bottomDestinations()
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
-    val showBottomBar = currentRoute?.startsWith("detail/") != true
-    val showCompareBasket = currentRoute != "compare"
+    val showBottomBar = currentRoute != null && currentRoute != "landing" && currentRoute.startsWith("detail/") != true
+    val showCompareBasket = currentRoute != null && currentRoute != "landing" && currentRoute != "compare"
     val snackbarHostState = remember { SnackbarHostState() }
     val basketMessage = viewModel.compareBasketState.message
     val scope = rememberCoroutineScope()
@@ -121,6 +124,9 @@ private fun BuyWiseRoot(
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar(
+                    modifier = Modifier
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                        .clip(RoundedCornerShape(22.dp)),
                     containerColor = BuyWiseTheme.colors.panel,
                     tonalElevation = NavigationBarDefaults.Elevation,
                 ) {
@@ -151,7 +157,19 @@ private fun BuyWiseRoot(
                 .background(BuyWiseTheme.colors.surface)
                 .padding(padding),
         ) {
-            NavHost(navController = navController, startDestination = "home") {
+            NavHost(navController = navController, startDestination = "landing") {
+                composable("landing") {
+                    LandingScreen(
+                        onStart = {
+                            navController.navigate("home") {
+                                popUpTo("landing") {
+                                    inclusive = true
+                                }
+                                launchSingleTop = true
+                            }
+                        },
+                    )
+                }
                 composable("home") {
                     HomeScreen(
                         state = viewModel.homeState,

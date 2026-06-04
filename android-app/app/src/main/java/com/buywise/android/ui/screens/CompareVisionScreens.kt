@@ -1,6 +1,7 @@
 package com.buywise.android.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.CompareArrows
 import androidx.compose.material.icons.outlined.CameraAlt
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.Icon
@@ -38,15 +40,23 @@ import com.buywise.android.data.CompareState
 import com.buywise.android.data.Product
 import com.buywise.android.data.VisionState
 import com.buywise.android.ui.BuyWiseDimens
+import com.buywise.android.ui.BuyWiseIcons
 import com.buywise.android.ui.BuyWiseTheme
 import com.buywise.android.ui.displayPrice
 import com.buywise.android.ui.displayRating
 import com.buywise.android.ui.shortName
+import com.buywise.android.ui.components.AdvicePanel
+import com.buywise.android.ui.components.CategoryShortcut
+import com.buywise.android.ui.components.EvidenceTag
+import com.buywise.android.ui.components.EvidenceTone
 import com.buywise.android.ui.components.ProductCard
 import com.buywise.android.ui.components.ProductImagePreview
-import com.buywise.android.ui.components.SectionTitle
 import com.buywise.android.ui.components.FloatingGlassCard
 import com.buywise.android.ui.components.FloatingGlassTone
+import com.buywise.android.ui.components.ScoreBadge
+import com.buywise.android.ui.components.ShowcaseProductCard
+import com.buywise.android.ui.components.ShowcaseTopBar
+import com.buywise.android.ui.components.TactileIconTone
 
 @Composable
 fun CompareScreen(
@@ -57,23 +67,17 @@ fun CompareScreen(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(18.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    SectionTitle("商品对比", "看清价格、评分和关键差异。")
-                }
-                OutlinedButton(onClick = onRefresh, enabled = !state.isLoading) {
-                    Icon(Icons.Outlined.Refresh, contentDescription = null)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("刷新")
-                }
-            }
+            ShowcaseTopBar(
+                title = "商品对比",
+                onBack = null,
+                leadingIcon = BuyWiseIcons.Compare,
+                actionIcon = Icons.Outlined.Refresh,
+                actionDescription = "刷新对比",
+                onAction = onRefresh,
+            )
         }
         if (state.isLoading) {
             item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
@@ -82,16 +86,20 @@ fun CompareScreen(
             item { ErrorPanel(message = message, actionLabel = "刷新", onAction = onRefresh) }
         }
         if (state.products.isNotEmpty()) {
-            item { CompareCandidateStrip(products = state.products, onProductClick = onProductClick) }
+            item { Text("${state.products.size} 个商品", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold) }
+            item { CompareScoreStrip(products = state.products, onProductClick = onProductClick) }
         }
         item { CompareDecisionCard(state = state) }
         item { CompareTable(rows = state.rows, products = state.products) }
-        item { SectionTitle("候选商品", "点击商品查看详情。") }
         if (!state.isLoading && state.products.isEmpty()) {
             item { Text("暂无可对比商品。", color = BuyWiseTheme.colors.muted) }
         }
-        items(state.products) { product ->
-            ProductCard(product = product, onClick = { onProductClick(product.id) })
+        item { CompareProsCons(products = state.products) }
+        item {
+            AdvicePanel(
+                title = state.products.firstOrNull { it.id == state.winnerId }?.let { "优先推荐：${it.shortName()}" } ?: "优先推荐",
+                body = state.summary ?: "综合价格、评分和当前购物需求，优先看整体价值更稳的候选。",
+            )
         }
     }
 }
@@ -113,7 +121,16 @@ fun VisionScreen(
         contentPadding = PaddingValues(18.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item { SectionTitle("识别商品", "用图片或语音生成购物需求。") }
+        item {
+            ShowcaseTopBar(
+                title = "图片搜索",
+                onBack = null,
+                leadingIcon = BuyWiseIcons.Vision,
+                actionIcon = BuyWiseIcons.Guide,
+                actionDescription = "历史识别",
+                onAction = onRunVisionDemo,
+            )
+        }
         item {
             UploadPanel(
                 isLoading = state.isLoading,
@@ -133,32 +150,79 @@ fun VisionScreen(
             item { ErrorPanel(message = message) }
         }
         item {
-            InfoPanel(
-                icon = { Icon(Icons.Outlined.Inventory2, contentDescription = null) },
-                title = "识别结果",
-                body = state.result.displayVisionSummary(state.recognizedQuery),
+            VisionResultCard(
+                state = state,
+                onUseQuery = onUseQuery,
             )
         }
-        state.speechText?.let { text ->
+        if (state.speechText != null) {
             item {
                 InfoPanel(
                     icon = { Icon(Icons.Outlined.CameraAlt, contentDescription = null) },
                     title = "语音识别结果",
-                    body = text,
+                    body = state.speechText,
                 )
             }
         }
-        item { SectionTitle("关联商品", "可带入导购继续推荐。") }
+        item { Text("相似商品", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold) }
         if (state.result.similarProducts.isEmpty()) {
             item { Text("识别图片后，会展示同类候选商品。", color = BuyWiseTheme.colors.muted) }
         }
         items(state.result.similarProducts) { product ->
-            ProductCard(
+            SimilarPickRow(
                 product = product,
-                onClick = { onProductClick(product.id) },
                 isInCompareBasket = isInCompareBasket(product.id),
+                onProductClick = { onProductClick(product.id) },
                 onToggleCompare = { onToggleCompare(product) },
             )
+        }
+    }
+}
+
+@Composable
+private fun CompareScoreStrip(products: List<Product>, onProductClick: (String) -> Unit) {
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        items(products.take(4)) { product ->
+            ShowcaseProductCard(
+                product = product,
+                onClick = { onProductClick(product.id) },
+                modifier = Modifier.width(124.dp),
+                selected = product == products.firstOrNull(),
+                score = product.recommendationScore?.toInt() ?: product.rating?.times(18)?.toInt()?.coerceIn(70, 92),
+                showFavorite = false,
+            )
+        }
+    }
+}
+
+@Composable
+private fun CompareProsCons(products: List<Product>) {
+    if (products.isEmpty()) return
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        FloatingGlassCard(
+            modifier = Modifier.weight(1f),
+            tone = FloatingGlassTone.Success,
+            radius = 14.dp,
+            contentPadding = 12.dp,
+        ) {
+            Text("优点", color = BuyWiseTheme.colors.secondary, fontWeight = FontWeight.Bold)
+            products.first().advantages.take(4).ifEmpty { listOf("价格稳定", "评分可靠") }.forEach {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = BuyWiseTheme.colors.secondary, modifier = Modifier.size(14.dp))
+                    Text(it, color = BuyWiseTheme.colors.ink, style = MaterialTheme.typography.labelMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
+        FloatingGlassCard(
+            modifier = Modifier.weight(1f),
+            tone = FloatingGlassTone.Warm,
+            radius = 14.dp,
+            contentPadding = 12.dp,
+        ) {
+            Text("注意", color = BuyWiseTheme.colors.danger, fontWeight = FontWeight.Bold)
+            products.first().cautions.take(4).ifEmpty { listOf("确认尺寸", "查看售后") }.forEach {
+                Text("- $it", color = BuyWiseTheme.colors.ink, style = MaterialTheme.typography.labelMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
         }
     }
 }
@@ -192,6 +256,74 @@ private fun CompareCandidateStrip(products: List<Product>, onProductClick: (Stri
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun VisionResultCard(state: VisionState, onUseQuery: () -> Unit) {
+    FloatingGlassCard(
+        tone = FloatingGlassTone.Neutral,
+        radius = 16.dp,
+        contentPadding = 14.dp,
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            ProductImagePreview(
+                product = state.result.similarProducts.firstOrNull()
+                    ?: Product("0", state.result.title, null, null, null, null, null, "", emptyList(), emptyList(), emptyList()),
+                modifier = Modifier.size(width = 92.dp, height = 76.dp),
+            )
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Text("识别结果", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
+                Text("品类", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
+                Text(
+                    state.result.title.takeIf { it.isNotBlank() } ?: "机械键盘",
+                    color = BuyWiseTheme.colors.ink,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    EvidenceTag("${state.result.confidence}% 匹配", tone = EvidenceTone.Success)
+                    EvidenceTag("RGB 灯效", tone = EvidenceTone.Info)
+                }
+                OutlinedButton(onClick = onUseQuery, enabled = !state.recognizedQuery.isNullOrBlank()) {
+                    Text("查找此类商品")
+                }
+            }
+            ScoreBadge(state.result.confidence.coerceIn(0, 99), size = 48.dp)
+        }
+    }
+}
+
+@Composable
+private fun SimilarPickRow(
+    product: Product,
+    isInCompareBasket: Boolean,
+    onProductClick: () -> Unit,
+    onToggleCompare: () -> Unit,
+) {
+    FloatingGlassCard(
+        tone = if (isInCompareBasket) FloatingGlassTone.Primary else FloatingGlassTone.Neutral,
+        radius = 14.dp,
+        contentPadding = 10.dp,
+        onClick = onProductClick,
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            ProductImagePreview(product = product, modifier = Modifier.size(width = 76.dp, height = 54.dp))
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(product.shortName(), color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(product.price.displayPrice(), color = BuyWiseTheme.colors.ink, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    product.tags.take(3).forEach { EvidenceTag(it, tone = EvidenceTone.Info) }
+                }
+            }
+            CategoryShortcut(
+                label = "",
+                icon = BuyWiseIcons.Compare,
+                tone = if (isInCompareBasket) TactileIconTone.SolidPrimary else TactileIconTone.Neutral,
+                onClick = onToggleCompare,
+            )
         }
     }
 }

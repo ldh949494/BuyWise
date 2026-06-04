@@ -46,6 +46,10 @@ import com.buywise.android.ui.displayRating
 import com.buywise.android.ui.components.ChatRecommendationCard
 import com.buywise.android.ui.components.EvidenceTag
 import com.buywise.android.ui.components.EvidenceTone
+import com.buywise.android.ui.components.FloatingGlassCard
+import com.buywise.android.ui.components.FloatingGlassTone
+import com.buywise.android.ui.components.ShowcaseTopBar
+import com.buywise.android.ui.components.StatusChecklistRow
 import com.buywise.android.ui.components.TactileIconTile
 import com.buywise.android.ui.components.TactileIconTone
 
@@ -77,6 +81,7 @@ fun GuideChatScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item { OpeningAssistantMessage(state = state) }
+            item { GuideProcessingCard(state = state) }
             items(state.chatMessages) { message ->
                 ChatMessageRow(message = message, onProductClick = onProductClick)
             }
@@ -99,20 +104,13 @@ fun GuideChatScreen(
 
 @Composable
 private fun GuideChatTopBar(onBack: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IconButton(onClick = onBack) {
-            Icon(BuyWiseIcons.Back, contentDescription = "返回导购工作台")
-        }
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text("对话导购助手", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
-            Text("继续追问商品区别、推荐理由或细节", color = BuyWiseTheme.colors.muted)
-        }
-        TactileIconTile(icon = BuyWiseIcons.Guide, contentDescription = null, tone = TactileIconTone.Primary)
-    }
+    ShowcaseTopBar(
+        title = "AI 导购",
+        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+        onBack = onBack,
+        actionIcon = BuyWiseIcons.Guide,
+        actionDescription = "导购助手",
+    )
 }
 
 @Composable
@@ -122,6 +120,34 @@ private fun OpeningAssistantMessage(state: GuideState) {
         else -> "告诉我预算、用途和偏好，我可以帮你筛选商品。"
     }
     AssistantBubble(text = text, recommendations = emptyList(), onProductClick = {})
+}
+
+@Composable
+private fun GuideProcessingCard(state: GuideState) {
+    FloatingGlassCard(
+        tone = FloatingGlassTone.Neutral,
+        radius = 16.dp,
+        contentPadding = 14.dp,
+        elevated = false,
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            StatusChecklistRow(
+                label = "理解需求",
+                status = if (state.query.isNotBlank()) "完成" else "等待中",
+                done = state.query.isNotBlank(),
+            )
+            StatusChecklistRow(
+                label = "检索商品",
+                status = if (state.recommendations.isNotEmpty()) "完成" else if (state.isStreaming) "搜索中" else "待开始",
+                done = state.recommendations.isNotEmpty(),
+            )
+            StatusChecklistRow(
+                label = "生成回答",
+                status = if (state.isStreaming) "生成中" else if (state.recommendations.isNotEmpty()) "完成" else "待开始",
+                done = !state.isStreaming && state.recommendations.isNotEmpty(),
+            )
+        }
+    }
 }
 
 @Composable
