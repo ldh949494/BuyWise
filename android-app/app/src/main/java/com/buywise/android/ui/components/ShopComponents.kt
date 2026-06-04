@@ -15,9 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.outlined.Image
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.CompareArrows
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.buywise.android.data.Product
 import com.buywise.android.ui.BuyWiseDimens
+import com.buywise.android.ui.BuyWiseIcons
 import com.buywise.android.ui.BuyWiseTheme
 import com.buywise.android.ui.displayPrice
 import com.buywise.android.ui.displayRating
@@ -157,7 +155,7 @@ fun ProductCard(
                         },
                         modifier = Modifier.fillMaxWidth().scale(compareScale),
                     ) {
-                        Icon(Icons.AutoMirrored.Outlined.CompareArrows, contentDescription = null)
+                        Icon(BuyWiseIcons.Compare, contentDescription = null)
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("已加入对比")
                     }
@@ -170,7 +168,7 @@ fun ProductCard(
                         },
                         modifier = Modifier.fillMaxWidth().scale(compareScale),
                     ) {
-                        Icon(Icons.AutoMirrored.Outlined.CompareArrows, contentDescription = null)
+                        Icon(BuyWiseIcons.Compare, contentDescription = null)
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("+ 加入对比")
                     }
@@ -207,7 +205,7 @@ fun ProductImagePreview(product: Product, modifier: Modifier = Modifier) {
 @Composable
 private fun ImagePlaceholder(product: Product) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Icon(Icons.Outlined.Image, contentDescription = null, tint = BuyWiseTheme.colors.muted)
+        Icon(BuyWiseIcons.Image, contentDescription = null, tint = BuyWiseTheme.colors.muted)
         Text(
             product.brand ?: product.category ?: "商品图片",
             color = BuyWiseTheme.colors.muted,
