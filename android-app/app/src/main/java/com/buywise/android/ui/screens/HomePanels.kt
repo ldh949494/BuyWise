@@ -8,28 +8,25 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.CompareArrows
-import androidx.compose.material.icons.outlined.AutoAwesome
-import androidx.compose.material.icons.outlined.ImageSearch
-import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.buywise.android.data.Product
 import com.buywise.android.ui.BuyWiseDimens
+import com.buywise.android.ui.BuyWiseIcons
 import com.buywise.android.ui.BuyWiseTheme
 import com.buywise.android.ui.components.FloatingGlassCard
 import com.buywise.android.ui.components.FloatingGlassTone
+import com.buywise.android.ui.components.TactileIconTile
+import com.buywise.android.ui.components.TactileIconTone
 import com.buywise.android.ui.displayPrice
 
 @Composable
@@ -41,37 +38,25 @@ fun HeroPanel(title: String, subtitle: String, previewProducts: List<Product>, o
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Surface(
-                    color = BuyWiseTheme.colors.panel,
-                    shape = RoundedCornerShape(12.dp),
-                    shadowElevation = 0.dp,
-                    modifier = Modifier.size(64.dp),
-                ) {
-                    Icon(
-                        Icons.Outlined.ShoppingBag,
-                        contentDescription = null,
-                        tint = BuyWiseTheme.colors.primary,
-                        modifier = Modifier.padding(16.dp),
-                    )
-                }
+                TactileIconTile(
+                    icon = BuyWiseIcons.Shopping,
+                    contentDescription = null,
+                    size = 64.dp,
+                    iconSize = 30.dp,
+                    tone = TactileIconTone.Primary,
+                )
                 Column {
                     Text("BuyWise", color = BuyWiseTheme.colors.primary, style = MaterialTheme.typography.titleLarge)
                     Text("智能购物决策助手", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
                 }
             }
-            Surface(
-                color = BuyWiseTheme.colors.panel,
-                shape = RoundedCornerShape(12.dp),
-                shadowElevation = 0.dp,
-                modifier = Modifier.size(58.dp),
-            ) {
-                Icon(
-                    Icons.Outlined.AutoAwesome,
-                    contentDescription = null,
-                    tint = BuyWiseTheme.colors.primary,
-                    modifier = Modifier.padding(15.dp),
-                )
-            }
+            TactileIconTile(
+                icon = BuyWiseIcons.Guide,
+                contentDescription = null,
+                size = 58.dp,
+                iconSize = 28.dp,
+                tone = TactileIconTone.Neutral,
+            )
         }
         FloatingGlassCard(
             tone = FloatingGlassTone.Primary,
@@ -82,7 +67,7 @@ fun HeroPanel(title: String, subtitle: String, previewProducts: List<Product>, o
                 Text(title, style = MaterialTheme.typography.titleLarge, color = BuyWiseTheme.colors.ink)
                 Text(subtitle, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
                 Button(onClick = onOpenGuide) {
-                    Icon(Icons.Outlined.AutoAwesome, contentDescription = null)
+                    Icon(BuyWiseIcons.Guide, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("开始导购")
                 }
@@ -136,7 +121,7 @@ private fun PreviewProductRow(product: Product) {
 }
 
 @Composable
-private fun CapabilityPill(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+private fun CapabilityPill(label: String, icon: ImageVector) {
     FloatingGlassCard(
         tone = FloatingGlassTone.Neutral,
         radius = 999.dp,
@@ -166,14 +151,14 @@ fun QuickEntryPanel(
             StatusTile(
                 label = "导购推荐",
                 value = "描述需求",
-                icon = Icons.Outlined.AutoAwesome,
+                icon = BuyWiseIcons.Guide,
                 modifier = Modifier.weight(1f),
                 onClick = onOpenGuide,
             )
             StatusTile(
                 label = "商品对比",
                 value = "比较候选",
-                icon = Icons.AutoMirrored.Outlined.CompareArrows,
+                icon = BuyWiseIcons.Compare,
                 modifier = Modifier.weight(1f),
                 onClick = onOpenCompare,
             )
@@ -188,9 +173,11 @@ fun QuickEntryPanel(
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Surface(color = BuyWiseTheme.colors.accentSoft, shape = RoundedCornerShape(14.dp), modifier = Modifier.size(52.dp)) {
-                    Icon(Icons.Outlined.ImageSearch, contentDescription = null, tint = BuyWiseTheme.colors.accent, modifier = Modifier.padding(14.dp))
-                }
+                TactileIconTile(
+                    icon = BuyWiseIcons.Vision,
+                    contentDescription = null,
+                    tone = TactileIconTone.Warm,
+                )
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("识别商品", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
                     Text("用图片或语音生成需求，再带入导购推荐。", color = BuyWiseTheme.colors.muted)
@@ -205,7 +192,7 @@ fun QuickEntryPanel(
 private fun StatusTile(
     label: String,
     value: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
@@ -220,9 +207,7 @@ private fun StatusTile(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Surface(color = BuyWiseTheme.colors.primarySoft, shape = RoundedCornerShape(14.dp), modifier = Modifier.size(48.dp)) {
-                Icon(icon, contentDescription = null, tint = BuyWiseTheme.colors.primary, modifier = Modifier.padding(13.dp))
-            }
+            TactileIconTile(icon = icon, contentDescription = null, size = 48.dp, iconSize = 22.dp)
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(label, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
                 Text(value, color = BuyWiseTheme.colors.ink, style = MaterialTheme.typography.titleMedium)

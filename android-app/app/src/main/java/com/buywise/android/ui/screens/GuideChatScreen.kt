@@ -1,33 +1,18 @@
 package com.buywise.android.ui.screens
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.Send
-import androidx.compose.material.icons.outlined.AutoAwesome
-import androidx.compose.material.icons.outlined.CameraAlt
-import androidx.compose.material.icons.outlined.ImageSearch
-import androidx.compose.material.icons.outlined.Mic
-import androidx.compose.material.icons.outlined.PhotoLibrary
-import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.DropdownMenu
@@ -36,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
@@ -53,11 +39,15 @@ import com.buywise.android.data.GuideChatRole
 import com.buywise.android.data.GuideState
 import com.buywise.android.data.Recommendation
 import com.buywise.android.data.cleanMarkdownText
+import com.buywise.android.ui.BuyWiseIcons
 import com.buywise.android.ui.BuyWiseTheme
-import com.buywise.android.ui.components.FloatingGlassCard
-import com.buywise.android.ui.components.FloatingGlassTone
-import com.buywise.android.ui.components.ProductImagePreview
 import com.buywise.android.ui.displayPrice
+import com.buywise.android.ui.displayRating
+import com.buywise.android.ui.components.ChatRecommendationCard
+import com.buywise.android.ui.components.EvidenceTag
+import com.buywise.android.ui.components.EvidenceTone
+import com.buywise.android.ui.components.TactileIconTile
+import com.buywise.android.ui.components.TactileIconTone
 
 @Composable
 fun GuideChatScreen(
@@ -86,7 +76,7 @@ fun GuideChatScreen(
             contentPadding = PaddingValues(18.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            item { OpeningAssistantMessage(state = state, onProductClick = onProductClick) }
+            item { OpeningAssistantMessage(state = state) }
             items(state.chatMessages) { message ->
                 ChatMessageRow(message = message, onProductClick = onProductClick)
             }
@@ -115,25 +105,23 @@ private fun GuideChatTopBar(onBack: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回导购工作台")
+            Icon(BuyWiseIcons.Back, contentDescription = "返回导购工作台")
         }
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text("对话导购助手", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
             Text("继续追问商品区别、推荐理由或细节", color = BuyWiseTheme.colors.muted)
         }
-        Surface(color = BuyWiseTheme.colors.panel, shape = RoundedCornerShape(16.dp), shadowElevation = 4.dp, modifier = Modifier.size(52.dp)) {
-            Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = BuyWiseTheme.colors.primary, modifier = Modifier.padding(14.dp))
-        }
+        TactileIconTile(icon = BuyWiseIcons.Guide, contentDescription = null, tone = TactileIconTone.Primary)
     }
 }
 
 @Composable
-private fun OpeningAssistantMessage(state: GuideState, onProductClick: (String) -> Unit) {
+private fun OpeningAssistantMessage(state: GuideState) {
     val text = when {
         state.query.isNotBlank() -> "我已看到你的需求：${state.query}。你可以继续问我商品区别、推荐理由或细节。"
         else -> "告诉我预算、用途和偏好，我可以帮你筛选商品。"
     }
-    AssistantBubble(text = text, recommendations = state.recommendations, onProductClick = onProductClick)
+    AssistantBubble(text = text, recommendations = emptyList(), onProductClick = {})
 }
 
 @Composable
@@ -172,26 +160,118 @@ private fun AssistantBubble(
     onProductClick: (String) -> Unit,
 ) {
     val displayText = text.cleanMarkdownText().ifBlank { text }
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Surface(color = BuyWiseTheme.colors.primarySoft, shape = CircleShape, modifier = Modifier.size(34.dp)) {
-            Icon(Icons.Outlined.SmartToy, contentDescription = null, tint = BuyWiseTheme.colors.primary, modifier = Modifier.padding(7.dp))
-        }
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Surface(color = BuyWiseTheme.colors.panel, shape = RoundedCornerShape(18.dp, 18.dp, 18.dp, 4.dp), shadowElevation = 1.dp) {
-                Text(
-                    displayText,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                    color = BuyWiseTheme.colors.ink,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            TactileIconTile(
+                icon = BuyWiseIcons.Assistant,
+                contentDescription = null,
+                size = 34.dp,
+                iconSize = 17.dp,
+                rounded = true,
+                tone = TactileIconTone.Primary,
+            )
+            Surface(
+                modifier = Modifier.weight(1f),
+                color = BuyWiseTheme.colors.panel,
+                shape = RoundedCornerShape(18.dp, 18.dp, 18.dp, 4.dp),
+                shadowElevation = 1.dp,
+            ) {
+                if (recommendations.isEmpty()) {
+                    Text(
+                        displayText,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        color = BuyWiseTheme.colors.ink,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                } else {
+                    ChatDecisionSummary(
+                        text = displayText,
+                        recommendations = recommendations,
+                        modifier = Modifier.padding(14.dp),
+                    )
+                }
             }
-            if (recommendations.isNotEmpty()) {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(recommendations) { recommendation ->
-                        CompactRecommendationCard(
-                            recommendation = recommendation,
-                            onClick = { onProductClick(recommendation.product.id) },
-                        )
+        }
+        if (recommendations.isNotEmpty()) {
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(start = 44.dp, end = 18.dp),
+            ) {
+                items(recommendations) { recommendation ->
+                    ChatRecommendationCard(
+                        recommendation = recommendation,
+                        onClick = { onProductClick(recommendation.product.id) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChatDecisionSummary(
+    text: String,
+    recommendations: List<Recommendation>,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val topRecommendation = recommendations.first()
+    val product = topRecommendation.product
+    val alternatives = recommendations.drop(1).take(2)
+
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            EvidenceTag("首推", tone = EvidenceTone.Success)
+            Text(
+                product.price.displayPrice(),
+                color = BuyWiseTheme.colors.primary,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                "评分 ${product.rating.displayRating()}",
+                color = BuyWiseTheme.colors.muted,
+                style = MaterialTheme.typography.labelMedium,
+            )
+        }
+        Text(
+            product.name,
+            color = BuyWiseTheme.colors.ink,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        ChatReasonBlock(
+            title = "为什么先看它",
+            lines = listOf(topRecommendation.reason, product.headline)
+                .map { it.cleanMarkdownText() }
+                .filter { it.isNotBlank() }
+                .distinct()
+                .take(2),
+        )
+        if (alternatives.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("备选", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
+                alternatives.forEach { recommendation ->
+                    AlternativeProductLine(recommendation = recommendation)
+                }
+            }
+        }
+        if (text.isNotBlank()) {
+            Surface(color = BuyWiseTheme.colors.panelAlt, shape = RoundedCornerShape(14.dp)) {
+                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("补充说明", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
+                    Text(
+                        text,
+                        color = BuyWiseTheme.colors.ink,
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = if (expanded) Int.MAX_VALUE else 3,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    TextButton(onClick = { expanded = !expanded }) {
+                        Text(if (expanded) "收起说明" else "展开完整说明")
                     }
                 }
             }
@@ -200,23 +280,44 @@ private fun AssistantBubble(
 }
 
 @Composable
-private fun CompactRecommendationCard(recommendation: Recommendation, onClick: () -> Unit) {
-    val product = recommendation.product
-    FloatingGlassCard(
-        modifier = Modifier.width(210.dp),
-        tone = FloatingGlassTone.Primary,
-        radius = 16.dp,
-        fillMaxWidth = false,
-        contentPadding = 10.dp,
-        onClick = onClick,
-    ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            ProductImagePreview(product = product, modifier = Modifier.size(64.dp))
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(product.name, color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(product.price.displayPrice(), color = BuyWiseTheme.colors.primary, fontWeight = FontWeight.Bold)
-            }
+private fun ChatReasonBlock(title: String, lines: List<String>) {
+    if (lines.isEmpty()) return
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(title, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
+        lines.forEach { line ->
+            Text(
+                "- $line",
+                color = BuyWiseTheme.colors.ink,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
+    }
+}
+
+@Composable
+private fun AlternativeProductLine(recommendation: Recommendation) {
+    val product = recommendation.product
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            product.name,
+            modifier = Modifier.weight(1f),
+            color = BuyWiseTheme.colors.ink,
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            product.price.displayPrice(),
+            color = BuyWiseTheme.colors.primary,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+        )
     }
 }
 
@@ -239,13 +340,18 @@ private fun GuideChatInputBar(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box {
-                IconButton(onClick = { imageMenuExpanded = true }, enabled = !isStreaming) {
-                    Icon(Icons.Outlined.ImageSearch, contentDescription = "图片识别", tint = BuyWiseTheme.colors.primary)
-                }
+                TactileIconTile(
+                    icon = BuyWiseIcons.Vision,
+                    contentDescription = "图片识别",
+                    size = 46.dp,
+                    iconSize = 22.dp,
+                    enabled = !isStreaming,
+                    onClick = { imageMenuExpanded = true },
+                )
                 DropdownMenu(expanded = imageMenuExpanded, onDismissRequest = { imageMenuExpanded = false }) {
                     DropdownMenuItem(
                         text = { Text("相册识图") },
-                        leadingIcon = { Icon(Icons.Outlined.PhotoLibrary, contentDescription = null) },
+                        leadingIcon = { Icon(BuyWiseIcons.PhotoLibrary, contentDescription = null) },
                         onClick = {
                             imageMenuExpanded = false
                             onPickImage()
@@ -253,7 +359,7 @@ private fun GuideChatInputBar(
                     )
                     DropdownMenuItem(
                         text = { Text("拍照识图") },
-                        leadingIcon = { Icon(Icons.Outlined.CameraAlt, contentDescription = null) },
+                        leadingIcon = { Icon(BuyWiseIcons.Camera, contentDescription = null) },
                         onClick = {
                             imageMenuExpanded = false
                             onTakePhoto()
@@ -261,7 +367,7 @@ private fun GuideChatInputBar(
                     )
                     DropdownMenuItem(
                         text = { Text("快速识别") },
-                        leadingIcon = { Icon(Icons.Outlined.AutoAwesome, contentDescription = null) },
+                        leadingIcon = { Icon(BuyWiseIcons.Guide, contentDescription = null) },
                         onClick = {
                             imageMenuExpanded = false
                             onRunVisionDemo()
@@ -269,9 +375,14 @@ private fun GuideChatInputBar(
                     )
                 }
             }
-            IconButton(onClick = onRunSpeechDemo, enabled = !isStreaming) {
-                Icon(Icons.Outlined.Mic, contentDescription = "语音描述", tint = BuyWiseTheme.colors.primary)
-            }
+            TactileIconTile(
+                icon = BuyWiseIcons.Speech,
+                contentDescription = "语音描述",
+                size = 46.dp,
+                iconSize = 22.dp,
+                enabled = !isStreaming,
+                onClick = onRunSpeechDemo,
+            )
             OutlinedTextField(
                 value = draft,
                 onValueChange = onDraftChange,
@@ -279,19 +390,16 @@ private fun GuideChatInputBar(
                 placeholder = { Text("继续追问商品细节...") },
                 singleLine = true,
             )
-            Surface(
-                color = if (draft.isBlank() || isStreaming) BuyWiseTheme.colors.primarySoft else BuyWiseTheme.colors.primary,
-                shape = CircleShape,
-                modifier = Modifier.size(50.dp).clickable(enabled = draft.isNotBlank() && !isStreaming, onClick = onSend),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.AutoMirrored.Outlined.Send,
-                        contentDescription = "发送",
-                        tint = if (draft.isBlank() || isStreaming) BuyWiseTheme.colors.muted else Color.White,
-                    )
-                }
-            }
+            TactileIconTile(
+                icon = BuyWiseIcons.Send,
+                contentDescription = "发送",
+                size = 50.dp,
+                iconSize = 22.dp,
+                rounded = true,
+                tone = if (draft.isBlank() || isStreaming) TactileIconTone.Primary else TactileIconTone.SolidPrimary,
+                enabled = draft.isNotBlank() && !isStreaming,
+                onClick = onSend,
+            )
         }
     }
 }

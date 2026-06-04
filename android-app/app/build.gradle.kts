@@ -17,7 +17,10 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
-        buildConfigField("String", "BUYWISE_API_BASE_URL", "\"http://10.0.2.2:8000\"")
+        val apiBaseUrl = providers.gradleProperty("ANDROID_API_BASE_URL")
+            .orElse(providers.environmentVariable("ANDROID_API_BASE_URL"))
+            .orElse("http://10.0.2.2:8000")
+        buildConfigField("String", "BUYWISE_API_BASE_URL", "\"${apiBaseUrl.get()}\"")
         val uploadToken = providers.gradleProperty("BUYWISE_UPLOAD_TOKEN")
             .orElse(providers.environmentVariable("BUYWISE_UPLOAD_TOKEN"))
             .orElse("upload-token")

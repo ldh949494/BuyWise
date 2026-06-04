@@ -111,20 +111,20 @@ fun FloatingGlassCard(
 private fun floatingGlassColors(tone: FloatingGlassTone): FloatingGlassColors =
     when (tone) {
         FloatingGlassTone.Neutral -> FloatingGlassColors(
-            container = BuyWiseTheme.colors.panel.copy(alpha = 0.98f),
-            border = Color.White.copy(alpha = 0.86f),
+            container = BuyWiseTheme.colors.panelRaised.copy(alpha = 0.99f),
+            border = BuyWiseTheme.colors.panelHighlight.copy(alpha = 0.92f),
         )
         FloatingGlassTone.Primary -> FloatingGlassColors(
             container = BuyWiseTheme.colors.primarySoft.copy(alpha = 0.96f),
-            border = Color.White.copy(alpha = 0.88f),
+            border = BuyWiseTheme.colors.panelHighlight.copy(alpha = 0.9f),
         )
         FloatingGlassTone.Warm -> FloatingGlassColors(
             container = BuyWiseTheme.colors.accentSoft.copy(alpha = 0.97f),
-            border = Color.White.copy(alpha = 0.88f),
+            border = BuyWiseTheme.colors.panelHighlight.copy(alpha = 0.9f),
         )
         FloatingGlassTone.Success -> FloatingGlassColors(
             container = BuyWiseTheme.colors.secondarySoft.copy(alpha = 0.97f),
-            border = Color.White.copy(alpha = 0.88f),
+            border = BuyWiseTheme.colors.panelHighlight.copy(alpha = 0.9f),
         )
         FloatingGlassTone.SolidPrimary -> FloatingGlassColors(
             container = BuyWiseTheme.colors.primary,

@@ -10,14 +10,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AutoAwesome
-import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -36,11 +32,14 @@ import androidx.compose.ui.unit.dp
 import com.buywise.android.data.GuideState
 import com.buywise.android.data.Product
 import com.buywise.android.ui.BuyWiseDimens
+import com.buywise.android.ui.BuyWiseIcons
 import com.buywise.android.ui.BuyWiseTheme
 import com.buywise.android.ui.components.FloatingGlassCard
 import com.buywise.android.ui.components.FloatingGlassTone
 import com.buywise.android.ui.components.ProductCard
 import com.buywise.android.ui.components.SectionTitle
+import com.buywise.android.ui.components.TactileIconTile
+import com.buywise.android.ui.components.TactileIconTone
 import com.buywise.android.ui.displayPrice
 
 @Composable
@@ -107,19 +106,13 @@ private fun WorkbenchHeader() {
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
-        Surface(
-            color = BuyWiseTheme.colors.panel,
-            shape = RoundedCornerShape(16.dp),
-            shadowElevation = 0.dp,
-            modifier = Modifier.size(58.dp),
-        ) {
-            Icon(
-                Icons.Outlined.AutoAwesome,
-                contentDescription = null,
-                tint = BuyWiseTheme.colors.primary,
-                modifier = Modifier.padding(15.dp),
-            )
-        }
+        TactileIconTile(
+            icon = BuyWiseIcons.Guide,
+            contentDescription = null,
+            size = 58.dp,
+            iconSize = 28.dp,
+            tone = TactileIconTone.Primary,
+        )
     }
 }
 
@@ -143,7 +136,13 @@ private fun GuideInputPanel(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = BuyWiseTheme.colors.primary)
+                    TactileIconTile(
+                        icon = BuyWiseIcons.Guide,
+                        contentDescription = null,
+                        size = 38.dp,
+                        iconSize = 18.dp,
+                        tone = TactileIconTone.Primary,
+                    )
                     Text(
                         "描述预算、用途和偏好，BuyWise 会给出候选商品和理由。",
                         color = BuyWiseTheme.colors.primary,
@@ -180,7 +179,7 @@ private fun GuideInputPanel(
                     modifier = Modifier.weight(1f),
                     enabled = !state.isStreaming && state.query.isNotBlank(),
                 ) {
-                    Icon(Icons.Outlined.AutoAwesome, contentDescription = null)
+                    Icon(BuyWiseIcons.Guide, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     AnimatedContent(targetState = state.isStreaming, label = "guideSubmitLabel") { isStreaming ->
                         Text(if (isStreaming) "生成中..." else "生成推荐")
@@ -227,9 +226,11 @@ private fun RecommendationEmptyState() {
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Surface(color = BuyWiseTheme.colors.primarySoft, shape = RoundedCornerShape(14.dp), modifier = Modifier.size(52.dp)) {
-                Icon(Icons.Outlined.ShoppingBag, contentDescription = null, tint = BuyWiseTheme.colors.primary, modifier = Modifier.padding(14.dp))
-            }
+            TactileIconTile(
+                icon = BuyWiseIcons.Shopping,
+                contentDescription = null,
+                tone = TactileIconTone.Primary,
+            )
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("还没有推荐结果", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
                 Text(
@@ -272,7 +273,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.guideStreamItems(stat
     if (state.partialReply.isNotBlank()) {
         item {
             InfoPanel(
-                icon = { Icon(Icons.Outlined.AutoAwesome, contentDescription = null) },
+                icon = { Icon(BuyWiseIcons.Guide, contentDescription = null) },
                 title = "AI 推荐理由",
                 body = state.partialReply,
             )
