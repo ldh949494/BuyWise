@@ -18,11 +18,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.CompareArrows
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -63,6 +67,8 @@ fun CompareScreen(
     state: CompareState,
     onProductClick: (String) -> Unit,
     onRefresh: () -> Unit,
+    onOpenHome: () -> Unit,
+    onOpenGuide: () -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -85,21 +91,80 @@ fun CompareScreen(
         state.errorMessage?.let { message ->
             item { ErrorPanel(message = message, actionLabel = "刷新", onAction = onRefresh) }
         }
-        if (state.products.isNotEmpty()) {
+        if (state.products.isEmpty()) {
+            if (!state.isLoading && state.errorMessage == null) {
+                item {
+                    CompareEmptyStateCard(
+                        onOpenHome = onOpenHome,
+                        onOpenGuide = onOpenGuide,
+                    )
+                }
+            }
+        } else {
             item { Text("${state.products.size} 个商品", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold) }
             item { CompareScoreStrip(products = state.products, onProductClick = onProductClick) }
+            item { CompareDecisionCard(state = state) }
+            item { CompareTable(rows = state.rows, products = state.products) }
+            item { CompareProsCons(products = state.products) }
+            item {
+                AdvicePanel(
+                    title = state.products.firstOrNull { it.id == state.winnerId }?.let { "优先推荐：${it.shortName()}" } ?: "优先推荐",
+                    body = state.summary ?: "综合价格、评分和当前购物需求，优先看整体价值更稳的候选。",
+                )
+            }
         }
-        item { CompareDecisionCard(state = state) }
-        item { CompareTable(rows = state.rows, products = state.products) }
-        if (!state.isLoading && state.products.isEmpty()) {
-            item { Text("暂无可对比商品。", color = BuyWiseTheme.colors.muted) }
-        }
-        item { CompareProsCons(products = state.products) }
-        item {
-            AdvicePanel(
-                title = state.products.firstOrNull { it.id == state.winnerId }?.let { "优先推荐：${it.shortName()}" } ?: "优先推荐",
-                body = state.summary ?: "综合价格、评分和当前购物需求，优先看整体价值更稳的候选。",
+    }
+}
+
+@Composable
+private fun CompareEmptyStateCard(
+    onOpenHome: () -> Unit,
+    onOpenGuide: () -> Unit,
+) {
+    FloatingGlassCard(
+        tone = FloatingGlassTone.Neutral,
+        radius = BuyWiseDimens.CardRadius.dp,
+        contentPadding = 18.dp,
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            com.buywise.android.ui.components.FloatingAssetBadge(
+                icon = BuyWiseIcons.Compare,
+                contentDescription = null,
+                tone = TactileIconTone.Primary,
+                size = 52.dp,
+                iconSize = 26.dp,
             )
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text("对比篮为空", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold)
+                Text("先添加至少 2 个商品，再查看价格、评分和需求适配差异。", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Button(
+                onClick = onOpenHome,
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = BuyWiseTheme.colors.primary,
+                    contentColor = BuyWiseTheme.colors.panel,
+                ),
+            ) {
+                Icon(Icons.Outlined.Home, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("去首页选")
+            }
+            OutlinedButton(
+                onClick = onOpenGuide,
+                modifier = Modifier.weight(1f),
+            ) {
+                Icon(BuyWiseIcons.Guide, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("找导购")
+            }
         }
     }
 }

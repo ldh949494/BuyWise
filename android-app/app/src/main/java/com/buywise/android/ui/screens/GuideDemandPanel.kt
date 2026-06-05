@@ -1,17 +1,14 @@
 package com.buywise.android.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,84 +18,85 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.buywise.android.ui.BuyWiseIcons
+import com.buywise.android.ui.BuyWiseDimens
 import com.buywise.android.ui.BuyWiseTheme
-import com.buywise.android.ui.components.EvidenceTag
-import com.buywise.android.ui.components.FloatingAssetBadge
 import com.buywise.android.ui.components.FloatingGlassCard
 import com.buywise.android.ui.components.FloatingGlassTone
-import com.buywise.android.ui.components.TactileIconTone
 
 @Composable
-fun DemandPanel(query: String, summary: String) {
+fun DemandPanel(query: String, summary: String, onModify: () -> Unit) {
     val profile = demandProfile(query = query, summary = summary)
-    FloatingGlassCard(tone = FloatingGlassTone.Neutral, radius = 16.dp, contentPadding = 16.dp) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                FloatingAssetBadge(
-                    icon = BuyWiseIcons.Tune,
-                    contentDescription = null,
-                    tone = TactileIconTone.Primary,
-                    size = 40.dp,
-                    iconSize = 20.dp,
-                )
-                Text("需求摘要", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
-                Spacer(modifier = Modifier.weight(1f))
-                EvidenceTag("可修改")
-            }
-            DemandSummaryGrid(profile = profile)
-            if (summary.isNotBlank()) {
-                Text(summary, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
-            }
-        }
-    }
-}
-
-@Composable
-private fun DemandSummaryGrid(profile: DemandProfile) {
     FloatingGlassCard(
         tone = FloatingGlassTone.Primary,
         radius = 14.dp,
         elevated = false,
         contentPadding = 12.dp,
     ) {
-        Column {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                DemandField("意图", "商品推荐", BuyWiseTheme.colors.primary, modifier = Modifier.weight(1f))
-                DemandField("预算", profile.budget, BuyWiseTheme.colors.accent, modifier = Modifier.weight(1f))
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "已按这些需求推荐",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = BuyWiseTheme.colors.ink,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    "修改",
+                    modifier = Modifier
+                        .background(BuyWiseTheme.colors.panelRaised, RoundedCornerShape(BuyWiseDimens.ChipRadius.dp))
+                        .clickable(onClick = onModify)
+                        .padding(horizontal = 12.dp, vertical = 7.dp),
+                    color = BuyWiseTheme.colors.primary,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                )
             }
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = BuyWiseTheme.colors.border)
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                DemandField("场景", profile.scene, BuyWiseTheme.colors.secondary, modifier = Modifier.weight(1f))
-                DemandField("偏好", profile.preference, BuyWiseTheme.colors.primary, modifier = Modifier.weight(1f))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                DemandChip("预算", profile.budget, BuyWiseTheme.colors.accent)
+                DemandChip("场景", profile.scene, BuyWiseTheme.colors.secondary)
+                DemandChip("偏好", profile.preference, BuyWiseTheme.colors.primary)
+            }
+            if (summary.isNotBlank()) {
+                Text(
+                    summary,
+                    color = BuyWiseTheme.colors.muted,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }
 }
 
 @Composable
-private fun DemandField(label: String, value: String, accent: Color, modifier: Modifier = Modifier) {
+private fun DemandChip(label: String, value: String, accent: Color) {
     Row(
-        modifier = modifier.defaultMinSize(minHeight = 44.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .background(BuyWiseTheme.colors.panelRaised, RoundedCornerShape(BuyWiseDimens.ChipRadius.dp))
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier = Modifier
-                .size(8.dp)
-                .background(accent, RoundedCornerShape(999.dp)),
+        Text(
+            label,
+            color = BuyWiseTheme.colors.muted,
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
         )
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
-            Text(label, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
-            Text(
-                value,
-                color = BuyWiseTheme.colors.ink,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+        Text(
+            value,
+            color = accent,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
