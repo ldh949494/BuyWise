@@ -31,6 +31,7 @@ import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.outlined.ThumbUp
+import androidx.compose.material.icons.outlined.Tune
 
 object BuyWiseIcons {
     val Account = Icons.Outlined.Person
@@ -62,5 +63,6 @@ object BuyWiseIcons {
     val ThumbsDown = Icons.Outlined.ThumbDown
     val ThumbsUp = Icons.Outlined.ThumbUp
     val Trophy = Icons.Outlined.EmojiEvents
+    val Tune = Icons.Outlined.Tune
     val Vision = Icons.Outlined.ImageSearch
 }

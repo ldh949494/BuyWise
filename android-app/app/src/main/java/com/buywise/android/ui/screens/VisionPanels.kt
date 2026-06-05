@@ -3,21 +3,18 @@ package com.buywise.android.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Button
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.buywise.android.data.VisionResult
 import com.buywise.android.ui.BuyWiseIcons
@@ -77,21 +74,28 @@ fun UploadPanel(
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedButton(onClick = onPickImage, enabled = !isLoading, modifier = Modifier.weight(1f)) {
-                    Icon(BuyWiseIcons.PhotoLibrary, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("相册")
-                }
-                OutlinedButton(onClick = onTakePhoto, enabled = !isLoading, modifier = Modifier.weight(1f)) {
-                    Icon(BuyWiseIcons.Camera, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("拍照")
-                }
-                FilledTonalButton(onClick = onUseQuery, enabled = hasQuery && !isLoading, modifier = Modifier.weight(1f)) {
-                    Icon(BuyWiseIcons.Guide, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("导购")
-                }
+                VisionActionButton(
+                    label = "相册",
+                    icon = BuyWiseIcons.PhotoLibrary,
+                    enabled = !isLoading,
+                    modifier = Modifier.weight(1f),
+                    onClick = onPickImage,
+                )
+                VisionActionButton(
+                    label = "拍照",
+                    icon = BuyWiseIcons.Camera,
+                    enabled = !isLoading,
+                    modifier = Modifier.weight(1f),
+                    onClick = onTakePhoto,
+                )
+                VisionActionButton(
+                    label = "导购",
+                    icon = BuyWiseIcons.Guide,
+                    enabled = hasQuery && !isLoading,
+                    primary = true,
+                    modifier = Modifier.weight(1f),
+                    onClick = onUseQuery,
+                )
             }
         }
     }
@@ -117,6 +121,50 @@ private fun UploadModeCard(
             FloatingAssetBadge(icon = icon, contentDescription = null, size = 54.dp, iconSize = 26.dp)
             Text(title, color = BuyWiseTheme.colors.ink, style = MaterialTheme.typography.labelMedium)
             Text(subtitle, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
+        }
+    }
+}
+
+@Composable
+private fun VisionActionButton(
+    label: String,
+    icon: ImageVector,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+    primary: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val tone = when {
+        primary && enabled -> FloatingGlassTone.SolidPrimary
+        primary -> FloatingGlassTone.Neutral
+        else -> FloatingGlassTone.Neutral
+    }
+    val foreground = when {
+        primary && enabled -> Color.White
+        enabled -> BuyWiseTheme.colors.ink
+        else -> BuyWiseTheme.colors.muted
+    }
+    FloatingGlassCard(
+        modifier = modifier,
+        tone = tone,
+        radius = 999.dp,
+        contentPadding = 0.dp,
+        elevated = true,
+        onClick = if (enabled) onClick else null,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, contentDescription = null, tint = foreground, modifier = Modifier.size(20.dp))
+            Text(
+                label,
+                color = foreground,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(start = 8.dp),
+            )
         }
     }
 }

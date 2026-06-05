@@ -1,6 +1,5 @@
 package com.buywise.android.ui.screens
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,12 +11,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -26,25 +21,27 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.buywise.android.ui.BuyWiseIcons
 import com.buywise.android.ui.BuyWiseTheme
 import com.buywise.android.ui.components.EvidenceTag
+import com.buywise.android.ui.components.FloatingAssetBadge
 import com.buywise.android.ui.components.FloatingGlassCard
 import com.buywise.android.ui.components.FloatingGlassTone
+import com.buywise.android.ui.components.TactileIconTone
 
 @Composable
 fun DemandPanel(query: String, summary: String) {
     val profile = demandProfile(query = query, summary = summary)
-    FloatingGlassCard(tone = FloatingGlassTone.Neutral, contentPadding = 16.dp, elevated = false) {
+    FloatingGlassCard(tone = FloatingGlassTone.Neutral, radius = 16.dp, contentPadding = 16.dp) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Surface(color = BuyWiseTheme.colors.primarySoft, shape = RoundedCornerShape(10.dp), modifier = Modifier.size(34.dp)) {
-                    Icon(
-                        Icons.Outlined.Tune,
-                        contentDescription = null,
-                        tint = BuyWiseTheme.colors.primary,
-                        modifier = Modifier.padding(8.dp),
-                    )
-                }
+                FloatingAssetBadge(
+                    icon = BuyWiseIcons.Tune,
+                    contentDescription = null,
+                    tone = TactileIconTone.Primary,
+                    size = 40.dp,
+                    iconSize = 20.dp,
+                )
                 Text("需求摘要", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
                 Spacer(modifier = Modifier.weight(1f))
                 EvidenceTag("可修改")
@@ -59,13 +56,13 @@ fun DemandPanel(query: String, summary: String) {
 
 @Composable
 private fun DemandSummaryGrid(profile: DemandProfile) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        color = BuyWiseTheme.colors.panelAlt.copy(alpha = 0.72f),
-        border = BorderStroke(1.dp, BuyWiseTheme.colors.border),
+    FloatingGlassCard(
+        tone = FloatingGlassTone.Primary,
+        radius = 14.dp,
+        elevated = false,
+        contentPadding = 12.dp,
     ) {
-        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+        Column {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                 DemandField("意图", "商品推荐", BuyWiseTheme.colors.primary, modifier = Modifier.weight(1f))
                 DemandField("预算", profile.budget, BuyWiseTheme.colors.accent, modifier = Modifier.weight(1f))
