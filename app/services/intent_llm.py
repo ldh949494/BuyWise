@@ -18,10 +18,11 @@ INTENT_ALIASES = {
     "推荐": "商品推荐",
     "商品推荐": "商品推荐",
     "找推荐": "商品推荐",
-    "组合推荐": "场景化组合推荐",
-    "场景化组合推荐": "场景化组合推荐",
-    "搭配方案": "场景化组合推荐",
-    "购物清单": "场景化组合推荐",
+    "bundle_recommend": "bundle_recommend",
+    "组合推荐": "bundle_recommend",
+    "场景化组合推荐": "bundle_recommend",
+    "搭配方案": "bundle_recommend",
+    "购物清单": "bundle_recommend",
     "对比": "商品对比",
     "比较": "商品对比",
     "商品对比": "商品对比",
@@ -36,6 +37,12 @@ CATEGORY_KEYWORDS = {
     "台灯": ["台灯", "护眼灯", "灯"],
     "充电宝": ["充电宝", "移动电源"],
     "双肩包": ["双肩包", "背包", "包"],
+    "电脑": ["电脑", "主机", "笔记本", "迷你主机"],
+    "显示器": ["显示器", "屏幕", "显示屏"],
+    "鼠标": ["鼠标"],
+    "支架": ["支架", "显示器支架"],
+    "拓展坞": ["拓展坞", "扩展坞"],
+    "插排": ["插排", "排插", "插线板"],
 }
 SCENARIO_KEYWORDS = ["宿舍", "办公", "通勤", "运动", "学习", "写代码", "旅行", "阅读", "应急"]
 PREFERENCE_ALIASES = {
@@ -83,7 +90,7 @@ class LlmIntentExtractor:
                     "avoid, purchase_stage, retrieval_strategy, need_clarify, "
                     "missing_fields. purchase_stage must be browse, consider, or "
                     "buy_ready. retrieval_strategy must be explore, balanced, strict, "
-                    "or bundle. Use Chinese values when the user speaks Chinese. "
+                    "or bundle. Use bundle_recommend for bundle requests. "
                     "Do not invent product names."
                 ),
             },
@@ -239,7 +246,7 @@ class LlmIntentExtractor:
             "Extract shopping intent as JSON with fields: intent, category, "
             "budget_max, scenario, preferences, avoid, purchase_stage, "
             "retrieval_strategy, need_clarify, "
-            "Use intent 场景化组合推荐 when the user asks for a bundle, kit, "
+            "Use intent bundle_recommend when the user asks for a bundle, kit, "
             "set, checklist, or cross-category scenario plan. "
             "Use purchase_stage=browse and retrieval_strategy=explore for casual "
             "browsing such as 随便看看 or 了解一下. Use purchase_stage=buy_ready "

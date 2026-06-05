@@ -253,7 +253,7 @@ Content-Type: application/json
 - 使用 `extra.session_id` 作为后续会话 ID；如果前端首次没有传，后端可能生成或回传会话标识。
 - `need_clarify=true` 时应把 `reply` 渲染为追问，不直接进入最终推荐态。
 - `structured_need.missing_fields` 可用于展示缺失条件，如预算、用途、偏好。
-- `products` 可作为聊天消息中的商品卡片。
+- `products` 可作为聊天消息中的商品卡片；当用户要求配齐多品类商品组合时，响应可同时返回 `bundle_plans`，前端应优先渲染方案卡片和方案对比入口。
 
 ### AI 导购 SSE
 
@@ -270,7 +270,7 @@ SSE 事件类型固定为 `meta`、`status`、`token`、`products`、`heartbeat`
 | `meta` | `{"session_id": "..."}` |
 | `status` | `{"stage": "intent|retrieval|generation|fallback", "message": "..."}` |
 | `token` | `{"text": "..."}` |
-| `products` | `{"need_clarify": false, "structured_need": {...}, "items": [...]}` |
+| `products` | `{"need_clarify": false, "structured_need": {...}, "items": [...], "bundle_plans": [...]}` |
 | `heartbeat` | `{"status": "ok"}` |
 | `done` | `{"reply": "...", "degraded": false, "degraded_reason": null}` |
 | `error` | `{"code": "chat_stream_failed|chat_stream_timeout", "message": "...", "session_id": "..."}` |
@@ -403,7 +403,7 @@ Content-Type: application/json
 
 1. 商品列表和详情：`GET /products`、`GET /products/{id}`。
 2. 商品对比：`POST /products/compare`。
-3. AI 导购：`POST /ai/chat`，渲染 `reply`、`structured_need`、`products`。
+3. AI 导购：`POST /ai/chat`，渲染 `reply`、`structured_need`、`products`；组合需求优先渲染 `bundle_plans`。
 4. 多模态输入：上传后调用 `vision/recognize` 或 `speech/asr`，再进入搜索或 AI 导购。
 
 ## 本地验证

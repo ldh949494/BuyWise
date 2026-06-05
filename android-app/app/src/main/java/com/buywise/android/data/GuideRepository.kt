@@ -11,7 +11,11 @@ sealed interface ChatStreamEvent {
     data class Meta(val sessionId: String) : ChatStreamEvent
     data class Status(val message: String) : ChatStreamEvent
     data class Token(val text: String) : ChatStreamEvent
-    data class Products(val intentSummary: String, val recommendations: List<Recommendation>) : ChatStreamEvent
+    data class Products(
+        val intentSummary: String,
+        val recommendations: List<Recommendation>,
+        val bundlePlans: List<BundlePlan> = emptyList(),
+    ) : ChatStreamEvent
     data class Done(val reply: String) : ChatStreamEvent
     data class Error(val message: String) : ChatStreamEvent
     data object Heartbeat : ChatStreamEvent
@@ -70,6 +74,7 @@ class GuideRepository internal constructor(
         val intent = structuredNeed?.optString("intent").orEmpty()
         val category = structuredNeed?.optString("category").orEmpty()
         val items = json.optJSONArray("items") ?: JSONArray()
+        val bundlePlansJson = json.optJSONArray("bundle_plans") ?: JSONArray()
         val recommendations = (0 until items.length()).mapNotNull { index ->
             val item = items.optJSONObject(index) ?: return@mapNotNull null
             val reason = item.optStringOrNull("reason")
@@ -80,9 +85,13 @@ class GuideRepository internal constructor(
                 reason = reason,
             )
         }
+        val bundlePlans = (0 until bundlePlansJson.length()).mapNotNull { index ->
+            bundlePlansJson.optJSONObject(index)?.let(::parseBundlePlan)
+        }
         return ChatStreamEvent.Products(
-            intentSummary = intent.ifBlank { "已生成推荐商品" },
+            intentSummary = intent.ifBlank { if (bundlePlans.isNotEmpty()) "已生成组合方案" else "已生成推荐商品" },
             recommendations = recommendations,
+            bundlePlans = bundlePlans,
         )
     }
 

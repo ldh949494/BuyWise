@@ -11,7 +11,7 @@ from app.scripts.seed_products import seed_demo_products
 
 
 DEMO_QUESTION = "帮我推荐一个300以内适合宿舍写代码的低噪音无线机械键盘，最好性价比高"
-BUNDLE_QUESTION = "下周去旅行，帮我搭配一套轻便出行清单，预算700以内，不要大容量"
+BUNDLE_QUESTION = "帮我配齐一套6000元以内的桌面装备，包括电脑、显示器、键盘、鼠标和耳机"
 
 
 def make_demo_client() -> TestClient:
@@ -77,13 +77,14 @@ def test_demo_bundle_question_returns_cross_category_plan_within_budget() -> Non
     assert response.status_code == 200
     payload = response.json()
     assert payload["need_clarify"] is False
-    assert payload["structured_need"]["intent"] == "场景化组合推荐"
-    assert payload["structured_need"]["scenario"] == "旅行"
-    assert "大容量" in payload["structured_need"]["avoid"]
+    assert payload["structured_need"]["intent"] == "bundle_recommend"
+    assert payload["structured_need"]["scenario"] == "桌面"
 
-    products = payload["products"]
-    names = {product["name"] for product in products}
-    assert len(products) >= 2
-    assert sum(product["price"] for product in products) <= 700
-    assert "TravelGo 10000mAh 轻薄充电宝" in names
-    assert "CityPack 轻量通勤双肩包" in names
+    plans = payload["bundle_plans"]
+    assert len(plans) == 3
+    assert [plan["budget_tier"] for plan in plans] == ["entry", "balanced", "premium"]
+    balanced = plans[1]
+    categories = {item["category"] for item in balanced["items"]}
+    assert {"电脑", "显示器", "机械键盘", "鼠标", "蓝牙耳机"}.issubset(categories)
+    assert balanced["budget_status"] in {"within_budget", "slightly_over_budget"}
+    assert balanced["completeness"]["included_required"] >= 5

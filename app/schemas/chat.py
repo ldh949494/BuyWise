@@ -42,9 +42,62 @@ class ProductCard(BaseSchema):
     alternatives: list[str] = Field(default_factory=list)
 
 
+class BundleCompleteness(BaseSchema):
+    included_required: int = 0
+    expected_required: int = 0
+    optional_included: int = 0
+    missing: list[str] = Field(default_factory=list)
+    needs_confirmation: list[str] = Field(default_factory=list)
+
+
+class BundleBudgetAllocation(BaseSchema):
+    category: str
+    amount: float
+
+
+class BundleCompatibilityCheck(BaseSchema):
+    title: str
+    status: str
+    message: str
+
+
+class BundlePlanItem(BaseSchema):
+    category: str
+    product: ProductCard
+    role: str | None = None
+    required: bool = True
+    replaceable: bool = True
+    locked: bool = False
+    excluded: bool = False
+
+
+class BundlePlan(BaseSchema):
+    id: str
+    title: str
+    budget_tier: str
+    target_budget: float | None = None
+    total_price: float
+    budget_status: str
+    budget_delta: float | None = None
+    recommendation_level: str = "medium"
+    scenario_fit: str | None = None
+    summary: str | None = None
+    completeness: BundleCompleteness = Field(default_factory=BundleCompleteness)
+    budget_allocation: list[BundleBudgetAllocation] = Field(default_factory=list)
+    items: list[BundlePlanItem] = Field(default_factory=list)
+    tradeoffs: list[str] = Field(default_factory=list)
+    compare_highlights: list[str] = Field(default_factory=list)
+    exclusion_notes: list[str] = Field(default_factory=list)
+    compatibility_checks: list[BundleCompatibilityCheck] = Field(default_factory=list)
+    price_checked_at: str | None = None
+    availability_status: str = "available"
+    revision: int = 1
+
+
 class ChatResponse(BaseSchema):
     reply: str
     need_clarify: bool = False
     structured_need: StructuredNeed | None = None
     products: list[ProductCard] = Field(default_factory=list)
+    bundle_plans: list[BundlePlan] = Field(default_factory=list)
     extra: dict[str, Any] = Field(default_factory=dict)

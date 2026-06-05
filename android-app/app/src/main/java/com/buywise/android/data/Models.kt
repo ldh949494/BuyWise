@@ -23,6 +23,50 @@ data class Recommendation(
     val reason: String,
 )
 
+data class BundlePlan(
+    val id: String,
+    val title: String,
+    val budgetTier: String,
+    val targetBudget: Double?,
+    val totalPrice: Double,
+    val budgetStatus: String,
+    val budgetDelta: Double?,
+    val recommendationLevel: String,
+    val scenarioFit: String?,
+    val summary: String?,
+    val completeness: BundleCompleteness,
+    val items: List<BundlePlanItem>,
+    val tradeoffs: List<String>,
+    val compareHighlights: List<String>,
+    val exclusionNotes: List<String>,
+    val compatibilityChecks: List<BundleCompatibilityCheck>,
+    val availabilityStatus: String,
+)
+
+data class BundleCompleteness(
+    val includedRequired: Int,
+    val expectedRequired: Int,
+    val optionalIncluded: Int,
+    val missing: List<String>,
+    val needsConfirmation: List<String>,
+)
+
+data class BundlePlanItem(
+    val category: String,
+    val product: Product,
+    val role: String?,
+    val required: Boolean,
+    val replaceable: Boolean,
+    val locked: Boolean,
+    val excluded: Boolean,
+)
+
+data class BundleCompatibilityCheck(
+    val title: String,
+    val status: String,
+    val message: String,
+)
+
 data class CompareRow(
     val title: String,
     val values: List<String>,
@@ -50,6 +94,7 @@ data class GuideState(
     val query: String,
     val intentSummary: String,
     val recommendations: List<Recommendation>,
+    val bundlePlans: List<BundlePlan> = emptyList(),
     val partialReply: String = "",
     val chatDraft: String = "",
     val chatMessages: List<GuideChatMessage> = emptyList(),
@@ -69,6 +114,7 @@ data class GuideChatMessage(
     val role: GuideChatRole,
     val text: String,
     val recommendations: List<Recommendation> = emptyList(),
+    val bundlePlans: List<BundlePlan> = emptyList(),
 )
 
 data class CompareState(

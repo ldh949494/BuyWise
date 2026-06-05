@@ -2,7 +2,7 @@
 
 from pydantic import Field
 
-from app.schemas.chat import ProductCard, StructuredNeed
+from app.schemas.chat import BundlePlan, ProductCard, StructuredNeed
 from app.schemas.common import BaseSchema
 
 
@@ -23,6 +23,7 @@ class ChatStreamProductsEventData(BaseSchema):
     need_clarify: bool = False
     structured_need: StructuredNeed
     items: list[ProductCard] = Field(default_factory=list)
+    bundle_plans: list[BundlePlan] = Field(default_factory=list)
 
 
 class ChatStreamDoneEventData(BaseSchema):

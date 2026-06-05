@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.buywise.android.data.BundlePlan
 import com.buywise.android.data.GuideChatMessage
 import com.buywise.android.data.GuideChatRole
 import com.buywise.android.data.GuideState
@@ -43,6 +44,8 @@ import com.buywise.android.ui.BuyWiseIcons
 import com.buywise.android.ui.BuyWiseTheme
 import com.buywise.android.ui.displayPrice
 import com.buywise.android.ui.displayRating
+import com.buywise.android.ui.components.ChatBundlePlanCard
+import com.buywise.android.ui.components.ChatBundleSummary
 import com.buywise.android.ui.components.ChatRecommendationCard
 import com.buywise.android.ui.components.EvidenceTag
 import com.buywise.android.ui.components.EvidenceTone
@@ -119,7 +122,7 @@ private fun OpeningAssistantMessage(state: GuideState) {
         state.query.isNotBlank() -> "我已看到你的需求：${state.query}。你可以继续问我商品区别、推荐理由或细节。"
         else -> "告诉我预算、用途和偏好，我可以帮你筛选商品。"
     }
-    AssistantBubble(text = text, recommendations = emptyList(), onProductClick = {})
+    AssistantBubble(text = text, recommendations = emptyList(), bundlePlans = emptyList(), onProductClick = {})
 }
 
 @Composable
@@ -138,13 +141,13 @@ private fun GuideProcessingCard(state: GuideState) {
             )
             StatusChecklistRow(
                 label = "检索商品",
-                status = if (state.recommendations.isNotEmpty()) "完成" else if (state.isStreaming) "搜索中" else "待开始",
-                done = state.recommendations.isNotEmpty(),
+                status = if (state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty()) "完成" else if (state.isStreaming) "搜索中" else "待开始",
+                done = state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty(),
             )
             StatusChecklistRow(
                 label = "生成回答",
-                status = if (state.isStreaming) "生成中" else if (state.recommendations.isNotEmpty()) "完成" else "待开始",
-                done = !state.isStreaming && state.recommendations.isNotEmpty(),
+                status = if (state.isStreaming) "生成中" else if (state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty()) "完成" else "待开始",
+                done = !state.isStreaming && (state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty()),
             )
         }
     }
@@ -175,7 +178,12 @@ private fun ChatMessageRow(message: GuideChatMessage, onProductClick: (String) -
             }
         }
     } else {
-        AssistantBubble(text = message.text.ifBlank { "正在整理回复..." }, recommendations = message.recommendations, onProductClick = onProductClick)
+        AssistantBubble(
+            text = message.text.ifBlank { "正在整理回复..." },
+            recommendations = message.recommendations,
+            bundlePlans = message.bundlePlans,
+            onProductClick = onProductClick,
+        )
     }
 }
 
@@ -183,6 +191,7 @@ private fun ChatMessageRow(message: GuideChatMessage, onProductClick: (String) -
 private fun AssistantBubble(
     text: String,
     recommendations: List<Recommendation>,
+    bundlePlans: List<BundlePlan>,
     onProductClick: (String) -> Unit,
 ) {
     val displayText = text.cleanMarkdownText().ifBlank { text }
@@ -202,12 +211,18 @@ private fun AssistantBubble(
                 shape = RoundedCornerShape(18.dp, 18.dp, 18.dp, 4.dp),
                 shadowElevation = 1.dp,
             ) {
-                if (recommendations.isEmpty()) {
+                if (recommendations.isEmpty() && bundlePlans.isEmpty()) {
                     Text(
                         displayText,
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                         color = BuyWiseTheme.colors.ink,
                         style = MaterialTheme.typography.bodyMedium,
+                    )
+                } else if (bundlePlans.isNotEmpty()) {
+                    ChatBundleSummary(
+                        text = displayText,
+                        bundlePlans = bundlePlans,
+                        modifier = Modifier.padding(14.dp),
                     )
                 } else {
                     ChatDecisionSummary(
@@ -229,6 +244,17 @@ private fun AssistantBubble(
                         recommendation = recommendation,
                         onClick = { onProductClick(recommendation.product.id) },
                     )
+                }
+            }
+        }
+        if (bundlePlans.isNotEmpty()) {
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(start = 44.dp, end = 18.dp),
+            ) {
+                items(bundlePlans) { plan ->
+                    ChatBundlePlanCard(plan = plan, onProductClick = onProductClick)
                 }
             }
         }

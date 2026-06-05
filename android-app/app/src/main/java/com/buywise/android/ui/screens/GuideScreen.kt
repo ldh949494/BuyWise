@@ -22,18 +22,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.buywise.android.data.GuideState
 import com.buywise.android.data.Product
 import com.buywise.android.ui.BuyWiseDimens
 import com.buywise.android.ui.BuyWiseIcons
 import com.buywise.android.ui.BuyWiseTheme
+import com.buywise.android.ui.components.BundlePlanCard
 import com.buywise.android.ui.components.FloatingAssetBadge
 import com.buywise.android.ui.components.FloatingGlassCard
 import com.buywise.android.ui.components.FloatingGlassTone
@@ -85,25 +86,31 @@ fun GuideScreen(
                 subtitle = "先看首推，再对比关键差异。",
             )
         }
-        if (!state.isStreaming && state.recommendations.isEmpty()) {
+        if (!state.isStreaming && state.recommendations.isEmpty() && state.bundlePlans.isEmpty()) {
             item { RecommendationEmptyState() }
         }
-        itemsIndexed(state.recommendations) { index, recommendation ->
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (index == 0) {
-                    TopRecommendationStrip(
+        if (state.bundlePlans.isNotEmpty()) {
+            itemsIndexed(state.bundlePlans) { index, plan ->
+                BundlePlanCard(plan = plan, featured = index == 1, onProductClick = onProductClick)
+            }
+        } else {
+            itemsIndexed(state.recommendations) { index, recommendation ->
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (index == 0) {
+                        TopRecommendationStrip(
+                            product = recommendation.product,
+                            onClick = { onProductClick(recommendation.product.id) },
+                        )
+                    }
+                    ProductCard(
                         product = recommendation.product,
                         onClick = { onProductClick(recommendation.product.id) },
+                        isInCompareBasket = isInCompareBasket(recommendation.product.id),
+                        onToggleCompare = { onToggleCompare(recommendation.product, state.query) },
+                        recommendationReason = recommendation.reason,
+                        isFeatured = index == 0,
                     )
                 }
-                ProductCard(
-                    product = recommendation.product,
-                    onClick = { onProductClick(recommendation.product.id) },
-                    isInCompareBasket = isInCompareBasket(recommendation.product.id),
-                    onToggleCompare = { onToggleCompare(recommendation.product, state.query) },
-                    recommendationReason = recommendation.reason,
-                    isFeatured = index == 0,
-                )
             }
         }
     }

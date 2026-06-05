@@ -36,6 +36,34 @@ class IntentService:
             "\u80cc\u5305",
             "\u5305",
         ],
+        "\u7535\u8111": [
+            "\u7535\u8111",
+            "\u4e3b\u673a",
+            "\u7b14\u8bb0\u672c",
+            "\u8ff7\u4f60\u4e3b\u673a",
+        ],
+        "\u663e\u793a\u5668": [
+            "\u663e\u793a\u5668",
+            "\u5c4f\u5e55",
+            "\u663e\u793a\u5c4f",
+        ],
+        "\u9f20\u6807": [
+            "\u9f20\u6807",
+        ],
+        "\u652f\u67b6": [
+            "\u652f\u67b6",
+            "\u663e\u793a\u5668\u652f\u67b6",
+        ],
+        "\u62d3\u5c55\u575e": [
+            "\u62d3\u5c55\u575e",
+            "\u6269\u5c55\u575e",
+            "\u6269\u5c55\u575e",
+        ],
+        "\u63d2\u6392": [
+            "\u63d2\u6392",
+            "\u6392\u63d2",
+            "\u63d2\u7ebf\u677f",
+        ],
     }
     SCENARIO_KEYWORDS = [
         "\u5bbf\u820d",
@@ -48,6 +76,8 @@ class IntentService:
         "\u5ea6\u5047",
         "\u9605\u8bfb",
         "\u5e94\u6025",
+        "\u684c\u9762",
+        "\u7535\u8111\u5916\u8bbe",
     ]
     PREFERENCE_KEYWORDS = [
         "\u4f4e\u566a\u97f3",
@@ -132,15 +162,8 @@ class IntentService:
         history_context: dict,
     ) -> dict[str, Any]:
         intent = self._extract_intent(normalized_text)
-        category = (
-            self._extract_category(normalized_text)
-            or image_info.get("category")
-            or history_context.get("category")
-        )
-        budget_max = self._extract_budget(normalized_text)
-        if budget_max is None:
-            budget_max = history_context.get("budget_max")
-
+        category = self._rule_category(intent, normalized_text, image_info, history_context)
+        budget_max = self._rule_budget(normalized_text, history_context)
         scenario = self._extract_scenario(normalized_text) or history_context.get("scenario")
         preferences = self._rule_preferences(normalized_text, image_info, history_context)
         purchase_stage = self._purchase_stage(normalized_text, budget_max, scenario, preferences)
@@ -155,6 +178,23 @@ class IntentService:
             "retrieval_strategy": retrieval_strategy_for(intent, purchase_stage),
         }
 
+    def _rule_category(
+        self,
+        intent: str,
+        normalized_text: str,
+        image_info: dict,
+        history_context: dict,
+    ) -> str | None:
+        if intent == "bundle_recommend":
+            return None
+        return self._extract_category(normalized_text) or image_info.get("category") or history_context.get("category")
+
+    def _rule_budget(self, normalized_text: str, history_context: dict) -> float | None:
+        budget_max = self._extract_budget(normalized_text)
+        if budget_max is None:
+            return history_context.get("budget_max")
+        return budget_max
+
     def _rule_preferences(
         self,
         normalized_text: str,
@@ -168,7 +208,7 @@ class IntentService:
 
     def _extract_intent(self, text: str) -> str:
         if self._is_bundle_intent(text):
-            return "\u573a\u666f\u5316\u7ec4\u5408\u63a8\u8350"
+            return "bundle_recommend"
         if self._is_compare_intent(text):
             return "\u5546\u54c1\u5bf9\u6bd4"
         if self._is_alternative_intent(text):
@@ -192,6 +232,10 @@ class IntentService:
                 "\u7ec4\u5408",
                 "\u65b9\u6848",
                 "\u6e05\u5355",
+                "\u914d\u9f50",
+                "\u5168\u5957",
+                "\u684c\u9762\u88c5\u5907",
+                "\u7535\u8111\u5916\u8bbe",
                 "\u4ece",
             ],
         )
@@ -284,7 +328,7 @@ class IntentService:
         if purchase_stage == "browse":
             return self._browse_missing_fields(category)
 
-        if intent == "\u573a\u666f\u5316\u7ec4\u5408\u63a8\u8350":
+        if intent in {"bundle_recommend", "\u573a\u666f\u5316\u7ec4\u5408\u63a8\u8350"}:
             return self._bundle_missing_fields(scenario)
 
         if intent not in {"\u5546\u54c1\u63a8\u8350", "\u627e\u5e73\u66ff"}:
@@ -296,7 +340,7 @@ class IntentService:
         return ["category"] if category is None else []
 
     def _bundle_missing_fields(self, scenario: str | None) -> list[str]:
-        return ["scenario"] if scenario is None else []
+        return []
 
     def _recommendation_missing_fields(
         self,

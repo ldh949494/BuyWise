@@ -17,7 +17,7 @@ from app.core.transaction import UnitOfWork, unit_of_work
 from app.repositories.chat_repo import ChatRepository
 from app.repositories.price_repo import PriceHistoryRepository
 from app.repositories.review_repo import ReviewRepository
-from app.schemas.chat import ChatRequest, ChatResponse
+from app.schemas.chat import BundlePlan, ChatRequest, ChatResponse
 from app.services.bundle_recommend_service import BundleRecommendService
 from app.services.intent_service import IntentService
 from app.services.noop_chat_repo import NoopChatRepository
@@ -63,13 +63,14 @@ class ChatService:
             logger.exception("Chat handling failed", extra={"session_id": session_id})
             self._rollback(chat_repo)
             observe_chat_latency("json", "error", time.perf_counter() - started_at)
-            return ChatResponse(
-                reply="抱歉，当前暂时无法完成推荐，请稍后再试或换个条件。",
-                need_clarify=False,
-                structured_need=None,
-                products=[],
-                extra={"session_id": session_id},
-            )
+        return ChatResponse(
+            reply="抱歉，当前暂时无法完成推荐，请稍后再试或换个条件。",
+            need_clarify=False,
+            structured_need=None,
+            products=[],
+            bundle_plans=[],
+            extra={"session_id": session_id},
+        )
 
     async def _handle_chat_checked(
         self,
@@ -160,6 +161,7 @@ class ChatService:
             need_clarify=True,
             structured_need=need,
             products=[],
+            bundle_plans=[],
             extra={"session_id": session_id},
         )
 
@@ -170,13 +172,13 @@ class ChatService:
         need: Any,
         db: Session,
     ) -> ChatResponse:
-        top_products = await self._rank_recommendations(need, db)
-        reply, extra = await self._recommendation_reply(session_id, need, top_products)
+        top_products, bundle_plans = await self._recommendation_results(need, db)
+        reply, extra = await self._recommendation_reply(session_id, need, top_products, bundle_plans)
         chat_repo.create_message(
             session_id,
             "assistant",
             reply,
-            structured_data=self._assistant_structured_data(need, top_products, extra),
+            structured_data=self._assistant_structured_data(need, top_products, extra, bundle_plans),
         )
         chat_repo.create_recommendations(session_id, top_products)
         self._commit(chat_repo)
@@ -185,6 +187,7 @@ class ChatService:
             need_clarify=False,
             structured_need=need,
             products=top_products,
+            bundle_plans=bundle_plans,
             extra=extra,
         )
 
@@ -193,8 +196,11 @@ class ChatService:
         session_id: str,
         need: Any,
         top_products: list[Any],
+        bundle_plans: list[BundlePlan] | None = None,
     ) -> tuple[str, dict[str, Any]]:
         extra: dict[str, Any] = {"session_id": session_id}
+        if bundle_plans:
+            return self._fallback_bundle_reply(bundle_plans), extra
         try:
             reply = await self.llm_client.generate_recommendation(need, top_products)
             return reply, extra
@@ -210,11 +216,14 @@ class ChatService:
         need: Any,
         top_products: list[Any],
         extra: dict[str, Any],
+        bundle_plans: list[BundlePlan] | None = None,
     ) -> dict[str, Any]:
         structured_data = {
             "need": self._dump(need),
             "products": [self._dump(product) for product in top_products],
         }
+        if bundle_plans:
+            structured_data["bundle_plans"] = [self._dump(plan) for plan in bundle_plans]
         if extra.get("degraded"):
             structured_data["degraded"] = True
             structured_data["degraded_reason"] = extra["degraded_reason"]
@@ -274,17 +283,43 @@ class ChatService:
         return {}
 
     async def _rank_recommendations(self, need: Any, db: Session) -> list[Any]:
-        if self._get_need_value(need, "intent") == "场景化组合推荐":
+        if self._is_bundle_intent(need):
             return await self._rank_bundle_recommendations(need, db)
         strategy = self._get_need_value(need, "retrieval_strategy") or "balanced"
         products = await self.rag_pipeline.search_products(need, db, top_k=self._retrieval_top_k(strategy))
         self._attach_quality_signals(products, db)
         return self.recommend_service.rank(products, need)[: self._result_limit(strategy)]
 
+    async def _recommendation_results(self, need: Any, db: Session) -> tuple[list[Any], list[BundlePlan]]:
+        if not self._is_bundle_intent(need):
+            return await self._rank_recommendations(need, db), []
+        products = await self.rag_pipeline.search_products(need, db, top_k=30)
+        self._attach_quality_signals(products, db)
+        bundle_plans = self.bundle_recommend_service.build_plans(products, need)
+        return self._flatten_bundle_plan_products(bundle_plans), bundle_plans
+
     async def _rank_bundle_recommendations(self, need: Any, db: Session) -> list[Any]:
         products = await self.rag_pipeline.search_products(need, db, top_k=30)
         self._attach_quality_signals(products, db)
-        return self.bundle_recommend_service.rank(products, need)
+        return self.bundle_recommend_service.rank_cards(products, need)
+
+    def _is_bundle_intent(self, need: Any) -> bool:
+        return self._get_need_value(need, "intent") in {"bundle_recommend", "场景化组合推荐"}
+
+    def _flatten_bundle_plan_products(self, bundle_plans: list[BundlePlan]) -> list[Any]:
+        products = []
+        seen_ids = set()
+        for plan in bundle_plans:
+            for item in plan.items:
+                if item.product.id in seen_ids:
+                    continue
+                seen_ids.add(item.product.id)
+                products.append(item.product)
+        return products
+
+    def _fallback_bundle_reply(self, bundle_plans: list[BundlePlan]) -> str:
+        names = "、".join(plan.title for plan in bundle_plans[:3])
+        return f"我按预算档整理了 {len(bundle_plans)} 套组合方案：{names}。你可以先看总价、完整度和关键取舍，再进入方案对比。"
 
     def _get_need_value(self, need: Any, key: str) -> Any:
         if isinstance(need, dict):

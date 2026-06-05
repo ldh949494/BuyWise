@@ -6,7 +6,7 @@ from app.api.v1.chat import _format_sse, _stream_with_keepalive
 from app.core.config import Settings
 from app.core.dependencies import get_chat_service
 from app.main import create_app
-from app.schemas.chat import ProductCard, StructuredNeed
+from app.schemas.chat import BundlePlan, BundlePlanItem, ProductCard, StructuredNeed
 
 
 class FakeStreamChatService:
@@ -23,6 +23,35 @@ class FakeStreamChatService:
             },
         }
         yield {"event": "done", "data": {"reply": "hello", "degraded": False, "degraded_reason": None}}
+
+
+class FakeBundleStreamChatService:
+    async def generate_chat_stream(self, request, db):
+        yield {
+            "event": "products",
+            "data": {
+                "need_clarify": False,
+                "structured_need": StructuredNeed(intent="bundle_recommend", scenario="桌面"),
+                "items": [ProductCard(id=1201, name="DeskMini", price=2599.0)],
+                "bundle_plans": [
+                    BundlePlan(
+                        id="desktop-balanced-6000",
+                        title="方案二 · 均衡桌面档",
+                        budget_tier="balanced",
+                        target_budget=6000,
+                        total_price=5899,
+                        budget_status="within_budget",
+                        items=[
+                            BundlePlanItem(
+                                category="电脑",
+                                product=ProductCard(id=1201, name="DeskMini", price=2599.0),
+                                role="性能核心",
+                            )
+                        ],
+                    )
+                ],
+            },
+        }
 
 
 def test_chat_stream_endpoint_returns_sse_events() -> None:
@@ -46,6 +75,23 @@ def test_chat_stream_endpoint_returns_sse_events() -> None:
     assert "event: products" in body
     assert "event: done" in body
     assert "degraded_reason" in body
+
+
+def test_chat_stream_endpoint_can_emit_bundle_plans() -> None:
+    app = create_app()
+    app.dependency_overrides[get_chat_service] = lambda: FakeBundleStreamChatService()
+    client = TestClient(app)
+
+    with client.stream(
+        "POST",
+        "/api/v1/ai/chat/stream",
+        json={"session_id": "bundle-session", "message": "配一套桌面装备"},
+    ) as response:
+        assert response.status_code == 200
+        body = "".join(response.iter_text())
+
+    assert "bundle_plans" in body
+    assert "desktop-balanced-6000" in body
 
 
 def test_format_sse_supports_heartbeat_event() -> None:

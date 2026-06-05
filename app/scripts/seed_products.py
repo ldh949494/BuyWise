@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
 from app.models.product import Product
+from app.scripts.demo_desktop_products import DEMO_DESKTOP_PRODUCTS
 from app.scripts.demo_products import DEMO_SHOWCASE_PRODUCTS
 
 ANDROID_CONTRACT_PRODUCTS: list[dict[str, Any]] = [
@@ -137,7 +138,7 @@ def seed_android_contract_products(db: Session) -> list[Product]:
 def seed_demo_products(db: Session) -> list[Product]:
     """Insert or update products curated for live demo conversations."""
 
-    return upsert_products(db, [*ANDROID_CONTRACT_PRODUCTS, *DEMO_SHOWCASE_PRODUCTS])
+    return upsert_products(db, [*ANDROID_CONTRACT_PRODUCTS, *DEMO_SHOWCASE_PRODUCTS, *DEMO_DESKTOP_PRODUCTS])
 
 
 def upsert_products(db: Session, products_data: list[dict[str, Any]]) -> list[Product]:

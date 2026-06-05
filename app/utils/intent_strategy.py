@@ -2,7 +2,7 @@
 
 
 def retrieval_strategy_for(intent: str, purchase_stage: str) -> str:
-    if intent == "场景化组合推荐":
+    if intent in {"bundle_recommend", "场景化组合推荐"}:
         return "bundle"
     if purchase_stage == "browse":
         return "explore"
