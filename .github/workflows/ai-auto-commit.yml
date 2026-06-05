@@ -39,6 +39,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  pr-guard:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delegate pull request validation
+        run: |
+          echo "Pull request validation is handled by the PR Validation workflow."
+          echo "This automation workflow only mutates repository state on workflow_dispatch or auto branch push events."
+
   entropy-gc:
     if: github.event_name == 'workflow_dispatch' && inputs.run_entropy_gc == 'true'
     runs-on: ubuntu-latest
@@ -122,7 +131,7 @@ jobs:
           path: artifacts/doc-gardening/report.md
 
   ai-automation:
-    if: github.actor != 'github-actions[bot]'
+    if: github.event_name != 'pull_request' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     defaults:
       run:
