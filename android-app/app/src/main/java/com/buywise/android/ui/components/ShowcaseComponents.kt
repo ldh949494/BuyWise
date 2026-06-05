@@ -2,6 +2,7 @@ package com.buywise.android.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -105,10 +106,14 @@ fun SearchPill(
     modifier: Modifier = Modifier,
     trailingIcon: ImageVector = BuyWiseIcons.Speech,
     trailingTone: TactileIconTone = TactileIconTone.SolidPrimary,
+    onClick: (() -> Unit)? = null,
     onTrailingClick: (() -> Unit)? = null,
 ) {
+    val clickModifier = if (onClick == null) Modifier else Modifier.clickable(onClick = onClick)
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .then(clickModifier),
         shape = RoundedCornerShape(999.dp),
         color = BuyWiseTheme.colors.panel,
         border = BorderStroke(1.dp, BuyWiseTheme.colors.panelHighlight),

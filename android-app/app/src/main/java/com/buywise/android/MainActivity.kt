@@ -47,6 +47,7 @@ import com.buywise.android.ui.screens.GuideScreen
 import com.buywise.android.ui.screens.HomeScreen
 import com.buywise.android.ui.screens.LandingScreen
 import com.buywise.android.ui.screens.ProductDetailScreen
+import com.buywise.android.ui.screens.ProductSearchScreen
 import com.buywise.android.ui.screens.VisionScreen
 import com.buywise.android.viewmodel.BuyWiseViewModel
 import kotlinx.coroutines.Dispatchers
@@ -72,8 +73,14 @@ private fun BuyWiseRoot(
     val viewModel: BuyWiseViewModel = viewModel(factory = BuyWiseViewModel.factory(context))
     val destinations = bottomDestinations()
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
-    val showBottomBar = currentRoute != null && currentRoute != "landing" && currentRoute.startsWith("detail/") != true
-    val showCompareBasket = currentRoute != null && currentRoute != "landing" && currentRoute != "compare"
+    val showBottomBar = currentRoute != null &&
+        currentRoute != "landing" &&
+        currentRoute != "search" &&
+        currentRoute.startsWith("detail/") != true
+    val showCompareBasket = currentRoute != null &&
+        currentRoute != "landing" &&
+        currentRoute != "search" &&
+        currentRoute != "compare"
     val snackbarHostState = remember { SnackbarHostState() }
     val basketMessage = viewModel.compareBasketState.message
     val scope = rememberCoroutineScope()
@@ -160,13 +167,22 @@ private fun BuyWiseRoot(
             NavHost(navController = navController, startDestination = "landing") {
                 composable("landing") {
                     LandingScreen(
-                        onStart = {
-                            navController.navigate("home") {
-                                popUpTo("landing") {
-                                    inclusive = true
-                                }
-                                launchSingleTop = true
+                        state = viewModel.accountState,
+                        onPhoneChange = viewModel::updateAccountPhone,
+                        onCodeChange = viewModel::updateAccountCode,
+                        onRequestOtp = viewModel::requestAccountOtp,
+                        onVerifyOtp = {
+                            viewModel.verifyAccountOtp {
+                                navController.navigateHomeFromLanding()
                             }
+                        },
+                        onGuestMode = {
+                            viewModel.enterGuestMode {
+                                navController.navigateHomeFromLanding()
+                            }
+                        },
+                        onContinue = {
+                            navController.navigateHomeFromLanding()
                         },
                     )
                 }
@@ -176,6 +192,7 @@ private fun BuyWiseRoot(
                         onProductClick = { navController.navigate("detail/$it") },
                         isInCompareBasket = viewModel::isInCompareBasket,
                         onToggleCompare = { viewModel.toggleCompareBasket(it) },
+                        onOpenSearch = { navController.navigate("search") },
                         onOpenGuide = { navController.navigateTopLevel("guide") },
                         onOpenCompare = { navController.navigateTopLevel("compare") },
                         onOpenVision = { navController.navigateTopLevel("vision") },
@@ -184,6 +201,15 @@ private fun BuyWiseRoot(
                         onFeedbackDraftChange = viewModel::updateFeedbackDraft,
                         onSubmitFeedback = viewModel::submitFeedback,
                         onRetry = viewModel::loadHomeProducts,
+                    )
+                }
+                composable("search") {
+                    ProductSearchScreen(
+                        products = viewModel.homeState.products,
+                        onBack = navController::popBackStack,
+                        onProductClick = { navController.navigate("detail/$it") },
+                        isInCompareBasket = viewModel::isInCompareBasket,
+                        onToggleCompare = { viewModel.toggleCompareBasket(it) },
                     )
                 }
                 composable("guide") {
@@ -224,6 +250,8 @@ private fun BuyWiseRoot(
                         state = viewModel.compareState,
                         onProductClick = { navController.navigate("detail/$it") },
                         onRefresh = viewModel::refreshCompare,
+                        onOpenHome = { navController.navigateTopLevel("home") },
+                        onOpenGuide = { navController.navigateTopLevel("guide") },
                     )
                 }
                 composable("vision") {
@@ -291,6 +319,15 @@ private fun BuyWiseRoot(
                 )
             }
         }
+    }
+}
+
+private fun NavHostController.navigateHomeFromLanding() {
+    navigate("home") {
+        popUpTo("landing") {
+            inclusive = true
+        }
+        launchSingleTop = true
     }
 }
 
