@@ -51,18 +51,19 @@ def make_bundle_product(product_id, name, category, price):
 @pytest.mark.anyio
 async def test_handle_chat_builds_bundle_recommendation_from_existing_chat_contract() -> None:
     need = StructuredNeed(
-        intent="场景化组合推荐",
-        budget_max=700,
-        scenario="旅行",
-        preferences=["轻便"],
-        avoid=["大容量"],
+        intent="bundle_recommend",
+        budget_max=6000,
+        scenario="桌面",
+        preferences=["办公"],
     )
     rag_pipeline = FakeRAGPipeline(
         [
-            make_bundle_product(1, "轻薄充电宝", "充电宝", 129),
-            make_bundle_product(2, "轻量双肩包", "双肩包", 239),
-            make_bundle_product(3, "通勤降噪耳机", "蓝牙耳机", 299),
-            make_bundle_product(4, "备用充电宝", "充电宝", 159),
+            make_bundle_product(1, "DeskMini S 入门迷你主机", "电脑", 2599),
+            make_bundle_product(2, "ClearView 24 护眼显示器", "显示器", 799),
+            make_bundle_product(3, "Campus75 三模静音机械键盘", "机械键盘", 289),
+            make_bundle_product(4, "QuietMouse M1 静音办公鼠标", "鼠标", 89),
+            make_bundle_product(5, "MetroBuds Lite 通勤降噪耳机", "蓝牙耳机", 299),
+            make_bundle_product(6, "FocusLamp Mini 宿舍护眼台灯", "台灯", 199),
         ]
     )
     service = ChatService(
@@ -72,10 +73,14 @@ async def test_handle_chat_builds_bundle_recommendation_from_existing_chat_contr
         llm_client=FakeLLMClient(),
     )
 
-    response = await service.handle_chat(ChatRequest(message="搭配一套旅行装备"), db=object())
+    response = await service.handle_chat(ChatRequest(message="搭配一套桌面装备"), db=object())
 
     assert response.need_clarify is False
     assert response.structured_need == need
-    assert [product.name for product in response.products] == ["轻薄充电宝", "轻量双肩包", "通勤降噪耳机"]
-    assert sum(product.price for product in response.products) <= 700
+    assert response.bundle_plans
+    assert len(response.bundle_plans) == 3
+    assert response.bundle_plans[0].budget_tier == "entry"
+    assert response.bundle_plans[1].budget_status in {"within_budget", "slightly_over_budget"}
+    assert {item.category for item in response.bundle_plans[1].items} >= {"电脑", "显示器", "机械键盘", "鼠标", "蓝牙耳机"}
+    assert response.products
     assert rag_pipeline.calls[0]["top_k"] == 30

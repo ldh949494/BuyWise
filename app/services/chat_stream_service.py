@@ -17,7 +17,7 @@ from app.core.metrics import (
 )
 from app.core.traffic import is_capacity_limited
 from app.repositories.product_repo import ProductRepository
-from app.schemas.chat import ChatRequest, ProductCard, StructuredNeed
+from app.schemas.chat import BundlePlan, ChatRequest, ProductCard, StructuredNeed
 from app.schemas.chat_stream import (
     ChatStreamDoneEventData,
     ChatStreamErrorEventData,
@@ -131,12 +131,17 @@ class ChatStreamRunner:
         db: Session,
     ) -> AsyncIterator[dict[str, Any]]:
         yield self._event("status", ChatStreamStatusEventData(stage="retrieval", message="retrieval"))
-        top_products = await self._rank_products(need, db)
+        if self.chat_service._is_bundle_intent(need):
+            top_products, bundle_plans = await self.chat_service._recommendation_results(need, db)
+        else:
+            top_products = await self._rank_products(need, db)
+            bundle_plans = []
         context["stream_path"] = "full_rag"
         self._observe_first_products(context, "full_rag")
-        yield self._event("products", self._products_payload(need, top_products, need_clarify=False))
+        payload_products = self._bundle_products(bundle_plans) if bundle_plans else top_products
+        yield self._event("products", self._products_payload(need, payload_products, need_clarify=False, bundle_plans=bundle_plans))
         yield self._event("status", ChatStreamStatusEventData(stage="generation", message="generation"))
-        async for event in self._stream_generation(context, need, top_products):
+        async for event in self._stream_generation(context, need, payload_products, bundle_plans=bundle_plans):
             yield event
 
     async def _stream_fast_products(
@@ -174,10 +179,11 @@ class ChatStreamRunner:
         top_products: list[Any],
         *,
         concise: bool = False,
+        bundle_plans: list[BundlePlan] | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         chunks = []
         try:
-            async for chunk in self._stream_recommendation_reply(need, top_products, concise=concise):
+            async for chunk in self._stream_recommendation_reply(need, top_products, concise=concise, bundle_plans=bundle_plans):
                 chunks.append(chunk)
                 yield self._event("token", ChatStreamTokenEventData(text=chunk))
         except Exception as exc:
@@ -188,7 +194,7 @@ class ChatStreamRunner:
                 yield event
             return
         reply = "".join(chunks)
-        self._save_assistant(context, reply, need, top_products, need_clarify=False)
+        self._save_assistant(context, reply, need, top_products, need_clarify=False, bundle_plans=bundle_plans)
         yield self._event("done", ChatStreamDoneEventData(reply=reply))
 
     async def _stream_recommendation_reply(
@@ -197,7 +203,11 @@ class ChatStreamRunner:
         top_products: list[Any],
         *,
         concise: bool,
+        bundle_plans: list[BundlePlan] | None = None,
     ) -> AsyncIterator[str]:
+        if bundle_plans:
+            yield self.chat_service._fallback_bundle_reply(bundle_plans)
+            return
         if not concise:
             async for chunk in self.chat_service.llm_client.stream_recommendation(need, top_products):
                 yield chunk
@@ -292,11 +302,14 @@ class ChatStreamRunner:
         *,
         need_clarify: bool,
         degraded_reason: str | None = None,
+        bundle_plans: list[BundlePlan] | None = None,
     ) -> None:
         chat_repo = context["chat_repo"]
         structured_data = {"need": self.chat_service._dump(need), "need_clarify": need_clarify}
         if products:
             structured_data["products"] = [self.chat_service._dump(product) for product in products]
+        if bundle_plans:
+            structured_data["bundle_plans"] = [self.chat_service._dump(plan) for plan in bundle_plans]
         if degraded_reason:
             structured_data["degraded"] = True
             structured_data["degraded_reason"] = degraded_reason
@@ -304,12 +317,23 @@ class ChatStreamRunner:
         chat_repo.create_recommendations(context["session_id"], products)
         self.chat_service._commit(chat_repo)
 
-    def _products_payload(self, need: Any, products: list[Any], *, need_clarify: bool) -> dict[str, Any]:
+    def _products_payload(
+        self,
+        need: Any,
+        products: list[Any],
+        *,
+        need_clarify: bool,
+        bundle_plans: list[BundlePlan] | None = None,
+    ) -> dict[str, Any]:
         return ChatStreamProductsEventData(
             need_clarify=need_clarify,
             structured_need=StructuredNeed.model_validate(self.chat_service._dump(need)),
             items=[ProductCard.model_validate(self.chat_service._dump(product)) for product in products],
+            bundle_plans=bundle_plans or [],
         )
+
+    def _bundle_products(self, bundle_plans: list[BundlePlan]) -> list[Any]:
+        return self.chat_service._flatten_bundle_plan_products(bundle_plans)
 
     def _event(self, event: str, data: Any) -> dict[str, Any]:
         if hasattr(data, "model_dump"):

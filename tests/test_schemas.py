@@ -26,12 +26,14 @@ def test_chat_response_defaults_and_frontend_field_names() -> None:
     response = ChatResponse(reply="请补充预算", need_clarify=True)
 
     assert response.products == []
+    assert response.bundle_plans == []
     assert response.extra == {}
     assert response.model_dump() == {
         "reply": "请补充预算",
         "need_clarify": True,
         "structured_need": None,
         "products": [],
+        "bundle_plans": [],
         "extra": {},
     }
 

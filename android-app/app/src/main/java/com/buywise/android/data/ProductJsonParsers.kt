@@ -44,6 +44,65 @@ internal fun parseProductCard(json: JSONObject, category: String, reason: String
     )
 }
 
+internal fun parseBundlePlan(json: JSONObject): BundlePlan {
+    val items = json.optJSONArray("items")
+    val checks = json.optJSONArray("compatibility_checks")
+    return BundlePlan(
+        id = json.optString("id", json.optString("title", "bundle-plan")),
+        title = json.optString("title", "组合方案"),
+        budgetTier = json.optString("budget_tier"),
+        targetBudget = json.optDoubleOrNull("target_budget"),
+        totalPrice = json.optDoubleOrNull("total_price") ?: 0.0,
+        budgetStatus = json.optString("budget_status"),
+        budgetDelta = json.optDoubleOrNull("budget_delta"),
+        recommendationLevel = json.optString("recommendation_level", "medium"),
+        scenarioFit = json.optStringOrNull("scenario_fit"),
+        summary = json.optStringOrNull("summary"),
+        completeness = parseBundleCompleteness(json.optJSONObject("completeness")),
+        items = (0 until (items?.length() ?: 0)).mapNotNull { index ->
+            items?.optJSONObject(index)?.let(::parseBundlePlanItem)
+        },
+        tradeoffs = json.optJSONArray("tradeoffs").toStringList(),
+        compareHighlights = json.optJSONArray("compare_highlights").toStringList(),
+        exclusionNotes = json.optJSONArray("exclusion_notes").toStringList(),
+        compatibilityChecks = (0 until (checks?.length() ?: 0)).mapNotNull { index ->
+            checks?.optJSONObject(index)?.let(::parseBundleCompatibilityCheck)
+        },
+        availabilityStatus = json.optString("availability_status", "available"),
+    )
+}
+
+private fun parseBundleCompleteness(json: JSONObject?): BundleCompleteness =
+    BundleCompleteness(
+        includedRequired = json?.optInt("included_required") ?: 0,
+        expectedRequired = json?.optInt("expected_required") ?: 0,
+        optionalIncluded = json?.optInt("optional_included") ?: 0,
+        missing = json?.optJSONArray("missing").toStringList(),
+        needsConfirmation = json?.optJSONArray("needs_confirmation").toStringList(),
+    )
+
+private fun parseBundlePlanItem(json: JSONObject): BundlePlanItem {
+    val category = json.optString("category", "推荐商品")
+    val productJson = json.optJSONObject("product") ?: JSONObject()
+    val role = json.optStringOrNull("role")
+    return BundlePlanItem(
+        category = category,
+        product = parseProductCard(productJson, category, role ?: productJson.optString("name", "方案商品")),
+        role = role,
+        required = json.optBoolean("required", true),
+        replaceable = json.optBoolean("replaceable", true),
+        locked = json.optBoolean("locked", false),
+        excluded = json.optBoolean("excluded", false),
+    )
+}
+
+private fun parseBundleCompatibilityCheck(json: JSONObject): BundleCompatibilityCheck =
+    BundleCompatibilityCheck(
+        title = json.optString("title", "搭配检查"),
+        status = json.optString("status", "needs_confirmation"),
+        message = json.optString("message", "需要确认"),
+    )
+
 internal fun parseCompareItem(json: JSONObject): Product {
     val pros = json.optJSONArray("pros").toStringList().cleanMarkdownTextList()
     val cons = json.optJSONArray("cons").toStringList().cleanMarkdownTextList()

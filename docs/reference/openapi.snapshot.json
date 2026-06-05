@@ -354,6 +354,278 @@
         "title": "Body_upload_file_api_v1_upload_post",
         "type": "object"
       },
+      "BundleBudgetAllocation": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          }
+        },
+        "required": [
+          "category",
+          "amount"
+        ],
+        "title": "BundleBudgetAllocation",
+        "type": "object"
+      },
+      "BundleCompatibilityCheck": {
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "status",
+          "message"
+        ],
+        "title": "BundleCompatibilityCheck",
+        "type": "object"
+      },
+      "BundleCompleteness": {
+        "properties": {
+          "expected_required": {
+            "default": 0,
+            "title": "Expected Required",
+            "type": "integer"
+          },
+          "included_required": {
+            "default": 0,
+            "title": "Included Required",
+            "type": "integer"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "needs_confirmation": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Needs Confirmation",
+            "type": "array"
+          },
+          "optional_included": {
+            "default": 0,
+            "title": "Optional Included",
+            "type": "integer"
+          }
+        },
+        "title": "BundleCompleteness",
+        "type": "object"
+      },
+      "BundlePlan": {
+        "properties": {
+          "availability_status": {
+            "default": "available",
+            "title": "Availability Status",
+            "type": "string"
+          },
+          "budget_allocation": {
+            "items": {
+              "$ref": "#/components/schemas/BundleBudgetAllocation"
+            },
+            "title": "Budget Allocation",
+            "type": "array"
+          },
+          "budget_delta": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Delta"
+          },
+          "budget_status": {
+            "title": "Budget Status",
+            "type": "string"
+          },
+          "budget_tier": {
+            "title": "Budget Tier",
+            "type": "string"
+          },
+          "compare_highlights": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Compare Highlights",
+            "type": "array"
+          },
+          "compatibility_checks": {
+            "items": {
+              "$ref": "#/components/schemas/BundleCompatibilityCheck"
+            },
+            "title": "Compatibility Checks",
+            "type": "array"
+          },
+          "completeness": {
+            "$ref": "#/components/schemas/BundleCompleteness"
+          },
+          "exclusion_notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Exclusion Notes",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BundlePlanItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "price_checked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Checked At"
+          },
+          "recommendation_level": {
+            "default": "medium",
+            "title": "Recommendation Level",
+            "type": "string"
+          },
+          "revision": {
+            "default": 1,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "scenario_fit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenario Fit"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "target_budget": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Budget"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "total_price": {
+            "title": "Total Price",
+            "type": "number"
+          },
+          "tradeoffs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tradeoffs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "budget_tier",
+          "total_price",
+          "budget_status"
+        ],
+        "title": "BundlePlan",
+        "type": "object"
+      },
+      "BundlePlanItem": {
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "excluded": {
+            "default": false,
+            "title": "Excluded",
+            "type": "boolean"
+          },
+          "locked": {
+            "default": false,
+            "title": "Locked",
+            "type": "boolean"
+          },
+          "product": {
+            "$ref": "#/components/schemas/ProductCard"
+          },
+          "replaceable": {
+            "default": true,
+            "title": "Replaceable",
+            "type": "boolean"
+          },
+          "required": {
+            "default": true,
+            "title": "Required",
+            "type": "boolean"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          }
+        },
+        "required": [
+          "category",
+          "product"
+        ],
+        "title": "BundlePlanItem",
+        "type": "object"
+      },
       "ChatRequest": {
         "properties": {
           "audio_url": {
@@ -406,6 +678,13 @@
       },
       "ChatResponse": {
         "properties": {
+          "bundle_plans": {
+            "items": {
+              "$ref": "#/components/schemas/BundlePlan"
+            },
+            "title": "Bundle Plans",
+            "type": "array"
+          },
           "extra": {
             "additionalProperties": true,
             "title": "Extra",
@@ -699,6 +978,20 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "LogoutRequest": {
+        "properties": {
+          "refresh_token": {
+            "minLength": 16,
+            "title": "Refresh Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "refresh_token"
+        ],
+        "title": "LogoutRequest",
+        "type": "object"
+      },
       "OrderCreate": {
         "properties": {
           "external_order_ref": {
@@ -961,6 +1254,91 @@
           "updated_at"
         ],
         "title": "OrderRead",
+        "type": "object"
+      },
+      "OtpRequest": {
+        "properties": {
+          "phone": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Phone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "phone"
+        ],
+        "title": "OtpRequest",
+        "type": "object"
+      },
+      "OtpRequestResponse": {
+        "properties": {
+          "debug_otp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Debug Otp"
+          },
+          "phone_masked": {
+            "title": "Phone Masked",
+            "type": "string"
+          }
+        },
+        "required": [
+          "phone_masked"
+        ],
+        "title": "OtpRequestResponse",
+        "type": "object"
+      },
+      "OtpVerifyRequest": {
+        "properties": {
+          "code": {
+            "maxLength": 12,
+            "minLength": 4,
+            "title": "Code",
+            "type": "string"
+          },
+          "device_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Id"
+          },
+          "device_name": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Name"
+          },
+          "phone": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Phone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "phone",
+          "code"
+        ],
+        "title": "OtpVerifyRequest",
         "type": "object"
       },
       "PriceHistoryRead": {
@@ -1955,6 +2333,48 @@
         "title": "ReadinessResponse",
         "type": "object"
       },
+      "RefreshRequest": {
+        "properties": {
+          "refresh_token": {
+            "minLength": 16,
+            "title": "Refresh Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "refresh_token"
+        ],
+        "title": "RefreshRequest",
+        "type": "object"
+      },
+      "RefreshResponse": {
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "expires_in": {
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "refresh_token": {
+            "title": "Refresh Token",
+            "type": "string"
+          },
+          "token_type": {
+            "default": "bearer",
+            "title": "Token Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_token",
+          "refresh_token",
+          "expires_in"
+        ],
+        "title": "RefreshResponse",
+        "type": "object"
+      },
       "ReviewFromOrderItemCreate": {
         "properties": {
           "cons_tags": {
@@ -2362,6 +2782,16 @@
             "title": "Preferences",
             "type": "array"
           },
+          "purchase_stage": {
+            "default": "consider",
+            "title": "Purchase Stage",
+            "type": "string"
+          },
+          "retrieval_strategy": {
+            "default": "balanced",
+            "title": "Retrieval Strategy",
+            "type": "string"
+          },
           "scenario": {
             "anyOf": [
               {
@@ -2378,6 +2808,89 @@
           "intent"
         ],
         "title": "StructuredNeed",
+        "type": "object"
+      },
+      "UserAuthTokenResponse": {
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "expires_in": {
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "refresh_token": {
+            "title": "Refresh Token",
+            "type": "string"
+          },
+          "token_type": {
+            "default": "bearer",
+            "title": "Token Type",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserProfileResponse"
+          }
+        },
+        "required": [
+          "access_token",
+          "refresh_token",
+          "expires_in",
+          "user"
+        ],
+        "title": "UserAuthTokenResponse",
+        "type": "object"
+      },
+      "UserProfileResponse": {
+        "properties": {
+          "account_type": {
+            "default": "user",
+            "title": "Account Type",
+            "type": "string"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "phone_masked": {
+            "title": "Phone Masked",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "phone_masked",
+          "created_at"
+        ],
+        "title": "UserProfileResponse",
         "type": "object"
       },
       "ValidationError": {
@@ -2918,6 +3431,184 @@
         "summary": "Stream Chat",
         "tags": [
           "chat"
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "logout_api_v1_auth_logout_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Logout",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "operationId": "me_api_v1_auth_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/otp/request": {
+      "post": {
+        "operationId": "request_otp_api_v1_auth_otp_request_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OtpRequestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Request Otp",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/otp/verify": {
+      "post": {
+        "operationId": "verify_otp_api_v1_auth_otp_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserAuthTokenResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify Otp",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "operationId": "refresh_api_v1_auth_refresh_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Refresh",
+        "tags": [
+          "auth"
         ]
       }
     },

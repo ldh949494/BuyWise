@@ -1,4 +1,4 @@
-name: Backend CI
+name: PR Validation
 
 on:
   pull_request:
@@ -7,12 +7,50 @@ on:
       - main
 
 jobs:
-  backend-validation:
-    runs-on: windows-latest
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: pwsh
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed paths
+        id: changes
+        run: |
+          $androidChanged = $false
+
+          if ("${{ github.event_name }}" -eq "pull_request") {
+            $baseSha = "${{ github.event.pull_request.base.sha }}"
+            $headSha = "${{ github.event.pull_request.head.sha }}"
+            $changedFiles = git diff --name-only "$baseSha..$headSha"
+          } else {
+            $before = "${{ github.event.before }}"
+            $sha = "${{ github.sha }}"
+            if (-not $before -or $before -eq ("0" * 40)) {
+              $changedFiles = git diff-tree --no-commit-id --name-only -r $sha
+            } else {
+              $changedFiles = git diff --name-only "$before..$sha"
+            }
+          }
+
+          foreach ($file in $changedFiles) {
+            if (
+              $file -like "android-app/*" -or
+              $file -eq ".github/workflows/backend-ci.yml" -or
+              $file -eq "scripts/auto_validate.ps1"
+            ) {
+              $androidChanged = $true
+              break
+            }
+          }
+
+          "android_changed=$($androidChanged.ToString().ToLowerInvariant())" |
+            Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -21,11 +59,23 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-dev.txt
 
+      - name: Set up Java
+        if: ${{ steps.changes.outputs.android_changed == 'true' }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements-dev.txt
 
-      - name: Run backend validation
-        shell: powershell
-        run: powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1 -SkipDependencyInstall -SkipAndroidBuild
+      - name: Run validation
+        run: |
+          if ("${{ steps.changes.outputs.android_changed }}" -eq "true") {
+            ./scripts/auto_validate.ps1 -SkipDependencyInstall
+          } else {
+            ./scripts/auto_validate.ps1 -SkipDependencyInstall -SkipAndroidBuild
+          }

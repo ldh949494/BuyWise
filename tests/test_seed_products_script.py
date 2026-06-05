@@ -4,6 +4,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base
 from app.models import Product
+from app.scripts.demo_desktop_products import DEMO_DESKTOP_PRODUCTS
 from app.scripts.demo_products import DEMO_SHOWCASE_PRODUCTS
 from app.scripts.seed_products import ANDROID_CONTRACT_PRODUCTS, seed_products
 
@@ -39,9 +40,12 @@ def test_seed_products_demo_profile_upserts_showcase_products() -> None:
     with session_factory() as db:
         products = db.query(Product).order_by(Product.id).all()
 
-    expected_count = len(ANDROID_CONTRACT_PRODUCTS) + len(DEMO_SHOWCASE_PRODUCTS)
+    expected_count = len(ANDROID_CONTRACT_PRODUCTS) + len(DEMO_SHOWCASE_PRODUCTS) + len(DEMO_DESKTOP_PRODUCTS)
     assert first_result == {"inserted": expected_count, "updated": 0}
     assert second_result == {"inserted": 0, "updated": expected_count}
     assert len(products) == expected_count
-    assert products[-1].id == 1105
-    assert products[-1].category == "双肩包"
+    product_by_id = {product.id: product for product in products}
+    assert product_by_id[1105].category == "双肩包"
+    assert product_by_id[1201].category == "电脑"
+    assert product_by_id[1204].category == "显示器"
+    assert product_by_id[1207].category == "鼠标"

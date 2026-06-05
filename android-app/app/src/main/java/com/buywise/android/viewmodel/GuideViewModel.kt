@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import com.buywise.android.data.BundlePlan
 import com.buywise.android.data.GuideChatMessage
 import com.buywise.android.data.GuideChatRole
 import com.buywise.android.data.ChatStreamEvent
@@ -82,6 +83,7 @@ class GuideViewModel(
             query = query,
             intentSummary = "正在理解预算、场景和偏好...",
             recommendations = emptyList(),
+            bundlePlans = emptyList(),
             partialReply = "",
             isStreaming = true,
             errorMessage = null,
@@ -115,6 +117,7 @@ class GuideViewModel(
             query = message,
             chatDraft = "",
             chatMessages = state.chatMessages + userMessage + assistantMessage,
+            bundlePlans = emptyList(),
             partialReply = "",
             isStreaming = true,
             errorMessage = null,
@@ -151,7 +154,7 @@ class GuideViewModel(
             is ChatStreamEvent.Meta -> state.copy(sessionId = event.sessionId)
             is ChatStreamEvent.Status -> state.copy(intentSummary = event.message)
             is ChatStreamEvent.Token -> applyToken(event.text)
-            is ChatStreamEvent.Products -> applyProducts(event.intentSummary, event.recommendations)
+            is ChatStreamEvent.Products -> applyProducts(event.intentSummary, event.recommendations, event.bundlePlans)
             is ChatStreamEvent.Done -> applyDone(event.reply)
             is ChatStreamEvent.Error -> applyError(event.message)
             ChatStreamEvent.Heartbeat -> state
@@ -165,12 +168,18 @@ class GuideViewModel(
         return updateAssistantMessage { message -> message.copy(text = message.text + text) }
     }
 
-    private fun applyProducts(intentSummary: String, recommendations: List<com.buywise.android.data.Recommendation>): GuideState {
-        val synced = state.copy(intentSummary = intentSummary, recommendations = recommendations)
-        if (streamMode != StreamMode.Chat || recommendations.isEmpty()) {
+    private fun applyProducts(
+        intentSummary: String,
+        recommendations: List<com.buywise.android.data.Recommendation>,
+        bundlePlans: List<BundlePlan>,
+    ): GuideState {
+        val synced = state.copy(intentSummary = intentSummary, recommendations = recommendations, bundlePlans = bundlePlans)
+        if (streamMode != StreamMode.Chat || (recommendations.isEmpty() && bundlePlans.isEmpty())) {
             return synced
         }
-        return updateAssistantMessage(synced) { message -> message.copy(recommendations = recommendations) }
+        return updateAssistantMessage(synced) { message ->
+            message.copy(recommendations = recommendations, bundlePlans = bundlePlans)
+        }
     }
 
     private fun applyDone(reply: String): GuideState {
