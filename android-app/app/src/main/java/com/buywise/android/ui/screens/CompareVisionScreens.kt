@@ -22,7 +22,6 @@ import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -287,11 +287,39 @@ private fun VisionResultCard(state: VisionState, onUseQuery: () -> Unit) {
                     EvidenceTag("${state.result.confidence}% 匹配", tone = EvidenceTone.Success)
                     EvidenceTag("RGB 灯效", tone = EvidenceTone.Info)
                 }
-                OutlinedButton(onClick = onUseQuery, enabled = !state.recognizedQuery.isNullOrBlank()) {
-                    Text("查找此类商品")
-                }
+                VisionResultActionButton(
+                    enabled = !state.recognizedQuery.isNullOrBlank(),
+                    onClick = onUseQuery,
+                )
             }
             ScoreBadge(state.result.confidence.coerceIn(0, 99), size = 48.dp)
+        }
+    }
+}
+
+@Composable
+private fun VisionResultActionButton(enabled: Boolean, onClick: () -> Unit) {
+    val foreground = if (enabled) BuyWiseTheme.colors.ink else BuyWiseTheme.colors.muted
+    FloatingGlassCard(
+        tone = FloatingGlassTone.Neutral,
+        radius = 999.dp,
+        fillMaxWidth = false,
+        contentPadding = 0.dp,
+        elevated = true,
+        onClick = if (enabled) onClick else null,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(BuyWiseIcons.Search, contentDescription = null, tint = foreground, modifier = Modifier.size(18.dp))
+            Text(
+                "查找此类商品",
+                color = foreground,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+            )
         }
     }
 }

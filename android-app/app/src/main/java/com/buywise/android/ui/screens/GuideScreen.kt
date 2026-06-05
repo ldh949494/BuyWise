@@ -1,6 +1,5 @@
 package com.buywise.android.ui.screens
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -13,13 +12,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -29,11 +25,14 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.buywise.android.data.GuideState
 import com.buywise.android.data.Product
 import com.buywise.android.ui.BuyWiseDimens
 import com.buywise.android.ui.BuyWiseIcons
 import com.buywise.android.ui.BuyWiseTheme
+import com.buywise.android.ui.components.FloatingAssetBadge
 import com.buywise.android.ui.components.FloatingGlassCard
 import com.buywise.android.ui.components.FloatingGlassTone
 import com.buywise.android.ui.components.ProductCard
@@ -130,21 +129,25 @@ private fun GuideInputPanel(
         contentPadding = 18.dp,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Surface(color = BuyWiseTheme.colors.primarySoft, shape = RoundedCornerShape(16.dp)) {
+            FloatingGlassCard(
+                tone = FloatingGlassTone.Primary,
+                radius = 16.dp,
+                contentPadding = 14.dp,
+            ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    TactileIconTile(
+                    FloatingAssetBadge(
                         icon = BuyWiseIcons.Guide,
                         contentDescription = null,
-                        size = 38.dp,
-                        iconSize = 18.dp,
+                        size = 42.dp,
+                        iconSize = 21.dp,
                         tone = TactileIconTone.Primary,
                     )
                     Text(
                         "描述预算、用途和偏好，BuyWise 会给出候选商品和理由。",
+                        modifier = Modifier.weight(1f),
                         color = BuyWiseTheme.colors.primary,
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.bodyMedium,
@@ -158,42 +161,48 @@ private fun GuideInputPanel(
                     onQueryChange(template)
                 },
             )
-            OutlinedTextField(
-                value = state.query,
-                onValueChange = onQueryChange,
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 4,
-                placeholder = { Text("宿舍写代码用，预算300以内，想要低噪音机械键盘，最好便于收纳。") },
-            )
+            FloatingGlassCard(
+                tone = FloatingGlassTone.Neutral,
+                radius = 14.dp,
+                elevated = false,
+                contentPadding = 0.dp,
+            ) {
+                OutlinedTextField(
+                    value = state.query,
+                    onValueChange = onQueryChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 4,
+                    placeholder = { Text("宿舍写代码用，预算300以内，想要低噪音机械键盘，最好便于收纳。") },
+                )
+            }
             Text(
                 if (state.query.isBlank()) "选择一个模板，或直接输入你的需求。" else "已记录 ${state.query.length} 字需求，可继续补充。",
                 color = BuyWiseTheme.colors.muted,
                 style = MaterialTheme.typography.labelMedium,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                Button(
+                RaisedGuideButton(
+                    label = if (state.isStreaming) "生成中..." else "生成推荐",
+                    icon = BuyWiseIcons.Guide,
+                    primary = true,
+                    enabled = !state.isStreaming && state.query.isNotBlank(),
+                    modifier = Modifier.weight(1f),
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onSubmit()
                     },
+                )
+                RaisedGuideButton(
+                    label = "进入对话导购",
+                    icon = BuyWiseIcons.Assistant,
+                    primary = false,
+                    enabled = true,
                     modifier = Modifier.weight(1f),
-                    enabled = !state.isStreaming && state.query.isNotBlank(),
-                ) {
-                    Icon(BuyWiseIcons.Guide, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    AnimatedContent(targetState = state.isStreaming, label = "guideSubmitLabel") { isStreaming ->
-                        Text(if (isStreaming) "生成中..." else "生成推荐")
-                    }
-                }
-                androidx.compose.material3.OutlinedButton(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onOpenChat()
                     },
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("进入对话导购")
-                }
+                )
             }
         }
     }
@@ -208,9 +217,63 @@ private fun DemandTemplateRow(onTemplateClick: (String) -> Unit) {
     )
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         templates.forEach { template ->
-            androidx.compose.material3.AssistChip(
+            FloatingGlassCard(
+                tone = FloatingGlassTone.Neutral,
+                radius = 12.dp,
+                fillMaxWidth = false,
+                contentPadding = 0.dp,
                 onClick = { onTemplateClick(template.query) },
-                label = { Text(template.label) },
+            ) {
+                Text(
+                    template.label,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    color = BuyWiseTheme.colors.ink,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RaisedGuideButton(
+    label: String,
+    icon: ImageVector,
+    primary: Boolean,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val tone = when {
+        primary && enabled -> FloatingGlassTone.SolidPrimary
+        primary -> FloatingGlassTone.Primary
+        else -> FloatingGlassTone.Neutral
+    }
+    val foreground = when {
+        primary && enabled -> Color.White
+        enabled -> BuyWiseTheme.colors.ink
+        else -> BuyWiseTheme.colors.muted
+    }
+    FloatingGlassCard(
+        modifier = modifier,
+        tone = tone,
+        radius = 999.dp,
+        contentPadding = 0.dp,
+        onClick = if (enabled) onClick else null,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 13.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, contentDescription = null, tint = foreground)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                label,
+                color = foreground,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
             )
         }
     }

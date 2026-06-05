@@ -12,6 +12,8 @@ BuyWise 是一个多模态电商导购项目，仓库包含 FastAPI 后端和原
 - AI 和检索：`app/ai/` 与 `app/vectorstore/` 提供 LLM、embedding、RAG 和持久化 ChromaDB 商品索引。
 - Android 客户端：`android-app/` 是 Kotlin Jetpack Compose 应用，使用 MVVM 风格状态管理，并通过 OkHttp repository 对接后端合同流。
 
+更详细的架构设计和代码实现说明见 `docs/architecture/implementation-deep-dive.md`。
+
 ## 当前端到端链路
 
 AI 导购链路为：Android 输入需求 -> `/api/v1/ai/chat/stream` -> 后端抽取结构化需求 -> RAG 检索商品 -> 推荐排序 -> LLM 生成回复 -> SSE 分块返回 -> Android 展示回复和商品卡片。
