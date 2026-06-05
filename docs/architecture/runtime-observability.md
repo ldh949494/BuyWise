@@ -20,7 +20,7 @@ docker compose up --build
 
 ```powershell
 .\scripts\release_prepare.ps1
-.\scripts\release_prepare.ps1 -ImportCsv .\data\products.csv -BuildIndex
+.\scripts\release_prepare.ps1 -ImportCsv .\data\beta-catalog.csv -RequireRealCatalog -BuildIndex -IndexMode rebuild -CheckIndex
 .\scripts\release_prepare.ps1 -SeedProfile demo -BuildIndex -CheckIndex
 ```
 

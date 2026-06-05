@@ -109,6 +109,40 @@ def test_migrate_product_images_to_cos_dry_run_does_not_upload_or_update() -> No
     assert storage.calls == []
 
 
+def test_migrate_product_images_to_cos_records_failed_urls() -> None:
+    session_factory = make_session_factory()
+    with session_factory() as db:
+        db.add(
+            Product(
+                id=1,
+                sku="demo-keyboard",
+                name="Demo Keyboard",
+                image_url="https://source.example.com/images/main.jpg",
+            )
+        )
+        db.commit()
+
+    def downloader(_: str) -> DownloadedImage:
+        raise ValueError("blocked by source host")
+
+    summary = migrate_product_images_to_cos(
+        session_factory=session_factory,
+        storage_client=FakeStorageClient(),
+        downloader=downloader,
+        dry_run=False,
+    )
+
+    assert summary.as_dict()["urls_failed"] == 1
+    assert summary.url_failures == [
+        {
+            "product_id": "1",
+            "sku": "demo-keyboard",
+            "url": "https://source.example.com/images/main.jpg",
+            "error": "ValueError: blocked by source host",
+        }
+    ]
+
+
 def test_migrate_product_images_to_cos_cli_writes_job_artifact(tmp_path, monkeypatch) -> None:
     artifact = tmp_path / "cos-migration.json"
     summary = MigrationSummary(products_seen=2, products_updated=1, urls_seen=3, urls_migrated=2, urls_skipped=1)

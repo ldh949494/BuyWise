@@ -71,9 +71,10 @@ def test_products_csv_contains_50_demo_products() -> None:
 
 def test_import_products_upserts_rows_by_sku() -> None:
     session_factory = make_session_factory()
+    csv_path = "data/products.csv"
 
-    first_result = import_products(session_factory=session_factory, index_updater=None)
-    second_result = import_products(session_factory=session_factory, index_updater=None)
+    first_result = import_products(csv_path, session_factory=session_factory, index_updater=None)
+    second_result = import_products(csv_path, session_factory=session_factory, index_updater=None)
 
     with session_factory() as db:
         products = db.query(Product).order_by(Product.id).all()
@@ -82,6 +83,7 @@ def test_import_products_upserts_rows_by_sku() -> None:
     assert second_result == {"inserted": 0, "updated": 50, "failed": 0}
     assert len(products) == 50
     assert products[0].sku == "bulk-product-001"
+    assert products[0].image_url.startswith("https://")
     assert products[0].name
     assert isinstance(products[0].specs, dict)
     assert isinstance(products[0].tags, list)

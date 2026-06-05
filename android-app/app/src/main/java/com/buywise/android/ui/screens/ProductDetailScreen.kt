@@ -2,6 +2,7 @@ package com.buywise.android.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -45,6 +46,7 @@ import com.buywise.android.ui.displayRecommendationReason
 import com.buywise.android.ui.components.AdvicePanel
 import com.buywise.android.ui.components.EvidenceTag
 import com.buywise.android.ui.components.EvidenceTone
+import com.buywise.android.ui.components.FloatingAssetBadge
 import com.buywise.android.ui.components.FloatingGlassCard
 import com.buywise.android.ui.components.FloatingGlassTone
 import com.buywise.android.ui.components.ProductImagePreview
@@ -184,10 +186,19 @@ private fun ProductHeader(
         contentPadding = 16.dp,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            ProductImagePreview(
-                product = product,
-                modifier = Modifier.fillMaxWidth().aspectRatio(1.28f),
-            )
+            Box(modifier = Modifier.fillMaxWidth()) {
+                ProductImagePreview(
+                    product = product,
+                    modifier = Modifier.fillMaxWidth().aspectRatio(1.28f),
+                )
+                FloatingAssetBadge(
+                    icon = BuyWiseIcons.Headphones,
+                    contentDescription = null,
+                    size = 52.dp,
+                    iconSize = 27.dp,
+                    modifier = Modifier.align(androidx.compose.ui.Alignment.BottomEnd).padding(end = 10.dp, bottom = 10.dp),
+                )
+            }
             Text(product.name, style = MaterialTheme.typography.headlineMedium, color = BuyWiseTheme.colors.ink)
             Row(
                 modifier = Modifier.fillMaxWidth(),

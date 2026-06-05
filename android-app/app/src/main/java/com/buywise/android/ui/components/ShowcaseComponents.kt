@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -156,8 +157,8 @@ fun CategoryShortcut(
         TactileIconTile(
             icon = icon,
             contentDescription = label,
-            size = 54.dp,
-            iconSize = 24.dp,
+            size = 56.dp,
+            iconSize = 25.dp,
             tone = tone,
             onClick = onClick,
         )
@@ -167,6 +168,33 @@ fun CategoryShortcut(
             style = MaterialTheme.typography.labelMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+fun FloatingAssetBadge(
+    icon: ImageVector,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    tone: TactileIconTone = TactileIconTone.Primary,
+    size: Dp = 58.dp,
+    iconSize: Dp = 28.dp,
+) {
+    Box(modifier = modifier.size(size + 8.dp), contentAlignment = Alignment.Center) {
+        Surface(
+            modifier = Modifier
+                .matchParentSize()
+                .offset(y = 4.dp),
+            shape = RoundedCornerShape(18.dp),
+            color = BuyWiseTheme.colors.primary.copy(alpha = 0.08f),
+        ) {}
+        TactileIconTile(
+            icon = icon,
+            contentDescription = contentDescription,
+            size = size,
+            iconSize = iconSize,
+            tone = tone,
         )
     }
 }

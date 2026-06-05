@@ -13,9 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -39,8 +37,8 @@ import com.buywise.android.data.Product
 import com.buywise.android.data.cleanMarkdownText
 import com.buywise.android.ui.BuyWiseIcons
 import com.buywise.android.ui.BuyWiseTheme
-import com.buywise.android.ui.components.AdvicePanel
 import com.buywise.android.ui.components.CategoryShortcut
+import com.buywise.android.ui.components.FloatingAssetBadge
 import com.buywise.android.ui.components.FloatingGlassCard
 import com.buywise.android.ui.components.FloatingGlassTone
 import com.buywise.android.ui.components.SearchPill
@@ -73,12 +71,7 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
-            ShowcaseTopBar(
-                title = "BuyWise",
-                leadingIcon = BuyWiseIcons.Inventory,
-                actionIcon = BuyWiseIcons.Feedback,
-                actionDescription = "反馈提醒",
-            )
+            HomeTopBar()
         }
         item {
             SearchPill(
@@ -136,7 +129,7 @@ fun HomeScreen(
         if (!state.canUseFeedback) {
             item {
                 InfoPanel(
-                    icon = { Icon(Icons.Outlined.ShoppingBag, contentDescription = null) },
+                    icon = { Icon(BuyWiseIcons.Shopping, contentDescription = null) },
                     title = "购买后反馈",
                     body = state.tokenRequiredMessage ?: "购买后反馈功能暂未开启。",
                 )
@@ -146,7 +139,7 @@ fun HomeScreen(
                 SectionTitle("待评价", "记录真实使用体验")
             }
             feedbackState.successMessage?.let { message ->
-                item { InfoPanel(icon = { Icon(Icons.Outlined.CheckCircle, contentDescription = null) }, title = "反馈", body = message) }
+                item { InfoPanel(icon = { Icon(BuyWiseIcons.CheckCircle, contentDescription = null) }, title = "反馈", body = message) }
             }
             items(state.feedbackPrompts) { prompt ->
                 FeedbackPromptCard(
@@ -164,12 +157,39 @@ fun HomeScreen(
             }
         }
         item {
-            AdvicePanel(
-                title = "你的反馈待完成",
-                body = state.feedbackPrompts.firstOrNull()?.let { "你最近查看了 ${it.productName}，可以记录真实使用体验。" }
-                    ?: "需要更紧凑的候选清单或对比时，可以打开 AI 导购。",
+            HomeFeedbackSummaryCard(
+                productName = state.feedbackPrompts.firstOrNull()?.productName
+                    ?: displayedProducts.firstOrNull()?.shortHomeName()
+                    ?: "近期查看的商品",
             )
         }
+    }
+}
+
+@Composable
+private fun HomeTopBar() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TactileIconTile(
+            icon = BuyWiseIcons.Menu,
+            contentDescription = "菜单",
+            size = 44.dp,
+            iconSize = 22.dp,
+            rounded = true,
+            tone = TactileIconTone.Neutral,
+        )
+        Text("BuyWise", style = MaterialTheme.typography.titleLarge, color = BuyWiseTheme.colors.ink)
+        TactileIconTile(
+            icon = BuyWiseIcons.Notifications,
+            contentDescription = "通知",
+            size = 44.dp,
+            iconSize = 22.dp,
+            rounded = true,
+            tone = TactileIconTone.Neutral,
+        )
     }
 }
 
@@ -212,7 +232,7 @@ private fun HomeGreetingPanel(title: String, subtitle: String, onOpenGuide: () -
                 Text(title, style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
                 Text(subtitle, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium, maxLines = 2)
             }
-            TactileIconTile(
+            FloatingAssetBadge(
                 icon = BuyWiseIcons.Assistant,
                 contentDescription = null,
                 size = 64.dp,
@@ -223,16 +243,65 @@ private fun HomeGreetingPanel(title: String, subtitle: String, onOpenGuide: () -
     }
 }
 
+@Composable
+private fun HomeFeedbackSummaryCard(productName: String) {
+    FloatingGlassCard(
+        tone = FloatingGlassTone.Primary,
+        radius = 16.dp,
+        contentPadding = 14.dp,
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("你的反馈待完成", color = BuyWiseTheme.colors.primary, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "你最近查看了 $productName，使用体验如何？",
+                        color = BuyWiseTheme.colors.ink,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                FloatingAssetBadge(
+                    icon = BuyWiseIcons.Favorite,
+                    contentDescription = null,
+                    tone = TactileIconTone.Warm,
+                    size = 50.dp,
+                    iconSize = 26.dp,
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                FeedbackActionButton("有帮助", BuyWiseIcons.ThumbsUp, modifier = Modifier.weight(1f))
+                FeedbackActionButton("没帮助", BuyWiseIcons.ThumbsDown, modifier = Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun FeedbackActionButton(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier = Modifier) {
+    FloatingGlassCard(
+        modifier = modifier,
+        tone = FloatingGlassTone.Neutral,
+        radius = 12.dp,
+        contentPadding = 10.dp,
+        elevated = false,
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, tint = BuyWiseTheme.colors.secondary, modifier = Modifier.size(18.dp))
+            Text(label, color = BuyWiseTheme.colors.ink, style = MaterialTheme.typography.labelMedium)
+        }
+    }
+}
+
 private enum class HomeCategory(
     val label: String,
     val keywords: List<String>,
     val icon: androidx.compose.ui.graphics.vector.ImageVector,
 ) {
-    Keyboard("键盘", listOf("键盘", "keyboard", "keychron", "switch"), BuyWiseIcons.Inventory),
-    Audio("音频", listOf("音频", "耳机", "音箱", "audio", "headphone"), BuyWiseIcons.Speech),
-    Laptop("笔记本", listOf("笔记本", "电脑", "laptop", "notebook"), BuyWiseIcons.Image),
-    Desk("桌面", listOf("桌", "支架", "显示器", "desk", "monitor"), BuyWiseIcons.Compare),
-    More("更多", emptyList(), Icons.Outlined.MoreHoriz),
+    Keyboard("键盘", listOf("键盘", "keyboard", "keychron", "switch"), BuyWiseIcons.Keyboard),
+    Audio("音频", listOf("音频", "耳机", "音箱", "audio", "headphone"), BuyWiseIcons.Headphones),
+    Laptop("笔记本", listOf("笔记本", "电脑", "laptop", "notebook"), BuyWiseIcons.Laptop),
+    Desk("桌面", listOf("桌", "支架", "显示器", "desk", "monitor"), BuyWiseIcons.Desktop),
+    More("更多", emptyList(), BuyWiseIcons.More),
 }
 
 private fun List<Product>.forHomeCategory(category: HomeCategory): List<Product> {
@@ -248,6 +317,9 @@ private fun List<Product>.forHomeCategory(category: HomeCategory): List<Product>
     }
     return filtered.ifEmpty { this }
 }
+
+private fun Product.shortHomeName(): String =
+    name.take(18).ifBlank { brand ?: "商品" }
 
 @Composable
 fun InfoPanel(icon: @Composable () -> Unit, title: String, body: String) {

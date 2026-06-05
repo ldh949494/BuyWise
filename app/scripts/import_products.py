@@ -16,7 +16,7 @@ from app.core.database import SessionLocal
 from app.scripts.job_artifacts import run_job_with_artifact
 from app.services.product_service import IndexUpdater, ProductService
 
-DEFAULT_CSV_PATH = Path(__file__).resolve().parents[2] / "data" / "products.csv"
+DEFAULT_CSV_PATH = Path(__file__).resolve().parents[2] / "data" / "beta-catalog.csv"
 JSON_FIELDS = {"specs", "tags", "suitable_scene", "image_urls"}
 DECIMAL_FIELDS = {"price", "original_price", "rating"}
 INT_FIELDS = {"id", "sales", "stock"}

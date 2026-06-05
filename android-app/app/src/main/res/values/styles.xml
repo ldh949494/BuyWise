@@ -2,7 +2,7 @@
 <resources>
     <style name="Theme.BuyWise" parent="@android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans-serif-rounded</item>
-        <item name="android:windowBackground">#FFF8FAFC</item>
+        <item name="android:windowBackground">@drawable/launch_window_background</item>
         <item name="android:windowDisablePreview">false</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:statusBarColor">#FFF8FAFC</item>
