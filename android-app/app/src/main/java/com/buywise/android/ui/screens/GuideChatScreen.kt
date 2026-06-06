@@ -161,7 +161,7 @@ private fun GuideProcessingCard(state: GuideState, onIgnoreSavedPreferencesChang
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text("导购偏好", color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold)
                     Text(
-                        preferenceSummaryText(state.appliedPreferences, state.ignoreSavedPreferences),
+                        guidePreferenceSummaryText(state.appliedPreferences, state.ignoreSavedPreferences),
                         color = BuyWiseTheme.colors.muted,
                         style = MaterialTheme.typography.labelMedium,
                         maxLines = 1,
@@ -286,23 +286,12 @@ private fun AssistantBubble(
 private fun AppliedPreferenceLine(appliedPreferences: AppliedPreferences) {
     if (!appliedPreferences.hasVisibleSummary) return
     Text(
-        preferenceSummaryText(appliedPreferences, false),
+        guidePreferenceSummaryText(appliedPreferences, false),
         color = BuyWiseTheme.colors.primary,
         style = MaterialTheme.typography.labelMedium,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
     )
-}
-
-private fun preferenceSummaryText(appliedPreferences: AppliedPreferences, ignoreSavedPreferences: Boolean): String {
-    if (ignoreSavedPreferences || appliedPreferences.ignoredSavedPreferences) {
-        return "本次未使用长期导购偏好"
-    }
-    val summary = appliedPreferences.summary.take(3)
-    if (summary.isEmpty()) {
-        return "本次会优先使用已保存的导购偏好"
-    }
-    return "已按导购偏好：" + summary.joinToString("、")
 }
 
 @Composable
