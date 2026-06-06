@@ -20,6 +20,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -35,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.buywise.android.data.BundlePlan
+import com.buywise.android.data.AppliedPreferences
 import com.buywise.android.data.GuideChatMessage
 import com.buywise.android.data.GuideChatRole
 import com.buywise.android.data.GuideState
@@ -67,6 +69,7 @@ fun GuideChatScreen(
     onRunVisionDemo: () -> Unit,
     onRunSpeechDemo: () -> Unit,
     onProductClick: (String) -> Unit,
+    onIgnoreSavedPreferencesChange: (Boolean) -> Unit,
 ) {
     val listState = rememberLazyListState()
     LaunchedEffect(state.chatMessages.size, state.chatMessages.lastOrNull()?.text) {
@@ -84,7 +87,7 @@ fun GuideChatScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item { OpeningAssistantMessage(state = state) }
-            item { GuideProcessingCard(state = state) }
+            item { GuideProcessingCard(state = state, onIgnoreSavedPreferencesChange = onIgnoreSavedPreferencesChange) }
             items(state.chatMessages) { message ->
                 ChatMessageRow(message = message, onProductClick = onProductClick)
             }
@@ -122,11 +125,11 @@ private fun OpeningAssistantMessage(state: GuideState) {
         state.query.isNotBlank() -> "我已看到你的需求：${state.query}。你可以继续问我商品区别、推荐理由或细节。"
         else -> "告诉我预算、用途和偏好，我可以帮你筛选商品。"
     }
-    AssistantBubble(text = text, recommendations = emptyList(), bundlePlans = emptyList(), onProductClick = {})
+    AssistantBubble(text = text, recommendations = emptyList(), bundlePlans = emptyList(), appliedPreferences = AppliedPreferences(), onProductClick = {})
 }
 
 @Composable
-private fun GuideProcessingCard(state: GuideState) {
+private fun GuideProcessingCard(state: GuideState, onIgnoreSavedPreferencesChange: (Boolean) -> Unit) {
     FloatingGlassCard(
         tone = FloatingGlassTone.Neutral,
         radius = 16.dp,
@@ -149,6 +152,23 @@ private fun GuideProcessingCard(state: GuideState) {
                 status = if (state.isStreaming) "生成中" else if (state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty()) "完成" else "待开始",
                 done = !state.isStreaming && (state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty()),
             )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("导购偏好", color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold)
+                    Text(
+                        preferenceSummaryText(state.appliedPreferences, state.ignoreSavedPreferences),
+                        color = BuyWiseTheme.colors.muted,
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Switch(checked = state.ignoreSavedPreferences, onCheckedChange = onIgnoreSavedPreferencesChange)
+            }
         }
     }
 }
@@ -182,6 +202,7 @@ private fun ChatMessageRow(message: GuideChatMessage, onProductClick: (String) -
             text = message.text.ifBlank { "正在整理回复..." },
             recommendations = message.recommendations,
             bundlePlans = message.bundlePlans,
+            appliedPreferences = message.appliedPreferences,
             onProductClick = onProductClick,
         )
     }
@@ -192,6 +213,7 @@ private fun AssistantBubble(
     text: String,
     recommendations: List<Recommendation>,
     bundlePlans: List<BundlePlan>,
+    appliedPreferences: AppliedPreferences,
     onProductClick: (String) -> Unit,
 ) {
     val displayText = text.cleanMarkdownText().ifBlank { text }
@@ -219,17 +241,15 @@ private fun AssistantBubble(
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 } else if (bundlePlans.isNotEmpty()) {
-                    ChatBundleSummary(
-                        text = displayText,
-                        bundlePlans = bundlePlans,
-                        modifier = Modifier.padding(14.dp),
-                    )
+                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        AppliedPreferenceLine(appliedPreferences)
+                        ChatBundleSummary(text = displayText, bundlePlans = bundlePlans)
+                    }
                 } else {
-                    ChatDecisionSummary(
-                        text = displayText,
-                        recommendations = recommendations,
-                        modifier = Modifier.padding(14.dp),
-                    )
+                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        AppliedPreferenceLine(appliedPreferences)
+                        ChatDecisionSummary(text = displayText, recommendations = recommendations)
+                    }
                 }
             }
         }
@@ -259,6 +279,29 @@ private fun AssistantBubble(
             }
         }
     }
+}
+
+@Composable
+private fun AppliedPreferenceLine(appliedPreferences: AppliedPreferences) {
+    if (!appliedPreferences.hasVisibleSummary) return
+    Text(
+        preferenceSummaryText(appliedPreferences, false),
+        color = BuyWiseTheme.colors.primary,
+        style = MaterialTheme.typography.labelMedium,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+private fun preferenceSummaryText(appliedPreferences: AppliedPreferences, ignoreSavedPreferences: Boolean): String {
+    if (ignoreSavedPreferences || appliedPreferences.ignoredSavedPreferences) {
+        return "本次未使用长期导购偏好"
+    }
+    val summary = appliedPreferences.summary.take(3)
+    if (summary.isEmpty()) {
+        return "本次会优先使用已保存的导购偏好"
+    }
+    return "已按导购偏好：" + summary.joinToString("、")
 }
 
 @Composable

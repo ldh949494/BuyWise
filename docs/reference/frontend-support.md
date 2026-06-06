@@ -80,6 +80,7 @@ Authorization: Bearer <token>
 | 商品创建 | `POST` | `/api/v1/products` | `products:write` | 后台录入或测试数据创建 |
 | 商品对比 | `POST` | `/api/v1/products/compare` | 公开 | 商品对比页 |
 | AI 导购 | `POST` | `/api/v1/ai/chat` | 公开 | AI 导购会话 |
+| 导购偏好 | `GET/PUT/DELETE` | `/api/v1/guide/preferences` | User JWT | 账号级导购偏好 |
 | RAG 搜索 | `POST` | `/api/v1/rag/search` | 公开 | 检索调试或推荐候选 |
 | 上传 | `POST` | `/api/v1/upload` | `upload:write` | 图片、音频上传 |
 | 视觉识别 | `POST` | `/api/v1/vision/recognize` | 公开 | 图片识别后生成搜索 query |
@@ -253,6 +254,8 @@ Content-Type: application/json
 - 使用 `extra.session_id` 作为后续会话 ID；如果前端首次没有传，后端可能生成或回传会话标识。
 - `need_clarify=true` 时应把 `reply` 渲染为追问，不直接进入最终推荐态。
 - `structured_need.missing_fields` 可用于展示缺失条件，如预算、用途、偏好。
+- `ignore_saved_preferences=true` 会让本次请求跳过账号级导购偏好，仍可使用本次输入和临时偏好。
+- `applied_preferences` 是结构化偏好摘要，前端应轻量展示“已按你的导购偏好：...”并提供本次关闭入口。
 - `products` 可作为聊天消息中的商品卡片；当用户要求配齐多品类商品组合时，响应可同时返回 `bundle_plans`，前端应优先渲染方案卡片和方案对比入口。
 
 ### AI 导购 SSE
@@ -270,7 +273,7 @@ SSE 事件类型固定为 `meta`、`status`、`token`、`products`、`heartbeat`
 | `meta` | `{"session_id": "..."}` |
 | `status` | `{"stage": "intent|retrieval|generation|fallback", "message": "..."}` |
 | `token` | `{"text": "..."}` |
-| `products` | `{"need_clarify": false, "structured_need": {...}, "items": [...], "bundle_plans": [...]}` |
+| `products` | `{"need_clarify": false, "structured_need": {...}, "items": [...], "bundle_plans": [...], "applied_preferences": {...}}` |
 | `heartbeat` | `{"status": "ok"}` |
 | `done` | `{"reply": "...", "degraded": false, "degraded_reason": null}` |
 | `error` | `{"code": "chat_stream_failed|chat_stream_timeout", "message": "...", "session_id": "..."}` |

@@ -12,6 +12,7 @@ import com.buywise.android.data.GuideChatRole
 import com.buywise.android.data.ChatStreamEvent
 import com.buywise.android.data.GuideRepository
 import com.buywise.android.data.GuideState
+import com.buywise.android.data.AppliedPreferences
 import com.buywise.android.data.ShopRepository
 import okhttp3.sse.EventSource
 
@@ -34,6 +35,10 @@ class GuideViewModel(
 
     fun updateChatDraft(draft: String) {
         state = state.copy(chatDraft = draft)
+    }
+
+    fun setIgnoreSavedPreferences(value: Boolean) {
+        state = state.copy(ignoreSavedPreferences = value)
     }
 
     fun appendChatDraft(text: String, sourceLabel: String) {
@@ -84,6 +89,7 @@ class GuideViewModel(
             intentSummary = "正在理解预算、场景和偏好...",
             recommendations = emptyList(),
             bundlePlans = emptyList(),
+            appliedPreferences = AppliedPreferences(),
             partialReply = "",
             isStreaming = true,
             errorMessage = null,
@@ -91,6 +97,7 @@ class GuideViewModel(
         guideStream = repository.streamGuide(
             query = query,
             sessionId = state.sessionId,
+            ignoreSavedPreferences = state.ignoreSavedPreferences,
             onEvent = { event -> mainHandler.post { applyChatEvent(event) } },
         )
     }
@@ -118,6 +125,7 @@ class GuideViewModel(
             chatDraft = "",
             chatMessages = state.chatMessages + userMessage + assistantMessage,
             bundlePlans = emptyList(),
+            appliedPreferences = AppliedPreferences(),
             partialReply = "",
             isStreaming = true,
             errorMessage = null,
@@ -125,6 +133,7 @@ class GuideViewModel(
         guideStream = repository.streamGuide(
             query = message,
             sessionId = state.sessionId,
+            ignoreSavedPreferences = state.ignoreSavedPreferences,
             onEvent = { event -> mainHandler.post { applyChatEvent(event) } },
         )
     }
@@ -154,7 +163,12 @@ class GuideViewModel(
             is ChatStreamEvent.Meta -> state.copy(sessionId = event.sessionId)
             is ChatStreamEvent.Status -> state.copy(intentSummary = event.message)
             is ChatStreamEvent.Token -> applyToken(event.text)
-            is ChatStreamEvent.Products -> applyProducts(event.intentSummary, event.recommendations, event.bundlePlans)
+            is ChatStreamEvent.Products -> applyProducts(
+                event.intentSummary,
+                event.recommendations,
+                event.bundlePlans,
+                event.appliedPreferences,
+            )
             is ChatStreamEvent.Done -> applyDone(event.reply)
             is ChatStreamEvent.Error -> applyError(event.message)
             ChatStreamEvent.Heartbeat -> state
@@ -172,13 +186,23 @@ class GuideViewModel(
         intentSummary: String,
         recommendations: List<com.buywise.android.data.Recommendation>,
         bundlePlans: List<BundlePlan>,
+        appliedPreferences: AppliedPreferences,
     ): GuideState {
-        val synced = state.copy(intentSummary = intentSummary, recommendations = recommendations, bundlePlans = bundlePlans)
+        val synced = state.copy(
+            intentSummary = intentSummary,
+            recommendations = recommendations,
+            bundlePlans = bundlePlans,
+            appliedPreferences = appliedPreferences,
+        )
         if (streamMode != StreamMode.Chat || (recommendations.isEmpty() && bundlePlans.isEmpty())) {
             return synced
         }
         return updateAssistantMessage(synced) { message ->
-            message.copy(recommendations = recommendations, bundlePlans = bundlePlans)
+            message.copy(
+                recommendations = recommendations,
+                bundlePlans = bundlePlans,
+                appliedPreferences = appliedPreferences,
+            )
         }
     }
 

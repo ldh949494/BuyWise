@@ -326,6 +326,96 @@
         "title": "AdminTokenResponse",
         "type": "object"
       },
+      "AppliedPreferenceConstraint": {
+        "properties": {
+          "effect": {
+            "title": "Effect",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "key",
+          "label",
+          "effect"
+        ],
+        "title": "AppliedPreferenceConstraint",
+        "type": "object"
+      },
+      "AppliedPreferences": {
+        "properties": {
+          "budget_policy": {
+            "anyOf": [
+              {
+                "enum": [
+                  "strict",
+                  "slightly_flexible",
+                  "quality_first"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Policy"
+          },
+          "constraints": {
+            "items": {
+              "$ref": "#/components/schemas/AppliedPreferenceConstraint"
+            },
+            "title": "Constraints",
+            "type": "array"
+          },
+          "ignored_saved_preferences": {
+            "default": false,
+            "title": "Ignored Saved Preferences",
+            "type": "boolean"
+          },
+          "presentation_style": {
+            "anyOf": [
+              {
+                "enum": [
+                  "direct_answer",
+                  "compare_options",
+                  "detailed_explanation"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Presentation Style"
+          },
+          "summary": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Summary",
+            "type": "array"
+          },
+          "used_saved_preferences": {
+            "default": false,
+            "title": "Used Saved Preferences",
+            "type": "boolean"
+          }
+        },
+        "title": "AppliedPreferences",
+        "type": "object"
+      },
       "Body_upload_admin_file_api_v1_admin_upload_post": {
         "properties": {
           "file": {
@@ -352,6 +442,36 @@
           "file"
         ],
         "title": "Body_upload_file_api_v1_upload_post",
+        "type": "object"
+      },
+      "BudgetRange": {
+        "properties": {
+          "max": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          }
+        },
+        "title": "BudgetRange",
         "type": "object"
       },
       "BundleBudgetAllocation": {
@@ -639,6 +759,11 @@
             ],
             "title": "Audio Url"
           },
+          "ignore_saved_preferences": {
+            "default": false,
+            "title": "Ignore Saved Preferences",
+            "type": "boolean"
+          },
           "image_url": {
             "anyOf": [
               {
@@ -671,6 +796,16 @@
               }
             ],
             "title": "Session Id"
+          },
+          "temporary_preferences": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GuidePreferences"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "title": "ChatRequest",
@@ -678,6 +813,9 @@
       },
       "ChatResponse": {
         "properties": {
+          "applied_preferences": {
+            "$ref": "#/components/schemas/AppliedPreferences"
+          },
           "bundle_plans": {
             "items": {
               "$ref": "#/components/schemas/BundlePlan"
@@ -945,6 +1083,257 @@
           "feedback_due_at"
         ],
         "title": "FeedbackPromptRead",
+        "type": "object"
+      },
+      "GuidePreferences": {
+        "properties": {
+          "budget_policy": {
+            "default": "slightly_flexible",
+            "enum": [
+              "strict",
+              "slightly_flexible",
+              "quality_first"
+            ],
+            "title": "Budget Policy",
+            "type": "string"
+          },
+          "bundle_budget_range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BudgetRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "excluded_brands": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Excluded Brands",
+            "type": "array"
+          },
+          "excluded_tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Excluded Tags",
+            "type": "array"
+          },
+          "extra_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra Notes"
+          },
+          "owned_categories": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Owned Categories",
+            "type": "array"
+          },
+          "presentation_style": {
+            "default": "compare_options",
+            "enum": [
+              "direct_answer",
+              "compare_options",
+              "detailed_explanation"
+            ],
+            "title": "Presentation Style",
+            "type": "string"
+          },
+          "priority_tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Priority Tags",
+            "type": "array"
+          },
+          "single_item_budgets": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/BudgetRange"
+            },
+            "title": "Single Item Budgets",
+            "type": "object"
+          }
+        },
+        "title": "GuidePreferences",
+        "type": "object"
+      },
+      "GuidePreferencesResponse": {
+        "properties": {
+          "budget_policy": {
+            "default": "slightly_flexible",
+            "enum": [
+              "strict",
+              "slightly_flexible",
+              "quality_first"
+            ],
+            "title": "Budget Policy",
+            "type": "string"
+          },
+          "bundle_budget_range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BudgetRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "excluded_brands": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Excluded Brands",
+            "type": "array"
+          },
+          "excluded_tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Excluded Tags",
+            "type": "array"
+          },
+          "extra_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra Notes"
+          },
+          "has_saved_preferences": {
+            "default": false,
+            "title": "Has Saved Preferences",
+            "type": "boolean"
+          },
+          "owned_categories": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Owned Categories",
+            "type": "array"
+          },
+          "presentation_style": {
+            "default": "compare_options",
+            "enum": [
+              "direct_answer",
+              "compare_options",
+              "detailed_explanation"
+            ],
+            "title": "Presentation Style",
+            "type": "string"
+          },
+          "priority_tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Priority Tags",
+            "type": "array"
+          },
+          "single_item_budgets": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/BudgetRange"
+            },
+            "title": "Single Item Budgets",
+            "type": "object"
+          }
+        },
+        "title": "GuidePreferencesResponse",
+        "type": "object"
+      },
+      "GuidePreferencesUpdate": {
+        "properties": {
+          "budget_policy": {
+            "default": "slightly_flexible",
+            "enum": [
+              "strict",
+              "slightly_flexible",
+              "quality_first"
+            ],
+            "title": "Budget Policy",
+            "type": "string"
+          },
+          "bundle_budget_range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BudgetRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "excluded_brands": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Excluded Brands",
+            "type": "array"
+          },
+          "excluded_tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Excluded Tags",
+            "type": "array"
+          },
+          "extra_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra Notes"
+          },
+          "owned_categories": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Owned Categories",
+            "type": "array"
+          },
+          "presentation_style": {
+            "default": "compare_options",
+            "enum": [
+              "direct_answer",
+              "compare_options",
+              "detailed_explanation"
+            ],
+            "title": "Presentation Style",
+            "type": "string"
+          },
+          "priority_tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Priority Tags",
+            "type": "array"
+          },
+          "single_item_budgets": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/BudgetRange"
+            },
+            "title": "Single Item Budgets",
+            "type": "object"
+          }
+        },
+        "title": "GuidePreferencesUpdate",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -2737,6 +3126,17 @@
             "title": "Avoid",
             "type": "array"
           },
+          "budget_flex_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Flex Rate"
+          },
           "budget_max": {
             "anyOf": [
               {
@@ -2747,6 +3147,17 @@
               }
             ],
             "title": "Budget Max"
+          },
+          "budget_policy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Policy"
           },
           "category": {
             "anyOf": [
@@ -2775,12 +3186,30 @@
             "title": "Need Clarify",
             "type": "boolean"
           },
+          "owned_categories": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Owned Categories",
+            "type": "array"
+          },
           "preferences": {
             "items": {
               "type": "string"
             },
             "title": "Preferences",
             "type": "array"
+          },
+          "presentation_style": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Presentation Style"
           },
           "purchase_stage": {
             "default": "consider",
@@ -3665,6 +4094,78 @@
         "summary": "Dismiss Feedback Prompt",
         "tags": [
           "feedback"
+        ]
+      }
+    },
+    "/api/v1/guide/preferences": {
+      "delete": {
+        "operationId": "delete_guide_preferences_api_v1_guide_preferences_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Delete Guide Preferences",
+        "tags": [
+          "guide-preferences"
+        ]
+      },
+      "get": {
+        "operationId": "get_guide_preferences_api_v1_guide_preferences_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuidePreferencesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Guide Preferences",
+        "tags": [
+          "guide-preferences"
+        ]
+      },
+      "put": {
+        "operationId": "save_guide_preferences_api_v1_guide_preferences_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuidePreferencesUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuidePreferencesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Guide Preferences",
+        "tags": [
+          "guide-preferences"
         ]
       }
     },

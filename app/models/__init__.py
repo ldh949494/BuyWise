@@ -10,6 +10,7 @@ from app.models.product import Product
 from app.models.recommendation import Recommendation
 from app.models.review import Review
 from app.models.user import User
+from app.models.user_guide_preferences import UserGuidePreferences
 from app.models.user_session import UserSession
 
 __all__ = [
@@ -24,5 +25,6 @@ __all__ = [
     "Recommendation",
     "Review",
     "User",
+    "UserGuidePreferences",
     "UserSession",
 ]

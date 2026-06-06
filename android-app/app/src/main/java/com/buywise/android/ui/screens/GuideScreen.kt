@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.buywise.android.data.GuideState
 import com.buywise.android.data.Product
+import com.buywise.android.data.AppliedPreferences
 import com.buywise.android.ui.BuyWiseDimens
 import com.buywise.android.ui.BuyWiseIcons
 import com.buywise.android.ui.BuyWiseTheme
@@ -56,6 +58,8 @@ fun GuideScreen(
     onProductClick: (String) -> Unit,
     isInCompareBasket: (String) -> Boolean,
     onToggleCompare: (Product, String?) -> Unit,
+    onIgnoreSavedPreferencesChange: (Boolean) -> Unit,
+    onOpenGuidePreferences: () -> Unit,
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -70,6 +74,14 @@ fun GuideScreen(
     ) {
         item { WorkbenchHeader() }
         item { GuideInputPanel(state = state, onQueryChange = onQueryChange, onSubmit = onSubmit, onOpenChat = onOpenChat) }
+        item {
+            PreferenceUsagePanel(
+                appliedPreferences = state.appliedPreferences,
+                ignoreSavedPreferences = state.ignoreSavedPreferences,
+                onIgnoreSavedPreferencesChange = onIgnoreSavedPreferencesChange,
+                onOpenGuidePreferences = onOpenGuidePreferences,
+            )
+        }
         guideStreamItems(state)
         if (shouldShowDemandPanel) {
             item {
@@ -85,6 +97,16 @@ fun GuideScreen(
                 title = "推荐结果",
                 subtitle = "先看首推，再对比关键差异。",
             )
+        }
+        if (state.appliedPreferences.hasVisibleSummary) {
+            item {
+                AppliedPreferenceSummary(
+                    appliedPreferences = state.appliedPreferences,
+                    ignoreSavedPreferences = state.ignoreSavedPreferences,
+                    onIgnoreSavedPreferencesChange = onIgnoreSavedPreferencesChange,
+                    onOpenGuidePreferences = onOpenGuidePreferences,
+                )
+            }
         }
         if (!state.isStreaming && state.recommendations.isEmpty() && state.bundlePlans.isEmpty()) {
             item { RecommendationEmptyState() }
@@ -114,6 +136,65 @@ fun GuideScreen(
             }
         }
     }
+}
+
+@Composable
+private fun PreferenceUsagePanel(
+    appliedPreferences: AppliedPreferences,
+    ignoreSavedPreferences: Boolean,
+    onIgnoreSavedPreferencesChange: (Boolean) -> Unit,
+    onOpenGuidePreferences: () -> Unit,
+) {
+    FloatingGlassCard(tone = FloatingGlassTone.Neutral, radius = 14.dp, contentPadding = 14.dp) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("导购偏好", color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold)
+                    Text(
+                        preferenceSummaryText(appliedPreferences, ignoreSavedPreferences),
+                        color = BuyWiseTheme.colors.muted,
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Switch(checked = ignoreSavedPreferences, onCheckedChange = onIgnoreSavedPreferencesChange)
+            }
+            RaisedGuideButton(
+                label = "调整导购偏好",
+                icon = BuyWiseIcons.Tune,
+                primary = false,
+                enabled = true,
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onOpenGuidePreferences,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AppliedPreferenceSummary(
+    appliedPreferences: AppliedPreferences,
+    ignoreSavedPreferences: Boolean,
+    onIgnoreSavedPreferencesChange: (Boolean) -> Unit,
+    onOpenGuidePreferences: () -> Unit,
+) {
+    PreferenceUsagePanel(appliedPreferences, ignoreSavedPreferences, onIgnoreSavedPreferencesChange, onOpenGuidePreferences)
+}
+
+private fun preferenceSummaryText(appliedPreferences: AppliedPreferences, ignoreSavedPreferences: Boolean): String {
+    if (ignoreSavedPreferences || appliedPreferences.ignoredSavedPreferences) {
+        return "本次未使用长期导购偏好"
+    }
+    val summary = appliedPreferences.summary.take(3)
+    if (summary.isEmpty()) {
+        return "本次会优先使用已保存的预算、排除项和呈现方式"
+    }
+    return "已按你的导购偏好：" + summary.joinToString("、")
 }
 
 @Composable

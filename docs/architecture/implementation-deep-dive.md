@@ -135,6 +135,9 @@ AI 导购有两个 HTTP 入口：
 
 - `POST /api/v1/ai/chat`：非流式 JSON 响应，适合测试、兼容和调试。
 - `POST /api/v1/ai/chat/stream`：SSE 流式响应，是 Android 主链路。
+- `GET/PUT/DELETE /api/v1/guide/preferences`：普通用户账号级导购偏好管理。
+
+导购偏好由 `GuidePreferencesService` 负责管理和应用。chat 路由可选读取普通用户 principal；未登录请求仍可导购，但只使用本次输入和临时偏好。服务按“本次输入 > 临时偏好 > 账号偏好 > 系统默认”的顺序补齐预算策略、预算上限、偏好标签、排除项和已有设备，并返回 `applied_preferences` 给前端展示。
 
 两者都由 `app/api/v1/chat.py` 接入，核心业务由 `ChatService` 和 `ChatStreamRunner` 完成。
 

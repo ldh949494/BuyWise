@@ -12,6 +12,7 @@
 - 已购评价：`/api/v1/reviews`
 - AI 聊天：`/api/v1/ai/chat`
 - AI 聊天流式接口：`/api/v1/ai/chat/stream`
+- 导购偏好：`/api/v1/guide/preferences`
 - RAG 搜索：`/api/v1/rag/search`
 - 上传：`/api/v1/upload`
 - 视觉识别：`/api/v1/vision/recognize`
@@ -80,6 +81,9 @@
 | 撤回已购评价 | `POST` | `/api/v1/reviews/{review_id}/withdraw` | prod Bearer token；dev/test 可选 | `feedback:write` |
 | AI 导购 | `POST` | `/api/v1/ai/chat` | 公开 | 无 |
 | AI 导购流式接口 | `POST` | `/api/v1/ai/chat/stream` | 公开 | 无 |
+| 导购偏好读取 | `GET` | `/api/v1/guide/preferences` | User JWT | 无 |
+| 导购偏好保存 | `PUT` | `/api/v1/guide/preferences` | User JWT | 无 |
+| 导购偏好清除 | `DELETE` | `/api/v1/guide/preferences` | User JWT | 无 |
 | RAG 搜索 | `POST` | `/api/v1/rag/search` | 公开 | 无 |
 | 上传 | `POST` | `/api/v1/upload` | Bearer token | `upload:write` |
 | 视觉识别 | `POST` | `/api/v1/vision/recognize` | 公开 | 无 |
@@ -94,7 +98,8 @@
 - 商品对比：`POST /api/v1/products/compare`，请求体包含 `product_ids` 和可选 `user_need`。
 - 订单反馈闭环：`POST /api/v1/orders` 记录购买，closed beta 外部购买记录带 `external_platform` 后可直接进入待评价；`POST /api/v1/orders/{order_id}/advance` 仅用于 demo、smoke 或管理推进；`GET /api/v1/feedback/prompts` 获取待评价项，`POST /api/v1/reviews/from-order-item` 提交已购评价。
 - 订单反馈闭环不包含购物车 CRUD、数量编辑、支付、真实 checkout、退款或售后；这些能力不在当前 BuyWise 验收范围内。
-- AI 导购：`POST /api/v1/ai/chat` 返回 JSON，或 `POST /api/v1/ai/chat/stream` 返回 SSE token 流；请求包含 `session_id` 和 `message`，可选 `image_url` 和 `audio_url`。单品需求返回 `products`，组合搭配需求返回 `bundle_plans`。
+- AI 导购：`POST /api/v1/ai/chat` 返回 JSON，或 `POST /api/v1/ai/chat/stream` 返回 SSE token 流；请求包含 `session_id` 和 `message`，可选 `image_url`、`audio_url`、`ignore_saved_preferences` 和 `temporary_preferences`。普通用户带 User JWT 时会自动合并账号级导购偏好；单品需求返回 `products`，组合搭配需求返回 `bundle_plans`，响应会返回结构化 `applied_preferences`。
+- 导购偏好：`GET /api/v1/guide/preferences` 获取账号级导购偏好，`PUT /api/v1/guide/preferences` 保存结构化偏好，`DELETE /api/v1/guide/preferences` 清除偏好。偏好包括预算策略、单品/整套预算区间、核心偏好、排除项、已有设备和推荐呈现方式。
 
 ### AI 导购 SSE 事件契约
 
@@ -105,7 +110,7 @@
 | `meta` | `{"session_id": "..."}` |
 | `status` | `{"stage": "intent|retrieval|generation|fallback", "message": "..."}` |
 | `token` | `{"text": "..."}` |
-| `products` | `{"need_clarify": false, "structured_need": StructuredNeed, "items": ProductCard[], "bundle_plans": BundlePlan[]}` |
+| `products` | `{"need_clarify": false, "structured_need": StructuredNeed, "items": ProductCard[], "bundle_plans": BundlePlan[], "applied_preferences": AppliedPreferences}` |
 | `heartbeat` | `{"status": "ok"}` |
 | `done` | `{"reply": "...", "degraded": false, "degraded_reason": null}` |
 | `error` | `{"code": "chat_stream_failed|chat_stream_timeout", "message": "...", "session_id": "..."}` |

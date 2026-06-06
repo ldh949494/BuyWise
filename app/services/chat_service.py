@@ -18,7 +18,9 @@ from app.repositories.chat_repo import ChatRepository
 from app.repositories.price_repo import PriceHistoryRepository
 from app.repositories.review_repo import ReviewRepository
 from app.schemas.chat import BundlePlan, ChatRequest, ChatResponse
+from app.schemas.guide_preferences import AppliedPreferences
 from app.services.bundle_recommend_service import BundleRecommendService
+from app.services.guide_preferences_service import GuidePreferencesService
 from app.services.intent_service import IntentService
 from app.services.noop_chat_repo import NoopChatRepository
 from app.services.recommend_service import RecommendService
@@ -49,14 +51,14 @@ class ChatService:
         self.recommend_service = recommend_service or RecommendService()
         self.bundle_recommend_service = bundle_recommend_service or BundleRecommendService(self.recommend_service)
 
-    async def handle_chat(self, request: ChatRequest, db: Session) -> ChatResponse:
+    async def handle_chat(self, request: ChatRequest, db: Session, user_id: int | None = None) -> ChatResponse:
         started_at = time.perf_counter()
         chat_repo = self._chat_repo(request, db)
         chat_session = chat_repo.get_or_create_session(request.session_id, title=self._session_title(request))
         session_id = chat_session.session_id or chat_repo.generate_session_id()
 
         try:
-            response = await self._handle_chat_checked(request, chat_repo, session_id, db)
+            response = await self._handle_chat_checked(request, chat_repo, session_id, db, user_id)
             self._observe_chat_response(response, started_at)
             return response
         except RuntimeError:
@@ -69,6 +71,7 @@ class ChatService:
             structured_need=None,
             products=[],
             bundle_plans=[],
+            applied_preferences=AppliedPreferences(ignored_saved_preferences=request.ignore_saved_preferences),
             extra={"session_id": session_id},
         )
 
@@ -78,6 +81,7 @@ class ChatService:
         chat_repo: Any,
         session_id: str,
         db: Session,
+        user_id: int | None,
     ) -> ChatResponse:
         text = await self._build_user_text(request)
         image_info = await self._build_image_info(request)
@@ -86,7 +90,8 @@ class ChatService:
         need = await self._extract_need(text, image_info, history_context)
         if need.need_clarify:
             return await self._handle_clarify(chat_repo, session_id, need)
-        return await self._handle_recommendation(chat_repo, session_id, need, db)
+        applied_preferences = self._apply_preferences(request, need, db, user_id)
+        return await self._handle_recommendation(chat_repo, session_id, need, db, applied_preferences)
 
     async def _extract_need(
         self,
@@ -107,10 +112,15 @@ class ChatService:
             outcome = "degraded" if response.extra.get("degraded") else "success"
         observe_chat_latency("json", outcome, time.perf_counter() - started_at)
 
-    def generate_chat_stream(self, request: ChatRequest, db: Session) -> AsyncIterator[dict[str, Any]]:
+    def generate_chat_stream(
+        self,
+        request: ChatRequest,
+        db: Session,
+        user_id: int | None = None,
+    ) -> AsyncIterator[dict[str, Any]]:
         from app.services.chat_stream_service import ChatStreamRunner
 
-        return ChatStreamRunner(self).generate_events(request, db)
+        return ChatStreamRunner(self).generate_events(request, db, user_id=user_id)
 
     async def _build_user_text(self, request: ChatRequest) -> str:
         text = request.message or ""
@@ -160,10 +170,11 @@ class ChatService:
             reply=reply,
             need_clarify=True,
             structured_need=need,
-            products=[],
-            bundle_plans=[],
-            extra={"session_id": session_id},
-        )
+        products=[],
+        bundle_plans=[],
+        applied_preferences=AppliedPreferences(),
+        extra={"session_id": session_id},
+    )
 
     async def _handle_recommendation(
         self,
@@ -171,6 +182,7 @@ class ChatService:
         session_id: str,
         need: Any,
         db: Session,
+        applied_preferences: AppliedPreferences,
     ) -> ChatResponse:
         top_products, bundle_plans = await self._recommendation_results(need, db)
         reply, extra = await self._recommendation_reply(session_id, need, top_products, bundle_plans)
@@ -178,7 +190,7 @@ class ChatService:
             session_id,
             "assistant",
             reply,
-            structured_data=self._assistant_structured_data(need, top_products, extra, bundle_plans),
+            structured_data=self._assistant_structured_data(need, top_products, extra, bundle_plans, applied_preferences),
         )
         chat_repo.create_recommendations(session_id, top_products)
         self._commit(chat_repo)
@@ -188,6 +200,7 @@ class ChatService:
             structured_need=need,
             products=top_products,
             bundle_plans=bundle_plans,
+            applied_preferences=applied_preferences,
             extra=extra,
         )
 
@@ -217,10 +230,12 @@ class ChatService:
         top_products: list[Any],
         extra: dict[str, Any],
         bundle_plans: list[BundlePlan] | None = None,
+        applied_preferences: AppliedPreferences | None = None,
     ) -> dict[str, Any]:
         structured_data = {
             "need": self._dump(need),
             "products": [self._dump(product) for product in top_products],
+            "applied_preferences": self._dump(applied_preferences or AppliedPreferences()),
         }
         if bundle_plans:
             structured_data["bundle_plans"] = [self._dump(plan) for plan in bundle_plans]
@@ -228,6 +243,22 @@ class ChatService:
             structured_data["degraded"] = True
             structured_data["degraded_reason"] = extra["degraded_reason"]
         return structured_data
+
+    def _apply_preferences(
+        self,
+        request: ChatRequest,
+        need: Any,
+        db: Session,
+        user_id: int | None,
+    ) -> AppliedPreferences:
+        if not hasattr(db, "scalar"):
+            return AppliedPreferences(ignored_saved_preferences=request.ignore_saved_preferences)
+        return GuidePreferencesService(db).build_applied_preferences(
+            need,
+            user_id=user_id,
+            temporary_preferences=request.temporary_preferences,
+            ignore_saved_preferences=request.ignore_saved_preferences,
+        )
 
     def _join_text(self, first: str, second: str) -> str:
         parts = [part.strip() for part in [first, second] if part and part.strip()]

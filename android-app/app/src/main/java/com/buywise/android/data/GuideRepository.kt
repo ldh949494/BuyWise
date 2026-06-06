@@ -15,6 +15,7 @@ sealed interface ChatStreamEvent {
         val intentSummary: String,
         val recommendations: List<Recommendation>,
         val bundlePlans: List<BundlePlan> = emptyList(),
+        val appliedPreferences: AppliedPreferences = AppliedPreferences(),
     ) : ChatStreamEvent
     data class Done(val reply: String) : ChatStreamEvent
     data class Error(val message: String) : ChatStreamEvent
@@ -30,10 +31,17 @@ class GuideRepository internal constructor(
     fun streamGuide(
         query: String,
         sessionId: String?,
+        ignoreSavedPreferences: Boolean = false,
         onEvent: (ChatStreamEvent) -> Unit,
     ): EventSource {
         return eventSourceFactory.newEventSource(
-            apiClient.guideStreamRequest(GuideStreamRequestDto(sessionId = sessionId, message = query)),
+            apiClient.guideStreamRequest(
+                GuideStreamRequestDto(
+                    sessionId = sessionId,
+                    message = query,
+                    ignoreSavedPreferences = ignoreSavedPreferences,
+                )
+            ),
             object : EventSourceListener() {
                 override fun onEvent(eventSource: EventSource, id: String?, type: String?, data: String) {
                     onEvent(parseStreamEvent(type, data))
@@ -88,10 +96,12 @@ class GuideRepository internal constructor(
         val bundlePlans = (0 until bundlePlansJson.length()).mapNotNull { index ->
             bundlePlansJson.optJSONObject(index)?.let(::parseBundlePlan)
         }
+        val appliedPreferences = parseAppliedPreferences(json.optJSONObject("applied_preferences"))
         return ChatStreamEvent.Products(
             intentSummary = intent.ifBlank { if (bundlePlans.isNotEmpty()) "已生成组合方案" else "已生成推荐商品" },
             recommendations = recommendations,
             bundlePlans = bundlePlans,
+            appliedPreferences = appliedPreferences,
         )
     }
 
