@@ -46,6 +46,7 @@ import com.buywise.android.data.VisionState
 import com.buywise.android.ui.BuyWiseDimens
 import com.buywise.android.ui.BuyWiseIcons
 import com.buywise.android.ui.BuyWiseTheme
+import com.buywise.android.ui.BuyWiseVisualAssets
 import com.buywise.android.ui.displayPrice
 import com.buywise.android.ui.displayRating
 import com.buywise.android.ui.shortName
@@ -129,10 +130,11 @@ private fun CompareEmptyStateCard(
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             com.buywise.android.ui.components.FloatingAssetBadge(
                 icon = BuyWiseIcons.Compare,
+                assetRes = BuyWiseVisualAssets.Keyboard,
                 contentDescription = null,
                 tone = TactileIconTone.Primary,
                 size = 52.dp,
-                iconSize = 26.dp,
+                iconSize = 40.dp,
             )
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text("对比篮为空", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold)

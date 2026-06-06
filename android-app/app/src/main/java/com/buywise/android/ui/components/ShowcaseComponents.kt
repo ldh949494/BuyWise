@@ -26,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.annotation.DrawableRes
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -37,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import com.buywise.android.data.Product
 import com.buywise.android.ui.BuyWiseIcons
 import com.buywise.android.ui.BuyWiseTheme
+import com.buywise.android.ui.BuyWiseVisualAssets
 import com.buywise.android.ui.displayPrice
 import com.buywise.android.ui.displayRating
 import com.buywise.android.ui.shortName
@@ -150,6 +152,7 @@ fun SearchPill(
 fun CategoryShortcut(
     label: String,
     icon: ImageVector,
+    @DrawableRes assetRes: Int? = null,
     modifier: Modifier = Modifier,
     tone: TactileIconTone = TactileIconTone.Primary,
     onClick: (() -> Unit)? = null,
@@ -159,14 +162,25 @@ fun CategoryShortcut(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
-        TactileIconTile(
-            icon = icon,
-            contentDescription = label,
-            size = 56.dp,
-            iconSize = 25.dp,
-            tone = tone,
-            onClick = onClick,
-        )
+        if (assetRes != null) {
+            TactileIconTile(
+                assetRes = assetRes,
+                contentDescription = label,
+                size = 58.dp,
+                iconSize = 38.dp,
+                tone = tone,
+                onClick = onClick,
+            )
+        } else {
+            TactileIconTile(
+                icon = icon,
+                contentDescription = label,
+                size = 56.dp,
+                iconSize = 25.dp,
+                tone = tone,
+                onClick = onClick,
+            )
+        }
         Text(
             label,
             color = BuyWiseTheme.colors.ink,
@@ -182,6 +196,7 @@ fun FloatingAssetBadge(
     icon: ImageVector,
     contentDescription: String?,
     modifier: Modifier = Modifier,
+    @DrawableRes assetRes: Int? = null,
     tone: TactileIconTone = TactileIconTone.Primary,
     size: Dp = 58.dp,
     iconSize: Dp = 28.dp,
@@ -194,13 +209,23 @@ fun FloatingAssetBadge(
             shape = RoundedCornerShape(18.dp),
             color = BuyWiseTheme.colors.primary.copy(alpha = 0.08f),
         ) {}
-        TactileIconTile(
-            icon = icon,
-            contentDescription = contentDescription,
-            size = size,
-            iconSize = iconSize,
-            tone = tone,
-        )
+        if (assetRes != null) {
+            TactileIconTile(
+                assetRes = assetRes,
+                contentDescription = contentDescription,
+                size = size,
+                iconSize = iconSize,
+                tone = tone,
+            )
+        } else {
+            TactileIconTile(
+                icon = icon,
+                contentDescription = contentDescription,
+                size = size,
+                iconSize = iconSize,
+                tone = tone,
+            )
+        }
     }
 }
 
@@ -346,10 +371,10 @@ fun AdvicePanel(title: String, body: String, modifier: Modifier = Modifier) {
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             TactileIconTile(
-                icon = BuyWiseIcons.Guide,
+                assetRes = BuyWiseVisualAssets.Shield,
                 contentDescription = null,
                 size = 40.dp,
-                iconSize = 20.dp,
+                iconSize = 32.dp,
                 tone = TactileIconTone.Success,
             )
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {

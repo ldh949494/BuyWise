@@ -37,6 +37,7 @@ import com.buywise.android.data.Product
 import com.buywise.android.data.cleanMarkdownText
 import com.buywise.android.ui.BuyWiseIcons
 import com.buywise.android.ui.BuyWiseTheme
+import com.buywise.android.ui.BuyWiseVisualAssets
 import com.buywise.android.ui.components.CategoryShortcut
 import com.buywise.android.ui.components.FloatingAssetBadge
 import com.buywise.android.ui.components.FloatingGlassCard
@@ -208,6 +209,7 @@ private fun HomeCategoryRow(
             CategoryShortcut(
                 label = category.label,
                 icon = category.icon,
+                assetRes = category.assetRes,
                 modifier = Modifier.weight(1f),
                 tone = if (selectedCategory == category) TactileIconTone.Primary else TactileIconTone.Neutral,
                 onClick = { onCategorySelected(category) },
@@ -235,9 +237,10 @@ private fun HomeGreetingPanel(title: String, subtitle: String, onOpenGuide: () -
             }
             FloatingAssetBadge(
                 icon = BuyWiseIcons.Assistant,
+                assetRes = BuyWiseVisualAssets.AssistantRobot,
                 contentDescription = null,
                 size = 64.dp,
-                iconSize = 34.dp,
+                iconSize = 54.dp,
                 tone = TactileIconTone.Primary,
             )
         }
@@ -263,10 +266,11 @@ private fun HomeFeedbackSummaryCard(productName: String) {
                 }
                 FloatingAssetBadge(
                     icon = BuyWiseIcons.Favorite,
+                    assetRes = BuyWiseVisualAssets.Star,
                     contentDescription = null,
                     tone = TactileIconTone.Warm,
                     size = 50.dp,
-                    iconSize = 26.dp,
+                    iconSize = 38.dp,
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
@@ -297,9 +301,10 @@ private enum class HomeCategory(
     val label: String,
     val keywords: List<String>,
     val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val assetRes: Int? = null,
 ) {
-    Keyboard("键盘", listOf("键盘", "keyboard", "keychron", "switch"), BuyWiseIcons.Keyboard),
-    Audio("音频", listOf("音频", "耳机", "音箱", "audio", "headphone"), BuyWiseIcons.Headphones),
+    Keyboard("键盘", listOf("键盘", "keyboard", "keychron", "switch"), BuyWiseIcons.Keyboard, BuyWiseVisualAssets.Keyboard),
+    Audio("音频", listOf("音频", "耳机", "音箱", "audio", "headphone"), BuyWiseIcons.Headphones, BuyWiseVisualAssets.Headphones),
     Laptop("笔记本", listOf("笔记本", "电脑", "laptop", "notebook"), BuyWiseIcons.Laptop),
     Desk("桌面", listOf("桌", "支架", "显示器", "desk", "monitor"), BuyWiseIcons.Desktop),
     More("更多", emptyList(), BuyWiseIcons.More),

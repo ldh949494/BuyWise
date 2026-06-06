@@ -44,6 +44,7 @@ import com.buywise.android.data.Recommendation
 import com.buywise.android.data.cleanMarkdownText
 import com.buywise.android.ui.BuyWiseIcons
 import com.buywise.android.ui.BuyWiseTheme
+import com.buywise.android.ui.BuyWiseVisualAssets
 import com.buywise.android.ui.displayPrice
 import com.buywise.android.ui.displayRating
 import com.buywise.android.ui.components.ChatBundlePlanCard
@@ -220,10 +221,10 @@ private fun AssistantBubble(
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             TactileIconTile(
-                icon = BuyWiseIcons.Assistant,
+                assetRes = BuyWiseVisualAssets.AssistantRobot,
                 contentDescription = null,
-                size = 34.dp,
-                iconSize = 17.dp,
+                size = 38.dp,
+                iconSize = 34.dp,
                 rounded = true,
                 tone = TactileIconTone.Primary,
             )

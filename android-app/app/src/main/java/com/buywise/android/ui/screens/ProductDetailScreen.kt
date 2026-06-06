@@ -40,6 +40,7 @@ import com.buywise.android.data.ProductDetailState
 import com.buywise.android.ui.BuyWiseDimens
 import com.buywise.android.ui.BuyWiseIcons
 import com.buywise.android.ui.BuyWiseTheme
+import com.buywise.android.ui.BuyWiseVisualAssets
 import com.buywise.android.ui.displayPrice
 import com.buywise.android.ui.displayRating
 import com.buywise.android.ui.displayRecommendationReason
@@ -193,9 +194,10 @@ private fun ProductHeader(
                 )
                 FloatingAssetBadge(
                     icon = BuyWiseIcons.Headphones,
+                    assetRes = BuyWiseVisualAssets.Keyboard,
                     contentDescription = null,
                     size = 52.dp,
-                    iconSize = 27.dp,
+                    iconSize = 40.dp,
                     modifier = Modifier.align(androidx.compose.ui.Alignment.BottomEnd).padding(end = 10.dp, bottom = 10.dp),
                 )
             }
