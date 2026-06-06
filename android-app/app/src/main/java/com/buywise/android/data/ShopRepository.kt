@@ -21,6 +21,7 @@ class ShopRepository(
 
     val productRepository = ProductRepository(apiClient)
     val guideRepository = GuideRepository(apiClient, httpClient)
+    val guidePreferencesRepository = GuidePreferencesRepository(apiClient)
     val compareRepository = CompareRepository(apiClient)
     val orderRepository = OrderRepository(apiClient)
     val feedbackRepository = FeedbackRepository(apiClient)
@@ -86,7 +87,8 @@ class ShopRepository(
     fun streamGuide(
         query: String,
         sessionId: String?,
+        ignoreSavedPreferences: Boolean = false,
         onEvent: (ChatStreamEvent) -> Unit,
     ): EventSource =
-        guideRepository.streamGuide(query, sessionId, onEvent)
+        guideRepository.streamGuide(query, sessionId, ignoreSavedPreferences, onEvent)
 }

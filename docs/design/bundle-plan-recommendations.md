@@ -220,7 +220,7 @@ Android 展示分支：
 
 BuyWise 仍保留单品推荐、商品对比、价格/参数/口碑解释、多模态识别和已购反馈闭环。组合方案推荐只是新增的高级导购分支：用户问单个商品时继续走 `products` 和商品对比，用户要求配齐多品类商品时才走 `bundle_plans` 和方案对比。
 
-新增商品数据不进入 closed beta 真实目录，不混入 `data/beta-catalog.csv`。closed beta 仍按真实商品 CSV、真实链接、真实图片和发布前导入校验执行；demo 组合数据继续通过 `app/scripts/demo_products.py` 或等价 seed profile 管理。
+新增商品数据不进入 closed beta 真实目录，不混入本地忽略的 closed beta 真实商品 CSV。closed beta 仍按真实商品 CSV、真实链接、真实图片和发布前导入校验执行；demo 组合数据继续通过 `app/scripts/demo_products.py` 或等价 seed profile 管理。
 
 第一批 demo 组合场景只覆盖“桌面/电脑外设整套方案”，目标是支撑 3 个预算档和局部替换演示，而不是扩成完整垂类商城。建议最小数据规模：
 

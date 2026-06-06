@@ -66,11 +66,11 @@ class BundleRecommendService:
     ) -> BundlePlan | None:
         tier, title, multiplier, summary = tier_config
         tier_budget = round(target_budget * multiplier, 2)
-        items = self._build_plan_items(category_cards, tier_budget, tier_index)
+        items = self._build_plan_items(category_cards, tier_budget, tier_index, need)
         if not items:
             return None
         total_price = round(sum(item.product.price for item in items if not item.excluded), 2)
-        budget_status = self._budget_status(total_price, tier_budget)
+        budget_status = self._budget_status(total_price, tier_budget, need)
         return self._plan_from_parts(tier, title, summary, tier_budget, total_price, budget_status, items, need)
 
     def _plan_from_parts(
@@ -110,7 +110,7 @@ class BundleRecommendService:
             "budget_delta": round(total_price - tier_budget, 2),
             "recommendation_level": "high" if tier == "balanced" else "medium",
             "scenario_fit": self._scenario_fit(need),
-            "summary": summary,
+            "summary": self._summary_with_preferences(summary, need),
             "completeness": self._completeness(items),
             "budget_allocation": self._budget_allocation(items),
             "items": items,
@@ -158,9 +158,13 @@ class BundleRecommendService:
         category_cards: dict[str, list[ProductCard]],
         tier_budget: float,
         tier_index: int,
+        need: Any,
     ) -> list[BundlePlanItem]:
         items = []
+        owned_categories = set(self._string_list(self._get_value(need, "owned_categories")))
         for category in self.REQUIRED_DESKTOP_CATEGORIES:
+            if self._is_owned_category(category, owned_categories):
+                continue
             category_budget = tier_budget * self.REQUIRED_BUDGET_WEIGHTS.get(category, 0.1)
             card = self._pick_card(category_cards.get(category, []), category_budget, tier_index)
             if card is None:
@@ -202,10 +206,11 @@ class BundleRecommendService:
             needs_confirmation=needs_confirmation,
         )
 
-    def _budget_status(self, total_price: float, target_budget: float) -> str:
+    def _budget_status(self, total_price: float, target_budget: float, need: Any | None = None) -> str:
         if total_price <= target_budget:
             return "within_budget"
-        if total_price <= target_budget * 1.1:
+        flex_rate = self._optional_float(self._get_value(need, "budget_flex_rate")) if need is not None else None
+        if total_price <= target_budget * (1 + (flex_rate if flex_rate is not None else 0.1)):
             return "slightly_over_budget"
         return "over_budget"
 
@@ -238,6 +243,12 @@ class BundleRecommendService:
         if "摄像头" not in categories:
             notes.append("摄像头未纳入：仅在频繁视频会议时建议补充。")
         return notes[:2]
+
+    def _summary_with_preferences(self, summary: str, need: Any) -> str:
+        owned_categories = self._string_list(self._get_value(need, "owned_categories"))
+        if not owned_categories:
+            return summary
+        return f"{summary} 已按偏好跳过已有品类：{'、'.join(owned_categories[:3])}。"
 
     def _compatibility_checks(self, items: list[BundlePlanItem]) -> list[BundleCompatibilityCheck]:
         categories = {item.category for item in items}
@@ -315,9 +326,28 @@ class BundleRecommendService:
         return selected or cards[:5]
 
     def _get_value(self, source: Any, key: str) -> Any:
+        if source is None:
+            return None
         if isinstance(source, dict):
             return source.get(key)
         return getattr(source, key, None)
+
+    def _string_list(self, value: Any) -> list[str]:
+        if not isinstance(value, list):
+            return []
+        return [str(item).strip() for item in value if str(item).strip()]
+
+    def _is_owned_category(self, category: str, owned_categories: set[str]) -> bool:
+        if category in owned_categories:
+            return True
+        aliases = {
+            "电脑": {"电脑", "主机", "笔记本"},
+            "显示器": {"显示器", "屏幕"},
+            "机械键盘": {"机械键盘", "键盘"},
+            "鼠标": {"鼠标"},
+            "蓝牙耳机": {"蓝牙耳机", "耳机"},
+        }.get(category, {category})
+        return bool(aliases & owned_categories)
 
     def _optional_float(self, value: Any) -> float | None:
         if value in (None, ""):

@@ -67,6 +67,43 @@ data class BundleCompatibilityCheck(
     val message: String,
 )
 
+data class BudgetRange(
+    val min: Double? = null,
+    val max: Double? = null,
+)
+
+data class GuidePreferences(
+    val budgetPolicy: String = "slightly_flexible",
+    val presentationStyle: String = "compare_options",
+    val singleItemBudgets: Map<String, BudgetRange> = emptyMap(),
+    val bundleBudgetRange: BudgetRange? = null,
+    val priorityTags: List<String> = listOf("静音", "耐用"),
+    val excludedTags: List<String> = emptyList(),
+    val excludedBrands: List<String> = emptyList(),
+    val ownedCategories: List<String> = emptyList(),
+    val extraNotes: String? = null,
+    val hasSavedPreferences: Boolean = false,
+)
+
+data class AppliedPreferenceConstraint(
+    val type: String,
+    val key: String,
+    val label: String,
+    val effect: String,
+)
+
+data class AppliedPreferences(
+    val usedSavedPreferences: Boolean = false,
+    val ignoredSavedPreferences: Boolean = false,
+    val budgetPolicy: String? = null,
+    val presentationStyle: String? = null,
+    val summary: List<String> = emptyList(),
+    val constraints: List<AppliedPreferenceConstraint> = emptyList(),
+) {
+    val hasVisibleSummary: Boolean
+        get() = summary.isNotEmpty() || ignoredSavedPreferences
+}
+
 data class CompareRow(
     val title: String,
     val values: List<String>,
@@ -98,6 +135,8 @@ data class GuideState(
     val partialReply: String = "",
     val chatDraft: String = "",
     val chatMessages: List<GuideChatMessage> = emptyList(),
+    val appliedPreferences: AppliedPreferences = AppliedPreferences(),
+    val ignoreSavedPreferences: Boolean = false,
     val isStreaming: Boolean = false,
     val errorMessage: String? = null,
     val sessionId: String? = null,
@@ -115,6 +154,7 @@ data class GuideChatMessage(
     val text: String,
     val recommendations: List<Recommendation> = emptyList(),
     val bundlePlans: List<BundlePlan> = emptyList(),
+    val appliedPreferences: AppliedPreferences = AppliedPreferences(),
 )
 
 data class CompareState(
@@ -223,6 +263,9 @@ data class AccountState(
     val phoneInput: String = "",
     val codeInput: String = "",
     val debugOtp: String? = null,
+    val guidePreferences: GuidePreferences = GuidePreferences(),
+    val preferencesLoading: Boolean = false,
+    val preferencesError: String? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val statusMessage: String? = null,

@@ -87,10 +87,16 @@ class RecommendationScoringPolicy:
         price = self._get_value(product, "price")
         if budget_max is None or price is None:
             return 0.0, None
+        budget_policy = self._get_value(need, "budget_policy")
+        flex_rate = self._to_float(self._get_value(need, "budget_flex_rate")) or 0.0
+        allowed_budget = Decimal(str(budget_max)) * Decimal(str(1 + max(flex_rate, 0.0)))
         budget_match = Decimal(str(price)) <= Decimal(str(budget_max))
         if budget_match:
             reasons.append("价格符合预算")
             return 20.0, True
+        if budget_policy in {"slightly_flexible", "quality_first"} and Decimal(str(price)) <= allowed_budget:
+            reasons.append("小幅超预算但仍在可接受范围")
+            return 8.0, False
         conflicts.append("超出预算")
         return -5.0, False
 

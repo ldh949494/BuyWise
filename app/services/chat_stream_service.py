@@ -18,6 +18,7 @@ from app.core.metrics import (
 from app.core.traffic import is_capacity_limited
 from app.repositories.product_repo import ProductRepository
 from app.schemas.chat import BundlePlan, ChatRequest, ProductCard, StructuredNeed
+from app.schemas.guide_preferences import AppliedPreferences
 from app.schemas.chat_stream import (
     ChatStreamDoneEventData,
     ChatStreamErrorEventData,
@@ -40,9 +41,10 @@ class ChatStreamRunner:
         self,
         request: ChatRequest,
         db: Session,
+        user_id: int | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         started_at = time.perf_counter()
-        context = self._build_context(request, db)
+        context = self._build_context(request, db, user_id)
         try:
             async for event in self._generate_from_context(context, request, db):
                 yield event
@@ -61,7 +63,7 @@ class ChatStreamRunner:
                 ),
             )
 
-    def _build_context(self, request: ChatRequest, db: Session) -> dict[str, Any]:
+    def _build_context(self, request: ChatRequest, db: Session, user_id: int | None) -> dict[str, Any]:
         chat_repo = self.chat_service._chat_repo(request, db)
         chat_session = chat_repo.get_or_create_session(
             request.session_id,
@@ -72,6 +74,8 @@ class ChatStreamRunner:
             "session_id": chat_session.session_id or chat_repo.generate_session_id(),
             "started_at": time.perf_counter(),
             "stream_path": "full_rag",
+            "user_id": user_id,
+            "applied_preferences": AppliedPreferences(ignored_saved_preferences=request.ignore_saved_preferences),
         }
 
     async def _generate_from_context(
@@ -92,6 +96,7 @@ class ChatStreamRunner:
             async for event in self._stream_clarify(context, need):
                 yield event
             return
+        self._apply_preferences(context, request, need, db)
         async for event in self._stream_recommendation(context, need, db):
             yield event
 
@@ -121,7 +126,7 @@ class ChatStreamRunner:
         reply = "".join(chunks)
         self._save_assistant(context, reply, need, [], need_clarify=True)
         self._observe_first_products(context, context["stream_path"])
-        yield self._event("products", self._products_payload(need, [], need_clarify=True))
+        yield self._event("products", self._products_payload(context, need, [], need_clarify=True))
         yield self._event("done", ChatStreamDoneEventData(reply=reply))
 
     async def _stream_recommendation(
@@ -139,7 +144,10 @@ class ChatStreamRunner:
         context["stream_path"] = "full_rag"
         self._observe_first_products(context, "full_rag")
         payload_products = self._bundle_products(bundle_plans) if bundle_plans else top_products
-        yield self._event("products", self._products_payload(need, payload_products, need_clarify=False, bundle_plans=bundle_plans))
+        yield self._event(
+            "products",
+            self._products_payload(context, need, payload_products, need_clarify=False, bundle_plans=bundle_plans),
+        )
         yield self._event("status", ChatStreamStatusEventData(stage="generation", message="generation"))
         async for event in self._stream_generation(context, need, payload_products, bundle_plans=bundle_plans):
             yield event
@@ -156,6 +164,7 @@ class ChatStreamRunner:
             async for event in self._stream_clarify(context, need):
                 yield event
             return
+        self._apply_preferences(context, request, need, db)
 
         yield self._event("status", ChatStreamStatusEventData(stage="retrieval", message="fast_products"))
         top_products = self._rank_fast_products(need, db)
@@ -167,7 +176,7 @@ class ChatStreamRunner:
             context["stream_path"] = "fast_db"
             self._observe_first_products(context, "fast_db")
 
-        yield self._event("products", self._products_payload(need, top_products, need_clarify=False))
+        yield self._event("products", self._products_payload(context, need, top_products, need_clarify=False))
         yield self._event("status", ChatStreamStatusEventData(stage="generation", message="generation"))
         async for event in self._stream_generation(context, need, top_products, concise=True):
             yield event
@@ -306,6 +315,7 @@ class ChatStreamRunner:
     ) -> None:
         chat_repo = context["chat_repo"]
         structured_data = {"need": self.chat_service._dump(need), "need_clarify": need_clarify}
+        structured_data["applied_preferences"] = self.chat_service._dump(context.get("applied_preferences") or AppliedPreferences())
         if products:
             structured_data["products"] = [self.chat_service._dump(product) for product in products]
         if bundle_plans:
@@ -319,6 +329,7 @@ class ChatStreamRunner:
 
     def _products_payload(
         self,
+        context: dict[str, Any],
         need: Any,
         products: list[Any],
         *,
@@ -330,6 +341,21 @@ class ChatStreamRunner:
             structured_need=StructuredNeed.model_validate(self.chat_service._dump(need)),
             items=[ProductCard.model_validate(self.chat_service._dump(product)) for product in products],
             bundle_plans=bundle_plans or [],
+            applied_preferences=context.get("applied_preferences") or AppliedPreferences(),
+        )
+
+    def _apply_preferences(
+        self,
+        context: dict[str, Any],
+        request: ChatRequest,
+        need: Any,
+        db: Session,
+    ) -> None:
+        context["applied_preferences"] = self.chat_service._apply_preferences(
+            request,
+            need,
+            db,
+            context.get("user_id"),
         )
 
     def _bundle_products(self, bundle_plans: list[BundlePlan]) -> list[Any]:

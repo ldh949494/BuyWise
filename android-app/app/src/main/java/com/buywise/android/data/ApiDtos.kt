@@ -105,6 +105,7 @@ data class FeedbackSubmitRequestDto(
 data class GuideStreamRequestDto(
     @SerialName("session_id") val sessionId: String? = null,
     val message: String,
+    @SerialName("ignore_saved_preferences") val ignoreSavedPreferences: Boolean = false,
 )
 
 @Serializable

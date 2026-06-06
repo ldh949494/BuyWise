@@ -4,6 +4,7 @@ from pydantic import Field
 
 from app.schemas.chat import BundlePlan, ProductCard, StructuredNeed
 from app.schemas.common import BaseSchema
+from app.schemas.guide_preferences import AppliedPreferences
 
 
 class ChatStreamMetaEventData(BaseSchema):
@@ -24,6 +25,7 @@ class ChatStreamProductsEventData(BaseSchema):
     structured_need: StructuredNeed
     items: list[ProductCard] = Field(default_factory=list)
     bundle_plans: list[BundlePlan] = Field(default_factory=list)
+    applied_preferences: AppliedPreferences = Field(default_factory=AppliedPreferences)
 
 
 class ChatStreamDoneEventData(BaseSchema):

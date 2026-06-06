@@ -67,7 +67,11 @@ internal class BuyWiseApiClient(
 
     fun guideStreamRequest(body: GuideStreamRequestDto): Request {
         val requestBody = json.encodeToString(body).toRequestBody(jsonMediaType)
-        return Request.Builder().url("$baseUrl/api/v1/ai/chat/stream").post(requestBody).build()
+        return Request.Builder()
+            .url("$baseUrl/api/v1/ai/chat/stream")
+            .apply { accessToken?.let { header("Authorization", "Bearer $it") } }
+            .post(requestBody)
+            .build()
     }
 
     @Throws(IOException::class)
@@ -80,6 +84,18 @@ internal class BuyWiseApiClient(
     fun postJson(path: String, body: RequestBody, requireAuth: Boolean = false): JSONObject {
         val request = authorized(Request.Builder().url("$baseUrl$path").post(body), requireAuth).build()
         return executeJson(request)
+    }
+
+    @Throws(IOException::class)
+    fun putJson(path: String, body: RequestBody, requireAuth: Boolean = false): JSONObject {
+        val request = authorized(Request.Builder().url("$baseUrl$path").put(body), requireAuth).build()
+        return executeJson(request)
+    }
+
+    @Throws(IOException::class)
+    fun delete(path: String, requireAuth: Boolean = false) {
+        val request = authorized(Request.Builder().url("$baseUrl$path").delete(), requireAuth).build()
+        executeText(request)
     }
 
     @Throws(IOException::class)

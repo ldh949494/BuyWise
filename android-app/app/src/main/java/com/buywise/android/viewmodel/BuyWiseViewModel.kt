@@ -25,7 +25,7 @@ class BuyWiseViewModel(
     private val productDetailViewModel = ProductDetailViewModel.from(repository)
     private val feedbackViewModel = FeedbackViewModel.from(repository)
     private val uploadViewModel = UploadViewModel.from(repository)
-    private val accountViewModel = AccountViewModel(repository.authRepository, viewModelScope)
+    private val accountViewModel = AccountViewModel(repository.authRepository, repository.guidePreferencesRepository, viewModelScope)
 
     val homeState: HomeState get() = homeViewModel.state
     val compareState: CompareState get() = compareViewModel.state
@@ -133,6 +133,10 @@ class BuyWiseViewModel(
         guideViewModel.sendChatMessage()
     }
 
+    fun setGuideIgnoreSavedPreferences(value: Boolean) {
+        guideViewModel.setIgnoreSavedPreferences(value)
+    }
+
     fun runVisionDemo() {
         uploadViewModel.runVisionDemo()
     }
@@ -199,6 +203,38 @@ class BuyWiseViewModel(
 
     fun logoutAccount() {
         accountViewModel.logout()
+    }
+
+    fun loadGuidePreferences() {
+        accountViewModel.loadGuidePreferences()
+    }
+
+    fun updateGuideBudgetPolicy(value: String) {
+        accountViewModel.updateBudgetPolicy(value)
+    }
+
+    fun updateGuidePresentationStyle(value: String) {
+        accountViewModel.updatePresentationStyle(value)
+    }
+
+    fun toggleGuidePriorityTag(tag: String) {
+        accountViewModel.togglePriorityTag(tag)
+    }
+
+    fun toggleGuideExcludedTag(tag: String) {
+        accountViewModel.toggleExcludedTag(tag)
+    }
+
+    fun toggleGuideOwnedCategory(category: String) {
+        accountViewModel.toggleOwnedCategory(category)
+    }
+
+    fun updateGuideBundleBudgetMax(value: String) {
+        accountViewModel.updateBundleBudgetMax(value)
+    }
+
+    fun clearGuidePreferences() {
+        accountViewModel.clearGuidePreferences()
     }
 
     fun product(productId: String?): Product? =

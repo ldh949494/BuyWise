@@ -5,6 +5,7 @@ from typing import Any
 from pydantic import Field
 
 from app.schemas.common import BaseSchema
+from app.schemas.guide_preferences import AppliedPreferences, GuidePreferences
 
 
 class ChatRequest(BaseSchema):
@@ -12,6 +13,8 @@ class ChatRequest(BaseSchema):
     message: str | None = None
     image_url: str | None = None
     audio_url: str | None = None
+    ignore_saved_preferences: bool = False
+    temporary_preferences: GuidePreferences | None = None
 
 
 class StructuredNeed(BaseSchema):
@@ -21,6 +24,10 @@ class StructuredNeed(BaseSchema):
     scenario: str | None = None
     preferences: list[str] = Field(default_factory=list)
     avoid: list[str] = Field(default_factory=list)
+    budget_policy: str | None = None
+    budget_flex_rate: float | None = None
+    presentation_style: str | None = None
+    owned_categories: list[str] = Field(default_factory=list)
     purchase_stage: str = "consider"
     retrieval_strategy: str = "balanced"
     need_clarify: bool = False
@@ -100,4 +107,5 @@ class ChatResponse(BaseSchema):
     structured_need: StructuredNeed | None = None
     products: list[ProductCard] = Field(default_factory=list)
     bundle_plans: list[BundlePlan] = Field(default_factory=list)
+    applied_preferences: AppliedPreferences = Field(default_factory=AppliedPreferences)
     extra: dict[str, Any] = Field(default_factory=dict)

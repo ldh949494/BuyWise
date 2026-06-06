@@ -42,12 +42,15 @@ import com.buywise.android.ui.BuyWiseTheme
 import com.buywise.android.ui.components.FloatingCompareBasket
 import com.buywise.android.ui.screens.CompareScreen
 import com.buywise.android.ui.screens.AccountScreen
+import com.buywise.android.ui.screens.GuidePreferencesScreen
 import com.buywise.android.ui.screens.GuideChatScreen
 import com.buywise.android.ui.screens.GuideScreen
 import com.buywise.android.ui.screens.HomeScreen
 import com.buywise.android.ui.screens.LandingScreen
+import com.buywise.android.ui.screens.PrivacyDataScreen
 import com.buywise.android.ui.screens.ProductDetailScreen
 import com.buywise.android.ui.screens.ProductSearchScreen
+import com.buywise.android.ui.screens.SettingsPlaceholderScreen
 import com.buywise.android.ui.screens.VisionScreen
 import com.buywise.android.viewmodel.BuyWiseViewModel
 import kotlinx.coroutines.Dispatchers
@@ -73,6 +76,7 @@ private fun BuyWiseRoot(
     val viewModel: BuyWiseViewModel = viewModel(factory = BuyWiseViewModel.factory(context))
     val destinations = bottomDestinations()
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+    val selectedTopRoute = currentRoute?.topLevelRoute()
     val showBottomBar = currentRoute != null &&
         currentRoute != "landing" &&
         currentRoute != "search" &&
@@ -139,7 +143,7 @@ private fun BuyWiseRoot(
                 ) {
                     destinations.forEach { destination ->
                         NavigationBarItem(
-                            selected = currentRoute == destination.route,
+                            selected = selectedTopRoute == destination.route,
                             onClick = {
                                 navController.navigateTopLevel(destination.route)
                             },
@@ -224,6 +228,8 @@ private fun BuyWiseRoot(
                         onProductClick = { navController.navigate("detail/$it") },
                         isInCompareBasket = viewModel::isInCompareBasket,
                         onToggleCompare = viewModel::toggleCompareBasket,
+                        onIgnoreSavedPreferencesChange = viewModel::setGuideIgnoreSavedPreferences,
+                        onOpenGuidePreferences = { navController.navigate("account/guide-preferences") },
                     )
                 }
                 composable("guide/chat") {
@@ -243,6 +249,7 @@ private fun BuyWiseRoot(
                         onRunVisionDemo = viewModel::runVisionDemoForGuideChat,
                         onRunSpeechDemo = viewModel::runSpeechDemoForGuideChat,
                         onProductClick = { navController.navigate("detail/$it") },
+                        onIgnoreSavedPreferencesChange = viewModel::setGuideIgnoreSavedPreferences,
                     )
                 }
                 composable("compare") {
@@ -285,6 +292,43 @@ private fun BuyWiseRoot(
                         onVerifyOtp = viewModel::verifyAccountOtp,
                         onGuestMode = { viewModel.enterGuestMode { navController.navigateTopLevel("home") } },
                         onLogout = viewModel::logoutAccount,
+                        onOpenGuidePreferences = { navController.navigate("account/guide-preferences") },
+                        onOpenPersonalization = { navController.navigate("account/personalization") },
+                        onOpenGeneralSettings = { navController.navigate("account/general") },
+                        onOpenPrivacyData = { navController.navigate("account/privacy") },
+                    )
+                }
+                composable("account/guide-preferences") {
+                    GuidePreferencesScreen(
+                        state = viewModel.accountState,
+                        onBack = navController::popBackStack,
+                        onBudgetPolicyChange = viewModel::updateGuideBudgetPolicy,
+                        onPresentationStyleChange = viewModel::updateGuidePresentationStyle,
+                        onPriorityTagToggle = viewModel::toggleGuidePriorityTag,
+                        onExcludedTagToggle = viewModel::toggleGuideExcludedTag,
+                        onOwnedCategoryToggle = viewModel::toggleGuideOwnedCategory,
+                        onBundleBudgetMaxChange = viewModel::updateGuideBundleBudgetMax,
+                        onClearGuidePreferences = viewModel::clearGuidePreferences,
+                    )
+                }
+                composable("account/personalization") {
+                    SettingsPlaceholderScreen(
+                        title = "个性化设置",
+                        body = "后续会集中管理内容密度、默认入口、推荐解释显示和最近记录呈现。",
+                        onBack = navController::popBackStack,
+                    )
+                }
+                composable("account/general") {
+                    SettingsPlaceholderScreen(
+                        title = "通用设置",
+                        body = "后续会集中管理通知、语言、界面偏好和其他 App 通用选项。",
+                        onBack = navController::popBackStack,
+                    )
+                }
+                composable("account/privacy") {
+                    PrivacyDataScreen(
+                        onBack = navController::popBackStack,
+                        onClearGuidePreferences = viewModel::clearGuidePreferences,
                     )
                 }
                 composable("detail/{productId}") { backStackEntry ->
@@ -340,3 +384,11 @@ private fun NavHostController.navigateTopLevel(route: String) {
         restoreState = true
     }
 }
+
+private fun String.topLevelRoute(): String =
+    when {
+        startsWith("account/") -> "account"
+        startsWith("guide/") -> "guide"
+        startsWith("detail/") -> "home"
+        else -> this
+    }

@@ -34,6 +34,14 @@ def test_chat_response_defaults_and_frontend_field_names() -> None:
         "structured_need": None,
         "products": [],
         "bundle_plans": [],
+        "applied_preferences": {
+            "used_saved_preferences": False,
+            "ignored_saved_preferences": False,
+            "budget_policy": None,
+            "presentation_style": None,
+            "summary": [],
+            "constraints": [],
+        },
         "extra": {},
     }
 
