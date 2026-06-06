@@ -61,7 +61,7 @@ fun FloatingGlassCard(
     val shadowElevation by animateDpAsState(
         targetValue = when {
             activePress -> 4.dp
-            elevated -> 13.dp
+            elevated -> 9.dp
             else -> 3.dp
         },
         animationSpec = tween(durationMillis = if (activePress) 105 else 165, easing = FastOutSlowInEasing),
@@ -112,19 +112,19 @@ private fun floatingGlassColors(tone: FloatingGlassTone): FloatingGlassColors =
     when (tone) {
         FloatingGlassTone.Neutral -> FloatingGlassColors(
             container = BuyWiseTheme.colors.panelRaised.copy(alpha = 0.99f),
-            border = BuyWiseTheme.colors.panelHighlight.copy(alpha = 0.92f),
+            border = BuyWiseTheme.colors.border.copy(alpha = 0.72f),
         )
         FloatingGlassTone.Primary -> FloatingGlassColors(
             container = BuyWiseTheme.colors.primarySoft.copy(alpha = 0.96f),
-            border = BuyWiseTheme.colors.panelHighlight.copy(alpha = 0.9f),
+            border = BuyWiseTheme.colors.primary.copy(alpha = 0.16f),
         )
         FloatingGlassTone.Warm -> FloatingGlassColors(
             container = BuyWiseTheme.colors.accentSoft.copy(alpha = 0.97f),
-            border = BuyWiseTheme.colors.panelHighlight.copy(alpha = 0.9f),
+            border = BuyWiseTheme.colors.accent.copy(alpha = 0.16f),
         )
         FloatingGlassTone.Success -> FloatingGlassColors(
             container = BuyWiseTheme.colors.secondarySoft.copy(alpha = 0.97f),
-            border = BuyWiseTheme.colors.panelHighlight.copy(alpha = 0.9f),
+            border = BuyWiseTheme.colors.secondary.copy(alpha = 0.16f),
         )
         FloatingGlassTone.SolidPrimary -> FloatingGlassColors(
             container = BuyWiseTheme.colors.primary,

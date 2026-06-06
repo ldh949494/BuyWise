@@ -36,14 +36,17 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.Image
 import coil3.compose.AsyncImage
 import com.buywise.android.data.Product
 import com.buywise.android.ui.BuyWiseDimens
 import com.buywise.android.ui.BuyWiseIcons
 import com.buywise.android.ui.BuyWiseTheme
+import com.buywise.android.ui.BuyWiseVisualAssets
 import com.buywise.android.ui.displayPrice
 import com.buywise.android.ui.displayRating
 import com.buywise.android.ui.displayRecommendationReason
@@ -205,7 +208,12 @@ fun ProductImagePreview(product: Product, modifier: Modifier = Modifier) {
 @Composable
 private fun ImagePlaceholder(product: Product) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Icon(BuyWiseIcons.Image, contentDescription = null, tint = BuyWiseTheme.colors.muted)
+        Image(
+            painter = painterResource(id = BuyWiseVisualAssets.Keyboard),
+            contentDescription = null,
+            modifier = Modifier.size(width = 56.dp, height = 40.dp),
+            contentScale = ContentScale.Fit,
+        )
         Text(
             product.brand ?: product.category ?: "商品图片",
             color = BuyWiseTheme.colors.muted,

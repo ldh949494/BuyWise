@@ -18,6 +18,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,9 +26,13 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.annotation.DrawableRes
+import androidx.compose.foundation.Image
 import com.buywise.android.ui.BuyWiseTheme
 
 enum class TactileIconTone {
@@ -108,6 +113,81 @@ fun TactileIconTile(
                 contentDescription = contentDescription,
                 tint = colors.foreground,
                 modifier = Modifier.size(iconSize).padding(0.dp),
+            )
+        }
+    }
+}
+
+@Composable
+fun TactileIconTile(
+    @DrawableRes assetRes: Int,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    tone: TactileIconTone = TactileIconTone.Primary,
+    size: Dp = 52.dp,
+    iconSize: Dp = 34.dp,
+    rounded: Boolean = false,
+    selected: Boolean = false,
+    enabled: Boolean = true,
+    onClick: (() -> Unit)? = null,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val motionEnabled = rememberBuyWiseMotionEnabled()
+    val haptic = LocalHapticFeedback.current
+    val activePress = enabled && onClick != null && isPressed
+    val scale by animateFloatAsState(
+        targetValue = if (activePress && motionEnabled) 0.92f else 1f,
+        animationSpec = tween(durationMillis = if (activePress) 90 else 170, easing = FastOutSlowInEasing),
+        label = "tactileAssetScale",
+    )
+    val elevation by animateDpAsState(
+        targetValue = when {
+            !enabled -> 0.dp
+            activePress -> 2.dp
+            selected -> 9.dp
+            else -> 6.dp
+        },
+        animationSpec = tween(durationMillis = if (activePress) 90 else 170, easing = FastOutSlowInEasing),
+        label = "tactileAssetElevation",
+    )
+    val colors = tactileIconColors(tone, enabled)
+    val shape: Shape = if (rounded) CircleShape else RoundedCornerShape(14.dp)
+    val clickModifier = if (onClick == null) {
+        Modifier
+    } else {
+        Modifier.clickable(
+            enabled = enabled,
+            interactionSource = interactionSource,
+            indication = null,
+            onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onClick()
+            },
+        )
+    }
+
+    Surface(
+        modifier = modifier
+            .size(size)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                translationY = if (activePress && motionEnabled) 1.5.dp.toPx() else 0f
+            }
+            .then(clickModifier),
+        shape = shape,
+        color = colors.container,
+        border = BorderStroke(1.dp, colors.border),
+        shadowElevation = elevation,
+        tonalElevation = 0.dp,
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Image(
+                painter = painterResource(id = assetRes),
+                contentDescription = contentDescription,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.size(iconSize).clip(shape),
             )
         }
     }

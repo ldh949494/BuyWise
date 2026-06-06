@@ -20,6 +20,7 @@ import com.buywise.android.data.VisionResult
 import com.buywise.android.ui.BuyWiseIcons
 import com.buywise.android.ui.BuyWiseDimens
 import com.buywise.android.ui.BuyWiseTheme
+import com.buywise.android.ui.BuyWiseVisualAssets
 import com.buywise.android.ui.components.FloatingAssetBadge
 import com.buywise.android.ui.components.FloatingGlassCard
 import com.buywise.android.ui.components.FloatingGlassTone
@@ -49,10 +50,11 @@ fun UploadPanel(
                 }
                 FloatingAssetBadge(
                     icon = BuyWiseIcons.Camera,
+                    assetRes = BuyWiseVisualAssets.Camera,
                     contentDescription = null,
                     tone = TactileIconTone.Primary,
                     size = 54.dp,
-                    iconSize = 28.dp,
+                    iconSize = 40.dp,
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
@@ -110,6 +112,11 @@ private fun UploadModeCard(
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
+    val assetRes = when (icon) {
+        BuyWiseIcons.Image -> BuyWiseVisualAssets.Camera
+        BuyWiseIcons.Speech -> BuyWiseVisualAssets.Headphones
+        else -> null
+    }
     FloatingGlassCard(
         modifier = modifier,
         tone = FloatingGlassTone.Neutral,
@@ -118,7 +125,13 @@ private fun UploadModeCard(
         onClick = if (enabled) onClick else null,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            FloatingAssetBadge(icon = icon, contentDescription = null, size = 54.dp, iconSize = 26.dp)
+            FloatingAssetBadge(
+                icon = icon,
+                assetRes = assetRes,
+                contentDescription = null,
+                size = 54.dp,
+                iconSize = if (assetRes == null) 26.dp else 40.dp,
+            )
             Text(title, color = BuyWiseTheme.colors.ink, style = MaterialTheme.typography.labelMedium)
             Text(subtitle, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
         }

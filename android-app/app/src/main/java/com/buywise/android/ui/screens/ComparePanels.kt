@@ -28,6 +28,7 @@ import com.buywise.android.data.Product
 import com.buywise.android.ui.BuyWiseDimens
 import com.buywise.android.ui.BuyWiseIcons
 import com.buywise.android.ui.BuyWiseTheme
+import com.buywise.android.ui.BuyWiseVisualAssets
 import com.buywise.android.ui.components.EvidenceTag
 import com.buywise.android.ui.components.EvidenceTone
 import com.buywise.android.ui.components.FloatingAssetBadge
@@ -51,10 +52,11 @@ fun CompareDecisionCard(state: CompareState) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 FloatingAssetBadge(
                     icon = BuyWiseIcons.Trophy,
+                    assetRes = BuyWiseVisualAssets.Trophy,
                     contentDescription = null,
                     tone = TactileIconTone.Warm,
                     size = 46.dp,
-                    iconSize = 24.dp,
+                    iconSize = 36.dp,
                 )
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text("AI 对比结论", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)

@@ -44,6 +44,7 @@ import com.buywise.android.data.Recommendation
 import com.buywise.android.data.cleanMarkdownText
 import com.buywise.android.ui.BuyWiseIcons
 import com.buywise.android.ui.BuyWiseTheme
+import com.buywise.android.ui.BuyWiseVisualAssets
 import com.buywise.android.ui.displayPrice
 import com.buywise.android.ui.displayRating
 import com.buywise.android.ui.components.ChatBundlePlanCard
@@ -160,7 +161,7 @@ private fun GuideProcessingCard(state: GuideState, onIgnoreSavedPreferencesChang
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text("导购偏好", color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold)
                     Text(
-                        preferenceSummaryText(state.appliedPreferences, state.ignoreSavedPreferences),
+                        guidePreferenceSummaryText(state.appliedPreferences, state.ignoreSavedPreferences),
                         color = BuyWiseTheme.colors.muted,
                         style = MaterialTheme.typography.labelMedium,
                         maxLines = 1,
@@ -220,10 +221,10 @@ private fun AssistantBubble(
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             TactileIconTile(
-                icon = BuyWiseIcons.Assistant,
+                assetRes = BuyWiseVisualAssets.AssistantRobot,
                 contentDescription = null,
-                size = 34.dp,
-                iconSize = 17.dp,
+                size = 38.dp,
+                iconSize = 34.dp,
                 rounded = true,
                 tone = TactileIconTone.Primary,
             )
@@ -285,23 +286,12 @@ private fun AssistantBubble(
 private fun AppliedPreferenceLine(appliedPreferences: AppliedPreferences) {
     if (!appliedPreferences.hasVisibleSummary) return
     Text(
-        preferenceSummaryText(appliedPreferences, false),
+        guidePreferenceSummaryText(appliedPreferences, false),
         color = BuyWiseTheme.colors.primary,
         style = MaterialTheme.typography.labelMedium,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
     )
-}
-
-private fun preferenceSummaryText(appliedPreferences: AppliedPreferences, ignoreSavedPreferences: Boolean): String {
-    if (ignoreSavedPreferences || appliedPreferences.ignoredSavedPreferences) {
-        return "本次未使用长期导购偏好"
-    }
-    val summary = appliedPreferences.summary.take(3)
-    if (summary.isEmpty()) {
-        return "本次会优先使用已保存的导购偏好"
-    }
-    return "已按导购偏好：" + summary.joinToString("、")
 }
 
 @Composable
