@@ -62,6 +62,7 @@ import com.buywise.android.ui.components.TactileIconTone
 @Composable
 fun GuideChatScreen(
     state: GuideState,
+    isRecordingAudio: Boolean,
     onBack: () -> Unit,
     onDraftChange: (String) -> Unit,
     onSend: () -> Unit,
@@ -99,6 +100,7 @@ fun GuideChatScreen(
         GuideChatInputBar(
             draft = state.chatDraft,
             isStreaming = state.isStreaming,
+            isRecordingAudio = isRecordingAudio,
             onDraftChange = onDraftChange,
             onSend = onSend,
             onPickImage = onPickImage,
@@ -410,6 +412,7 @@ private fun AlternativeProductLine(recommendation: Recommendation) {
 private fun GuideChatInputBar(
     draft: String,
     isStreaming: Boolean,
+    isRecordingAudio: Boolean,
     onDraftChange: (String) -> Unit,
     onSend: () -> Unit,
     onPickImage: () -> Unit,
@@ -462,9 +465,11 @@ private fun GuideChatInputBar(
             }
             TactileIconTile(
                 icon = BuyWiseIcons.Speech,
-                contentDescription = "语音描述",
+                contentDescription = if (isRecordingAudio) "停止录音" else "语音描述",
                 size = 46.dp,
                 iconSize = 22.dp,
+                tone = if (isRecordingAudio) TactileIconTone.SolidPrimary else TactileIconTone.Primary,
+                selected = isRecordingAudio,
                 enabled = !isStreaming,
                 onClick = onRunSpeechDemo,
             )
@@ -472,7 +477,7 @@ private fun GuideChatInputBar(
                 value = draft,
                 onValueChange = onDraftChange,
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("继续追问商品细节...") },
+                placeholder = { Text(if (isRecordingAudio) "正在录音，点麦克风结束..." else "继续追问商品细节...") },
                 singleLine = true,
             )
             TactileIconTile(

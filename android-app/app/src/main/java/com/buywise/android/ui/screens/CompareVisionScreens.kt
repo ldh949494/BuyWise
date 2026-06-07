@@ -173,6 +173,7 @@ private fun CompareEmptyStateCard(
 @Composable
 fun VisionScreen(
     state: VisionState,
+    isRecordingAudio: Boolean,
     onTakePhoto: () -> Unit,
     onPickImage: () -> Unit,
     onRunVisionDemo: () -> Unit,
@@ -200,7 +201,8 @@ fun VisionScreen(
         item {
             UploadPanel(
                 isLoading = state.isLoading,
-                hasQuery = !state.recognizedQuery.isNullOrBlank(),
+                isRecordingAudio = isRecordingAudio,
+                hasQuery = !state.recognizedQuery.isNullOrBlank() || !state.speechText.isNullOrBlank(),
                 selectedImageName = state.selectedImageName,
                 onTakePhoto = onTakePhoto,
                 onPickImage = onPickImage,

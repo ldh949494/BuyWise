@@ -283,7 +283,7 @@ BuyWise 的订单是内部交易影子模型，用于演示“购买后反馈”
 
 后端将具体外部服务放在 `app/integrations/` 和 service 中封装，聊天链路只通过 `VisionService.extract_image_info()` 和 `SpeechService.extract_transcript()` 获取结构化信息或文本。这样 AI 导购不直接关心 COS、视觉模型或 ASR 的具体接入方式。
 
-Android 目前使用内置演示图片和音频 bytes 调用这些接口，不申请相机、相册或麦克风权限，也不做本地转码。识别结果会追加到导购输入框，作为下一次聊天请求的文本上下文。
+Android 可从相册图片、拍照图片和麦克风录音调用这些接口。语音输入在客户端申请 `RECORD_AUDIO` 权限，录制 m4a 音频后上传，再由 `/api/v1/speech/asr` 转写。识别结果会追加到导购输入框，作为下一次聊天请求的文本上下文。
 
 ## 12. Android 客户端架构
 

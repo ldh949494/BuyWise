@@ -4,7 +4,7 @@ Status: Implemented
 
 ## 背景
 
-BuyWise 已有上传、视觉识别和语音识别后端接口，但 Android 识图页仍是本地演示。P2 目标是跑通后端联调闭环，并明确真实 provider 的演示配置，不建设完整相机、相册或录音采集能力。
+BuyWise 已有上传、视觉识别和语音识别后端接口。P2 目标是跑通后端联调闭环，并明确真实 provider 的演示配置。后续实现已补齐 Android 相册、拍照和麦克风录音输入。
 
 ## 方案
 
@@ -12,7 +12,7 @@ BuyWise 已有上传、视觉识别和语音识别后端接口，但 Android 识
 
 当 `APP_ENV=prod` 且视觉或语音 provider 非 mock 时，必须配置 `UPLOAD_PUBLIC_BASE_URL` 或使用 `UPLOAD_PROVIDER=cos`。演示启动脚本同样在非 mock 多模态 provider 下做前置检查；普通 dev 保留请求级 `media_url_not_public` 错误。
 
-上传生命周期 P2 只做本地 TTL 清理脚本，COS 生命周期通过部署文档要求配置。Android P2 用固定演示图片和音频 bytes 触发 upload -> vision/asr -> UI 展示或导购填充，不做系统相机、相册、麦克风权限和转码。
+上传生命周期 P2 只做本地 TTL 清理脚本，COS 生命周期通过部署文档要求配置。Android 可用相册/拍照图片和 m4a 录音触发 upload -> vision/asr -> UI 展示或导购填充。
 
 ## 影响
 
@@ -30,7 +30,7 @@ BuyWise 已有上传、视觉识别和语音识别后端接口，但 Android 识
 
 ## 剩余边界/后续工作
 
-- Android 仍只使用内置演示图片和音频 bytes，不申请相机、相册、麦克风权限，也不做本地转码。
+- Android 已支持相册、拍照和麦克风录音输入；真实语音识别仍依赖公网可访问音频 URL。
 - 真实 provider 需要公网可访问媒体 URL；`APP_ENV=prod` 且非 mock 多模态 provider 时，必须配置 `UPLOAD_PUBLIC_BASE_URL` 或使用 `UPLOAD_PROVIDER=cos`。
 - COS 上传生命周期不由应用脚本管理，生产环境应在 bucket 上配置生命周期规则。
 

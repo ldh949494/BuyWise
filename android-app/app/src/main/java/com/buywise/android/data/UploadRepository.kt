@@ -34,13 +34,23 @@ class UploadRepository internal constructor(
 
     @Throws(IOException::class)
     fun runSpeechDemo(): String {
-        val upload = apiClient.uploadFile(
+        return transcribeAudio(
             filename = "buywise-demo.wav",
             contentType = mediaType("audio/wav"),
             bytes = DEMO_WAV_BYTES,
         )
+    }
+
+    @Throws(IOException::class)
+    fun transcribeAudio(filename: String, contentType: okhttp3.MediaType, bytes: ByteArray): String {
+        val upload = apiClient.uploadFile(
+            filename = filename,
+            contentType = contentType,
+            bytes = bytes,
+        )
         val response: SpeechResponseDto = apiClient.post("/api/v1/speech/asr", SpeechRequestDto(upload.url))
-        return response.text
+        return response.text.takeIf { it.isNotBlank() }
+            ?: throw IOException("没有识别到文本，请换个更清晰的录音再试")
     }
 
     private fun listOfNotBlank(value: String?): List<String> =

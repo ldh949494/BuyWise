@@ -92,6 +92,18 @@ private fun BuyWiseRoot(
     val basketMessage = viewModel.compareBasketState.message
     val scope = rememberCoroutineScope()
     var multimodalTarget by remember { mutableStateOf(MultimodalTarget.VisionTab) }
+    val audioInputController = rememberAudioInputController(
+        isBusy = viewModel.visionState.isLoading,
+        snackbarHostState = snackbarHostState,
+        onRecordedAudio = { audio, target ->
+            if (target == MultimodalTarget.GuideChat) {
+                viewModel.transcribeAudioForGuideChat(audio.filename, audio.contentType, audio.bytes)
+            } else {
+                viewModel.transcribeAudio(audio.filename, audio.contentType, audio.bytes)
+            }
+        },
+    )
+
     val imagePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri == null) {
             return@rememberLauncherForActivityResult
@@ -243,6 +255,7 @@ private fun BuyWiseRoot(
                 composable("guide/chat") {
                     GuideChatScreen(
                         state = viewModel.guideState,
+                        isRecordingAudio = audioInputController.isRecording(MultimodalTarget.GuideChat),
                         onBack = navController::popBackStack,
                         onDraftChange = viewModel::updateGuideChatDraft,
                         onSend = viewModel::sendGuideChatMessage,
@@ -255,7 +268,7 @@ private fun BuyWiseRoot(
                             cameraLauncher.launch(null)
                         },
                         onRunVisionDemo = viewModel::runVisionDemoForGuideChat,
-                        onRunSpeechDemo = viewModel::runSpeechDemoForGuideChat,
+                        onRunSpeechDemo = { audioInputController.handle(MultimodalTarget.GuideChat) },
                         onProductClick = { navController.navigate("detail/$it") },
                         onIgnoreSavedPreferencesChange = viewModel::setGuideIgnoreSavedPreferences,
                     )
@@ -272,6 +285,7 @@ private fun BuyWiseRoot(
                 composable("vision") {
                     VisionScreen(
                         state = viewModel.visionState,
+                        isRecordingAudio = audioInputController.isRecording(MultimodalTarget.VisionTab),
                         onTakePhoto = {
                             multimodalTarget = MultimodalTarget.VisionTab
                             cameraLauncher.launch(null)
@@ -281,7 +295,7 @@ private fun BuyWiseRoot(
                             imagePickerLauncher.launch("image/*")
                         },
                         onRunVisionDemo = viewModel::runVisionDemo,
-                        onRunSpeechDemo = viewModel::runSpeechDemo,
+                        onRunSpeechDemo = { audioInputController.handle(MultimodalTarget.VisionTab) },
                         onUseQuery = {
                             viewModel.useVisionQueryInGuide()
                             navController.navigateTopLevel("guide")
