@@ -4,13 +4,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.outlined.CheckCircle
@@ -19,6 +19,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,9 +44,9 @@ import com.buywise.android.ui.components.CategoryShortcut
 import com.buywise.android.ui.components.FloatingAssetBadge
 import com.buywise.android.ui.components.FloatingGlassCard
 import com.buywise.android.ui.components.FloatingGlassTone
+import com.buywise.android.ui.components.ProductCard
 import com.buywise.android.ui.components.SearchPill
 import com.buywise.android.ui.components.SectionTitle
-import com.buywise.android.ui.components.ShowcaseProductCard
 import com.buywise.android.ui.components.TactileIconTile
 import com.buywise.android.ui.components.TactileIconTone
 
@@ -56,6 +58,7 @@ fun HomeScreen(
     onToggleCompare: (Product) -> Unit,
     onOpenSearch: () -> Unit,
     onOpenGuide: () -> Unit,
+    onStartGuide: (String) -> Unit,
     onOpenCompare: () -> Unit,
     onOpenVision: () -> Unit,
     feedbackState: FeedbackUiState,
@@ -65,6 +68,7 @@ fun HomeScreen(
     onRetry: () -> Unit,
 ) {
     var selectedCategory by remember { mutableStateOf(HomeCategory.Keyboard) }
+    var guideDraft by remember { mutableStateOf("") }
     val displayedProducts = state.products.forHomeCategory(selectedCategory)
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -83,25 +87,25 @@ fun HomeScreen(
             )
         }
         item {
+            HomeGuideEntry(
+                query = guideDraft,
+                onQueryChange = { guideDraft = it },
+                onStartGuide = { onStartGuide(guideDraft) },
+            )
+        }
+        item {
             HomeCategoryRow(
                 selectedCategory = selectedCategory,
                 onCategorySelected = { selectedCategory = it },
             )
         }
         if (state.isLoading) {
-            item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
+            item { InlineLoadingNotice() }
         }
         state.errorMessage?.let { message ->
             item {
                 ErrorPanel(message = message, actionLabel = "重试", onAction = onRetry)
             }
-        }
-        item {
-            HomeGreetingPanel(
-                title = state.heroTitle,
-                subtitle = state.heroSubtitle,
-                onOpenGuide = onOpenGuide,
-            )
         }
         item {
             Row(
@@ -114,19 +118,20 @@ fun HomeScreen(
             }
         }
         if (!state.isLoading && displayedProducts.isEmpty() && state.errorMessage == null) {
-            item { Text("暂无商品。", color = BuyWiseTheme.colors.muted) }
-        }
-        item {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(displayedProducts.take(8)) { product ->
-                    ShowcaseProductCard(
-                        product = product,
-                        onClick = { onProductClick(product.id) },
-                        modifier = Modifier.width(132.dp),
-                        selected = isInCompareBasket(product.id),
-                    )
-                }
+            item {
+                EmptyActionPanel(
+                    onRetry = onRetry,
+                    onOpenGuide = onOpenGuide,
+                )
             }
+        }
+        items(displayedProducts.take(12)) { product ->
+            ProductCard(
+                product = product,
+                onClick = { onProductClick(product.id) },
+                isInCompareBasket = isInCompareBasket(product.id),
+                onToggleCompare = { onToggleCompare(product) },
+            )
         }
         if (!state.canUseFeedback) {
             item {
@@ -157,13 +162,6 @@ fun HomeScreen(
                     onSubmit = { onSubmitFeedback(prompt) },
                 )
             }
-        }
-        item {
-            HomeFeedbackSummaryCard(
-                productName = state.feedbackPrompts.firstOrNull()?.productName
-                    ?: displayedProducts.firstOrNull()?.shortHomeName()
-                    ?: "近期查看的商品",
-            )
         }
     }
 }
@@ -196,6 +194,48 @@ private fun HomeTopBar() {
 }
 
 @Composable
+private fun InlineLoadingNotice() {
+    FloatingGlassCard(
+        tone = FloatingGlassTone.Neutral,
+        radius = 12.dp,
+        contentPadding = 12.dp,
+        elevated = false,
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("正在更新商品列表", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        }
+    }
+}
+
+@Composable
+private fun EmptyActionPanel(
+    onRetry: () -> Unit,
+    onOpenGuide: () -> Unit,
+) {
+    FloatingGlassCard(
+        tone = FloatingGlassTone.Neutral,
+        radius = 14.dp,
+        contentPadding = 16.dp,
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("暂时没有匹配商品", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
+            Text("可以刷新商品列表，或直接描述需求让 BuyWise 帮你找候选。", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedButton(onClick = onRetry, modifier = Modifier.weight(1f)) {
+                    Text("重试")
+                }
+                Button(onClick = onOpenGuide, modifier = Modifier.weight(1f)) {
+                    Icon(BuyWiseIcons.Guide, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("去导购")
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun HomeCategoryRow(
     selectedCategory: HomeCategory,
     onCategorySelected: (HomeCategory) -> Unit,
@@ -219,30 +259,48 @@ private fun HomeCategoryRow(
 }
 
 @Composable
-private fun HomeGreetingPanel(title: String, subtitle: String, onOpenGuide: () -> Unit) {
+private fun HomeGuideEntry(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onStartGuide: () -> Unit,
+) {
     FloatingGlassCard(
         tone = FloatingGlassTone.Primary,
         radius = 16.dp,
         contentPadding = 16.dp,
-        onClick = onOpenGuide,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text(title, style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
-                Text(subtitle, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium, maxLines = 2)
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                FloatingAssetBadge(
+                    icon = BuyWiseIcons.Assistant,
+                    assetRes = BuyWiseVisualAssets.AssistantRobot,
+                    contentDescription = null,
+                    size = 48.dp,
+                    iconSize = 40.dp,
+                    tone = TactileIconTone.Primary,
+                )
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("AI 导购", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
+                    Text("说预算、用途和偏好，直接生成首推和备选。", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
+                }
             }
-            FloatingAssetBadge(
-                icon = BuyWiseIcons.Assistant,
-                assetRes = BuyWiseVisualAssets.AssistantRobot,
-                contentDescription = null,
-                size = 64.dp,
-                iconSize = 54.dp,
-                tone = TactileIconTone.Primary,
+            OutlinedTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 2,
+                placeholder = { Text("例如：宿舍写代码，300以内，低噪音无线键盘") },
+                shape = RoundedCornerShape(14.dp),
             )
+            Button(onClick = onStartGuide, modifier = Modifier.fillMaxWidth()) {
+                Icon(BuyWiseIcons.Guide, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("开始导购")
+            }
         }
     }
 }

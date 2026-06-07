@@ -58,7 +58,6 @@ import com.buywise.android.ui.components.ProductCard
 import com.buywise.android.ui.components.ProductImagePreview
 import com.buywise.android.ui.components.FloatingGlassCard
 import com.buywise.android.ui.components.FloatingGlassTone
-import com.buywise.android.ui.components.ScoreBadge
 import com.buywise.android.ui.components.ShowcaseProductCard
 import com.buywise.android.ui.components.ShowcaseTopBar
 import com.buywise.android.ui.components.TactileIconTone
@@ -103,8 +102,8 @@ fun CompareScreen(
             }
         } else {
             item { Text("${state.products.size} 个商品", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold) }
-            item { CompareScoreStrip(products = state.products, onProductClick = onProductClick) }
             item { CompareDecisionCard(state = state) }
+            item { CompareScoreStrip(products = state.products, onProductClick = onProductClick) }
             item { CompareTable(rows = state.rows, products = state.products) }
             item { CompareProsCons(products = state.products) }
             item {
@@ -351,7 +350,7 @@ private fun VisionResultCard(state: VisionState, onUseQuery: () -> Unit) {
                     overflow = TextOverflow.Ellipsis,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    EvidenceTag("${state.result.confidence}% 匹配", tone = EvidenceTone.Success)
+                    EvidenceTag("可参考", tone = EvidenceTone.Success)
                     EvidenceTag("RGB 灯效", tone = EvidenceTone.Info)
                 }
                 VisionResultActionButton(
@@ -359,7 +358,6 @@ private fun VisionResultCard(state: VisionState, onUseQuery: () -> Unit) {
                     onClick = onUseQuery,
                 )
             }
-            ScoreBadge(state.result.confidence.coerceIn(0, 99), size = 48.dp)
         }
     }
 }

@@ -2,13 +2,22 @@ package com.buywise.android.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.buywise.android.data.AccountState
@@ -16,6 +25,8 @@ import com.buywise.android.ui.BuyWiseIcons
 import com.buywise.android.ui.BuyWiseTheme
 import com.buywise.android.ui.components.AccountIdentityCard
 import com.buywise.android.ui.components.AccountSettingEntryCard
+import com.buywise.android.ui.components.FloatingGlassCard
+import com.buywise.android.ui.components.FloatingGlassTone
 import com.buywise.android.ui.components.TactileIconTone
 import com.buywise.android.ui.components.guidePreferencesSummary
 
@@ -81,8 +92,46 @@ fun AccountScreen(
             tone = TactileIconTone.Warm,
             onClick = onOpenPrivacyData,
         )
-        state.preferencesError?.let { Text(it, color = BuyWiseTheme.colors.danger) }
-        state.statusMessage?.let { Text(it, color = BuyWiseTheme.colors.primary) }
-        state.errorMessage?.let { Text(it, color = BuyWiseTheme.colors.danger) }
+        state.preferencesError?.let {
+            AccountStatusPanel(
+                message = "导购偏好暂未同步，将继续使用本机偏好。",
+                type = AccountStatusType.Warning,
+            )
+        }
+        state.statusMessage?.let { message ->
+            AccountStatusPanel(message = message, type = AccountStatusType.Success)
+        }
+        state.errorMessage?.let { message ->
+            AccountStatusPanel(message = message, type = AccountStatusType.Error)
+        }
     }
+}
+
+@Composable
+private fun AccountStatusPanel(message: String, type: AccountStatusType) {
+    val (icon, iconColor, tone) = when (type) {
+        AccountStatusType.Success -> Triple(Icons.Outlined.CheckCircle, BuyWiseTheme.colors.primary, FloatingGlassTone.Success)
+        AccountStatusType.Warning -> Triple(Icons.Outlined.CloudOff, BuyWiseTheme.colors.muted, FloatingGlassTone.Neutral)
+        AccountStatusType.Error -> Triple(Icons.Outlined.ErrorOutline, BuyWiseTheme.colors.danger, FloatingGlassTone.Warm)
+    }
+    FloatingGlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        tone = tone,
+        contentPadding = 14.dp,
+        elevated = false,
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(20.dp))
+            Text(message, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+private enum class AccountStatusType {
+    Success,
+    Warning,
+    Error,
 }

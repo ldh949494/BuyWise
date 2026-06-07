@@ -183,10 +183,16 @@ data class CompareBasketState(
             return copy(products = products.filterNot { it.id == product.id }, message = null)
         }
         if (products.size >= MAX_PRODUCTS) {
-            return copy(message = "最多选择 4 个商品")
+            return copy(message = "最多对比 4 件，先移除一个再添加")
         }
         val nextNeed = if (products.isEmpty()) userNeed?.takeIf { it.isNotBlank() } else this.userNeed
-        return copy(products = products + product, userNeed = nextNeed, message = null)
+        val nextProducts = products + product
+        val nextMessage = if (nextProducts.size < 2) {
+            "已加入对比，再选 1 件即可开始"
+        } else {
+            "已加入对比，可开始比较"
+        }
+        return copy(products = nextProducts, userNeed = nextNeed, message = nextMessage)
     }
 
     companion object {

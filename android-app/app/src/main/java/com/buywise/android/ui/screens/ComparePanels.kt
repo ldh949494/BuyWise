@@ -59,12 +59,12 @@ fun CompareDecisionCard(state: CompareState) {
                     iconSize = 36.dp,
                 )
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text("AI 对比结论", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
-                    Text("按价格、评分和场景适配排序", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
+                    Text("AI 决策摘要", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
+                    Text("先看推荐结论，再核对价格、评分和风险", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
                 }
             }
             Text(
-                state.summary ?: "BuyWise 会优先比较价格、评分和明确的商品差异，帮助你缩小候选范围。",
+                state.summary ?: "BuyWise 会先给出优先候选，再把价格、评分和明确差异拆开，帮助你快速缩小选择范围。",
                 color = BuyWiseTheme.colors.muted,
                 style = MaterialTheme.typography.bodyMedium,
             )
