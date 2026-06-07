@@ -71,7 +71,12 @@ def test_run_provider_call_retries_provider_failures_and_records_metrics(monkeyp
 
 def test_run_provider_call_opens_circuit_after_repeated_provider_failures(monkeypatch) -> None:
     reset_resilience_state()
-    monkeypatch.setattr("app.core.resilience.count_provider_failure", lambda provider, operation, reason: None)
+    failures = []
+    blocked_calls = []
+    monkeypatch.setattr(
+        "app.core.resilience.count_provider_failure",
+        lambda provider, operation, reason: failures.append((provider, operation, reason)),
+    )
     policy = ResiliencePolicy(
         provider="chroma",
         operation="query",
@@ -85,9 +90,11 @@ def test_run_provider_call_opens_circuit_after_repeated_provider_failures(monkey
         run_provider_call(policy, lambda: (_ for _ in ()).throw(RuntimeError("remote failed")))
 
     with pytest.raises(AppError) as exc_info:
-        run_provider_call(policy, lambda: "not-called")
+        run_provider_call(policy, lambda: blocked_calls.append("called"))
 
     assert exc_info.value.code == "provider_circuit_open"
+    assert blocked_calls == []
+    assert failures == [("chroma", "query", "provider_error")]
 
 
 @pytest.mark.anyio

@@ -56,6 +56,7 @@ fun FloatingCompareBasket(
     onRemoveProduct: (Product) -> Unit,
     onClear: () -> Unit,
     onStartCompare: () -> Unit,
+    onContinueShopping: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (state.products.isEmpty()) {
@@ -77,6 +78,7 @@ fun FloatingCompareBasket(
                 onRemoveProduct = onRemoveProduct,
                 onClear = onClear,
                 onStartCompare = onStartCompare,
+                onContinueShopping = onContinueShopping,
             )
         }
         BasketButton(
@@ -137,6 +139,7 @@ private fun ExpandedBasket(
     onRemoveProduct: (Product) -> Unit,
     onClear: () -> Unit,
     onStartCompare: () -> Unit,
+    onContinueShopping: () -> Unit,
 ) {
     val haptic = LocalHapticFeedback.current
     FloatingGlassCard(
@@ -166,14 +169,15 @@ private fun ExpandedBasket(
                 BasketProductRow(product = product, onRemove = { onRemoveProduct(product) })
             }
             if (state.products.size < 2) {
+                Text("再选 1 件商品，就能生成横向对比和决策摘要。", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodySmall)
                 OutlinedButton(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onStartCompare()
+                        onContinueShopping()
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("再选 1 件")
+                    Text("继续选择商品")
                 }
             } else {
                 Button(

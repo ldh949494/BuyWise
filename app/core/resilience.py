@@ -85,6 +85,8 @@ async def run_provider_call_async(
             _record_success(policy)
             return result
         except Exception as exc:
+            if _is_circuit_open_error(exc):
+                raise
             last_exc = exc
             reason = _record_failure(policy, exc)
             if attempt >= policy.max_attempts or not _should_retry(reason):
@@ -102,6 +104,8 @@ def run_provider_call(policy: ResiliencePolicy, operation: Callable[[], ResultT]
             _record_success(policy)
             return result
         except Exception as exc:
+            if _is_circuit_open_error(exc):
+                raise
             last_exc = exc
             reason = _record_failure(policy, exc)
             if attempt >= policy.max_attempts or not _should_retry(reason):
@@ -121,6 +125,8 @@ async def provider_stream(policy: ResiliencePolicy, *, capacity_resource: str | 
                 yield
         _record_success(policy)
     except Exception as exc:
+        if _is_circuit_open_error(exc):
+            raise
         _record_failure(policy, exc)
         raise
 
@@ -175,6 +181,10 @@ def _record_failure(policy: ResiliencePolicy, exc: Exception) -> ProviderFailure
 
 def _should_retry(reason: ProviderFailureReason) -> bool:
     return reason in {ProviderFailureReason.TIMEOUT, ProviderFailureReason.PROVIDER}
+
+
+def _is_circuit_open_error(exc: Exception) -> bool:
+    return isinstance(exc, AppError) and exc.code == "provider_circuit_open"
 
 
 def _exception_name_contains(exc: Exception, text: str) -> bool:

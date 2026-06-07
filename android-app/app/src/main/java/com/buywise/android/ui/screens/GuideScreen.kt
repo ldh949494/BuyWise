@@ -289,7 +289,7 @@ private fun GuideInputPanel(
             )
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                 RaisedGuideButton(
-                    label = if (state.isStreaming) "生成中..." else "生成推荐",
+                    label = if (state.isStreaming) "生成中..." else "开始导购",
                     icon = BuyWiseIcons.Guide,
                     primary = true,
                     enabled = !state.isStreaming && state.query.isNotBlank(),
@@ -300,7 +300,7 @@ private fun GuideInputPanel(
                     },
                 )
                 RaisedGuideButton(
-                    label = "进入对话导购",
+                    label = "继续追问",
                     icon = BuyWiseIcons.Assistant,
                     primary = false,
                     enabled = true,

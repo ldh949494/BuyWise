@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.CompareArrows
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.Share
@@ -29,6 +30,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -65,6 +67,7 @@ fun ProductDetailScreen(
     isInCompareBasket: (String) -> Boolean,
     onToggleCompare: (Product) -> Unit,
     onRecordPurchase: (String) -> Unit,
+    onOpenProductPage: (String) -> Unit,
 ) {
     val product = state.product ?: fallbackProduct
     LazyColumn(
@@ -93,11 +96,8 @@ fun ProductDetailScreen(
         if (state.isLoading) {
             item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
         }
-        state.errorMessage?.let { message ->
+        state.errorMessage?.takeIf { product == null }?.let { message ->
             item { ErrorPanel(message = message) }
-        }
-        state.orderStatusMessage?.let { message ->
-            item { InfoPanel(icon = { Icon(Icons.Outlined.ShoppingBag, contentDescription = null) }, title = "购买记录", body = message) }
         }
         item {
             if (product == null) {
@@ -108,8 +108,6 @@ fun ProductDetailScreen(
                     isInCompareBasket = isInCompareBasket(product.id),
                     canRecordPurchase = state.canRecordPurchase,
                     tokenRequiredMessage = state.tokenRequiredMessage,
-                    onToggleCompare = { onToggleCompare(product) },
-                    onRecordPurchase = { onRecordPurchase(product.id) },
                 )
             }
         }
@@ -129,6 +127,12 @@ fun ProductDetailScreen(
             if (product.cautions.isNotEmpty()) {
                 item { DetailBlock("购买前注意", product.cautions, BuyWiseTheme.colors.dangerSoft) }
             }
+            state.errorMessage?.let { message ->
+                item { ErrorPanel(message = message) }
+            }
+            state.orderStatusMessage?.let { message ->
+                item { InfoPanel(icon = { Icon(Icons.Outlined.ShoppingBag, contentDescription = null) }, title = "购买记录", body = message) }
+            }
             item {
                 DetailPurchaseBar(
                     product = product,
@@ -136,6 +140,7 @@ fun ProductDetailScreen(
                     canRecordPurchase = state.canRecordPurchase,
                     onToggleCompare = { onToggleCompare(product) },
                     onRecordPurchase = { onRecordPurchase(product.id) },
+                    onOpenProductPage = onOpenProductPage,
                 )
             }
         }
@@ -178,8 +183,6 @@ private fun ProductHeader(
     isInCompareBasket: Boolean,
     canRecordPurchase: Boolean,
     tokenRequiredMessage: String?,
-    onToggleCompare: () -> Unit,
-    onRecordPurchase: () -> Unit,
 ) {
     FloatingGlassCard(
         tone = if (isInCompareBasket) FloatingGlassTone.Success else FloatingGlassTone.Neutral,
@@ -211,11 +214,17 @@ private fun ProductHeader(
                 RatingPill(product.rating.displayRating())
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                product.tags.take(4).forEach { tag ->
-                    EvidenceTag(tag, tone = EvidenceTone.Info)
-                }
                 product.stockStatus?.takeIf { it.isNotBlank() }?.let {
                     EvidenceTag(it, tone = EvidenceTone.Success)
+                }
+                product.productUrl?.takeIf { it.isNotBlank() }?.let {
+                    EvidenceTag("可查看商品页", tone = EvidenceTone.Info)
+                }
+                product.reviewSummary?.takeIf { it.isNotBlank() }?.let {
+                    EvidenceTag("有评价摘要", tone = EvidenceTone.Info)
+                }
+                product.tags.take(2).forEach { tag ->
+                    EvidenceTag(tag, tone = EvidenceTone.Info)
                 }
             }
             if (!canRecordPurchase) {
@@ -297,25 +306,39 @@ private fun DetailPurchaseBar(
     canRecordPurchase: Boolean,
     onToggleCompare: () -> Unit,
     onRecordPurchase: () -> Unit,
+    onOpenProductPage: (String) -> Unit,
 ) {
+    val productUrl = product.productUrl?.takeIf { it.isNotBlank() }
     FloatingGlassCard(tone = FloatingGlassTone.Neutral, radius = 16.dp, contentPadding = 10.dp) {
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            TactileIconTile(
-                icon = Icons.AutoMirrored.Outlined.CompareArrows,
-                contentDescription = "加入对比",
-                size = 48.dp,
-                iconSize = 22.dp,
-                tone = if (isInCompareBasket) TactileIconTone.SolidPrimary else TactileIconTone.Neutral,
-                onClick = onToggleCompare,
-            )
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Button(
-                onClick = onRecordPurchase,
-                enabled = canRecordPurchase,
-                modifier = Modifier.weight(1f),
+                onClick = onToggleCompare,
+                modifier = Modifier.fillMaxWidth(),
             ) {
-                Icon(Icons.Outlined.ShoppingBag, contentDescription = null)
+                Icon(Icons.AutoMirrored.Outlined.CompareArrows, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("加入购物车 · ${product.price.displayPrice()}")
+                Text(if (isInCompareBasket) "已加入对比" else "加入对比")
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                OutlinedButton(
+                    onClick = onRecordPurchase,
+                    enabled = canRecordPurchase,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(Icons.Outlined.ShoppingBag, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("记录已购买", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                if (productUrl != null) {
+                    OutlinedButton(
+                        onClick = { onOpenProductPage(productUrl) },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("查看商品页", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
             }
         }
     }

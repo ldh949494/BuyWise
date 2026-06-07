@@ -109,6 +109,17 @@ class BuyWiseViewModel(
         guideViewModel.updateQuery(query)
     }
 
+    fun startGuideFromHome(query: String): Boolean {
+        val normalized = query.trim()
+        if (normalized.isBlank()) {
+            homeViewModel.setError("先描述预算、用途和偏好，再开始导购。")
+            return false
+        }
+        guideViewModel.useQuery(normalized)
+        guideViewModel.submitQuery()
+        return true
+    }
+
     fun updateGuideChatDraft(draft: String) {
         guideViewModel.updateChatDraft(draft)
     }

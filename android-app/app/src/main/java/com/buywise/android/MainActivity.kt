@@ -1,6 +1,9 @@
 package com.buywise.android
 
 import android.content.Context
+import android.content.Intent
+import android.content.ActivityNotFoundException
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -168,7 +171,7 @@ private fun BuyWiseRoot(
                 .background(BuyWiseTheme.colors.surface)
                 .padding(padding),
         ) {
-            NavHost(navController = navController, startDestination = "landing") {
+            NavHost(navController = navController, startDestination = "home") {
                 composable("landing") {
                     LandingScreen(
                         state = viewModel.accountState,
@@ -198,6 +201,11 @@ private fun BuyWiseRoot(
                         onToggleCompare = { viewModel.toggleCompareBasket(it) },
                         onOpenSearch = { navController.navigate("search") },
                         onOpenGuide = { navController.navigateTopLevel("guide") },
+                        onStartGuide = { query ->
+                            if (viewModel.startGuideFromHome(query)) {
+                                navController.navigateTopLevel("guide")
+                            }
+                        },
                         onOpenCompare = { navController.navigateTopLevel("compare") },
                         onOpenVision = { navController.navigateTopLevel("vision") },
                         feedbackState = viewModel.feedbackState,
@@ -343,6 +351,13 @@ private fun BuyWiseRoot(
                         isInCompareBasket = viewModel::isInCompareBasket,
                         onToggleCompare = { viewModel.toggleCompareBasket(it) },
                         onRecordPurchase = viewModel::recordPurchase,
+                        onOpenProductPage = { url ->
+                            if (!context.openExternalUrl(url)) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("暂时无法打开商品页")
+                                }
+                            }
+                        },
                     )
                 }
             }
@@ -356,6 +371,9 @@ private fun BuyWiseRoot(
                         if (viewModel.startCompareFromBasket()) {
                             navController.navigateTopLevel("compare")
                         }
+                    },
+                    onContinueShopping = {
+                        viewModel.setCompareBasketExpanded(false)
                     },
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -392,3 +410,14 @@ private fun String.topLevelRoute(): String =
         startsWith("detail/") -> "home"
         else -> this
     }
+
+private fun Context.openExternalUrl(url: String): Boolean {
+    return try {
+        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        true
+    } catch (_: ActivityNotFoundException) {
+        false
+    } catch (_: IllegalArgumentException) {
+        false
+    }
+}

@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
@@ -148,6 +149,7 @@ fun ProductCard(
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
             )
+            ProductDecisionSignals(product = product)
             if (onToggleCompare != null) {
                 if (isInCompareBasket) {
                     Button(
@@ -178,6 +180,28 @@ fun ProductCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ProductDecisionSignals(product: Product) {
+    val caution = product.cautions.firstOrNull { it.isNotBlank() }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        product.stockStatus?.takeIf { it.isNotBlank() }?.let {
+            EvidenceTag(it, tone = EvidenceTone.Success)
+        }
+        product.tags.take(2).forEach { tag ->
+            EvidenceTag(tag, tone = EvidenceTone.Info)
+        }
+    }
+    caution?.let {
+        Text(
+            "购买前注意：$it",
+            color = BuyWiseTheme.colors.danger,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
