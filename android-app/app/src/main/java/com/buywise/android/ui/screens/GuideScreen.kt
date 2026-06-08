@@ -14,7 +14,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.OutlinedTextField
@@ -452,7 +451,7 @@ private fun TopRecommendationStrip(product: Product, onClick: () -> Unit) {
 
 private fun androidx.compose.foundation.lazy.LazyListScope.guideStreamItems(state: GuideState) {
     if (state.isStreaming) {
-        item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
+        item { AnalysisProgressCard(title = "BuyWise 正在生成导购建议") }
     }
     if (state.partialReply.isNotBlank()) {
         item {

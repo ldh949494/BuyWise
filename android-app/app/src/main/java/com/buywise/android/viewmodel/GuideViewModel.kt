@@ -37,6 +37,10 @@ class GuideViewModel(
         state = state.copy(chatDraft = draft)
     }
 
+    fun useChatDraft(draft: String) {
+        state = state.copy(chatDraft = draft)
+    }
+
     fun setIgnoreSavedPreferences(value: Boolean) {
         state = state.copy(ignoreSavedPreferences = value)
     }
