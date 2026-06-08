@@ -29,6 +29,7 @@ import com.buywise.android.ui.components.TactileIconTone
 @Composable
 fun UploadPanel(
     isLoading: Boolean,
+    isRecordingAudio: Boolean,
     hasQuery: Boolean,
     selectedImageName: String?,
     onTakePhoto: () -> Unit,
@@ -67,10 +68,11 @@ fun UploadPanel(
                     onClick = onPickImage,
                 )
                 UploadModeCard(
-                    title = "上传音频",
-                    subtitle = "点击录制",
+                    title = if (isRecordingAudio) "正在录音" else "语音输入",
+                    subtitle = if (isRecordingAudio) "点击结束" else "点击录制",
                     icon = BuyWiseIcons.Speech,
                     modifier = Modifier.weight(1f),
+                    selected = isRecordingAudio,
                     enabled = !isLoading,
                     onClick = onRunSpeechDemo,
                 )
@@ -109,6 +111,7 @@ private fun UploadModeCard(
     subtitle: String,
     icon: ImageVector,
     modifier: Modifier = Modifier,
+    selected: Boolean = false,
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
@@ -119,7 +122,7 @@ private fun UploadModeCard(
     }
     FloatingGlassCard(
         modifier = modifier,
-        tone = FloatingGlassTone.Neutral,
+        tone = if (selected) FloatingGlassTone.Primary else FloatingGlassTone.Neutral,
         radius = 16.dp,
         contentPadding = 16.dp,
         onClick = if (enabled) onClick else null,

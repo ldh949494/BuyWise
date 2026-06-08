@@ -184,6 +184,20 @@ class BuyWiseViewModel(
         )
     }
 
+    fun transcribeAudio(filename: String, contentType: String, bytes: ByteArray) {
+        uploadViewModel.transcribeAudio(filename, contentType, bytes)
+    }
+
+    fun transcribeAudioForGuideChat(filename: String, contentType: String, bytes: ByteArray) {
+        uploadViewModel.transcribeAudio(
+            filename = filename,
+            contentType = contentType,
+            bytes = bytes,
+            onRecognized = { text -> guideViewModel.appendChatDraft(text, "语音") },
+            onError = { message -> guideViewModel.addChatSystemMessage(message) },
+        )
+    }
+
     fun useVisionQueryInGuide() {
         val query = visionState.recognizedQuery ?: visionState.speechText ?: return
         guideViewModel.useQuery(query)

@@ -82,6 +82,30 @@ class UploadViewModel(
         }
     }
 
+    fun transcribeAudio(
+        filename: String,
+        contentType: String,
+        bytes: ByteArray,
+        onRecognized: ((String) -> Unit)? = null,
+        onError: ((String) -> Unit)? = null,
+    ) {
+        state = state.copy(isLoading = true, errorMessage = null, selectedImageName = filename)
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    repository.transcribeAudio(filename, com.buywise.android.data.mediaType(contentType), bytes)
+                }
+            }.onSuccess { text ->
+                state = state.copy(speechText = text, recognizedQuery = text, isLoading = false)
+                onRecognized?.invoke(text)
+            }.onFailure { throwable ->
+                val message = throwable.userMessage("语音识别失败")
+                state = state.copy(isLoading = false, errorMessage = message)
+                onError?.invoke(message)
+            }
+        }
+    }
+
     fun product(productId: String?): com.buywise.android.data.Product? =
         state.result.similarProducts.firstOrNull { it.id == productId }
 

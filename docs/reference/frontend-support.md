@@ -359,7 +359,7 @@ Content-Type: application/json
 }
 ```
 
-真实语音 provider 演示路径为上传音频后的 URL ASR。P2 不支持二进制直传 ASR，Android 侧使用固定演示音频资源联调，不申请麦克风权限。前端可将 `text` 放入输入框供用户确认，或直接发送给 `/api/v1/ai/chat`。
+真实语音 provider 演示路径为上传音频后的 URL ASR。P2 不支持二进制直传 ASR，Android 侧可录制 m4a 音频并上传后调用 ASR。前端可将 `text` 放入输入框供用户确认，或直接发送给 `/api/v1/ai/chat`。
 
 ## RAG 搜索
 
