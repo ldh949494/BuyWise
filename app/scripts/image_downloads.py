@@ -45,6 +45,14 @@ def download_image(
 
 
 def _suffix_for_url(url: str, content_type: str) -> str:
+    if content_type == "image/jpeg":
+        return ".jpg"
+    if content_type == "image/png":
+        return ".png"
+    if content_type == "image/webp":
+        return ".webp"
+    if content_type == "image/gif":
+        return ".gif"
     parsed_path = urlparse(url).path
     path_suffix = "." + parsed_path.rsplit(".", 1)[-1].lower() if "." in parsed_path else ""
     if path_suffix in {".gif", ".jpeg", ".jpg", ".png", ".webp"}:

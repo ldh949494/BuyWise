@@ -1,6 +1,6 @@
 # 设计：Closed Beta 真实工程落地
 
-Status: Draft
+Status: Implemented
 
 ## 背景
 
@@ -76,6 +76,12 @@ BuyWise 当前纳入的是“记录购买 + 订单影子模型 + 待评价 + 已
 - 发布验证运行迁移、CSV 导入、向量索引 rebuild/check、readiness 脚本和核心 API smoke。
 - 文档修改后运行 `python scripts/validate_docs.py`。
 
+## 实现进度/剩余边界
+
+- 已实现 prod 模式 closed beta 配置校验、受控 API key scope、Android beta token 注入、外部购买记录、购买证据等级、真实 catalog CSV 校验、release prepare、readiness、smoke、RAG eval gate、OpenAPI contract gate、真实依赖 smoke 和 closed beta runbook。
+- 已实现组合方案推荐的 `bundle_plans` 契约和 Android 渲染；真实购物车、真实结算、支付、履约和平台订单验真仍不在 closed beta 范围内。
+- 发布前仍必须按 `docs/operations/release-checklist.md` 针对目标环境运行 Android build、真实 catalog 导入、索引健康、readiness、RAG gate、OpenAPI contract、真实依赖 smoke 和 closed beta smoke。
+
 ## 最近检查
 
-2026-05-25
+2026-06-07

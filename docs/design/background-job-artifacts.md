@@ -19,7 +19,7 @@ BuyWise closed beta 发布准备依赖多条后台维护作业：商品导入、
 
 - 脚本：`app/scripts/migrate_product_images_to_cos.py`、`app/scripts/check_mysql_backup.py`、`scripts/release_prepare.ps1`。
 - 测试：新增或更新后台作业 artifact、备份检查和 release prepare 脚本约束测试。
-- 文档：`docs/operations/release-checklist.md`、`docs/operations/closed-beta-runbook.md`、`docs/reference/scripts.md`、`docs/plans/backend-framework-hardening.md`。
+- 文档：`docs/operations/release-checklist.md`、`docs/operations/closed-beta-runbook.md`、`docs/reference/scripts.md`、`docs/plans/archive/backend-framework-hardening.md`。
 
 ## 验证
 

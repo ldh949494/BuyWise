@@ -208,6 +208,8 @@ private fun ProductDecisionSignals(product: Product) {
 @Composable
 fun ProductImagePreview(product: Product, modifier: Modifier = Modifier) {
     val shape = RoundedCornerShape(12.dp)
+    val imageUrl = product.imageUrl?.takeIf { it.isNotBlank() }
+    var imageLoadFailed by remember(imageUrl) { mutableStateOf(false) }
     Box(
         modifier = modifier
             .clip(shape)
@@ -215,8 +217,7 @@ fun ProductImagePreview(product: Product, modifier: Modifier = Modifier) {
             .border(1.dp, BuyWiseTheme.colors.border, shape),
         contentAlignment = Alignment.Center,
     ) {
-        val imageUrl = product.imageUrl?.takeIf { it.isNotBlank() }
-        if (imageUrl == null) {
+        if (imageUrl == null || imageLoadFailed) {
             ImagePlaceholder(product = product)
         } else {
             AsyncImage(
@@ -224,6 +225,7 @@ fun ProductImagePreview(product: Product, modifier: Modifier = Modifier) {
                 contentDescription = product.name,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
+                onError = { imageLoadFailed = true },
             )
         }
     }

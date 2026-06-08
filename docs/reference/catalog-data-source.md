@@ -13,6 +13,7 @@ BuyWise 的商品数据源是人工维护、可校验、可导入的商品目录
 
 ```powershell
 python -m app.scripts.validate_beta_catalog --csv .\data\beta-catalog.csv
+python -m app.scripts.validate_product_images --csv .\data\beta-catalog.csv --skip-seed-profiles --require-unique-image-urls --check-http --min-image-bytes 10000 --require-unique-http-etags
 python -m app.scripts.import_products --csv .\data\beta-catalog.csv --require-real-assets
 python -m app.scripts.build_vector_index --mode rebuild
 ```
@@ -70,6 +71,8 @@ https://<bucket>.cos.<region>.myqcloud.com/product-images/beta-keyboard-keynova-
 ```
 
 COS 对象必须公开可读，或通过已配置的公开 CDN/自定义域名访问。Closed beta 最小可行方案是让 `product-images/` 前缀公开读，并把图片生命周期和权限纳入 COS bucket 配置。
+
+历史 COS 对象如果返回 403，可先运行 `python -m app.scripts.repair_product_image_acls --apply` 修复 `product-images/` 对象 ACL。发布前必须对实际导入的单个目录 CSV 运行 `validate_product_images --check-http --min-image-bytes 10000 --require-unique-http-etags`，确认图片可公网读取、不是小占位图，且同一目录内不同 SKU 没有复用同一张主图内容。如果 `products.csv` 和 `beta-catalog.csv` 是同一目录的镜像文件，应分别校验，不要把两份文件放在同一次唯一性校验里。
 
 `image_urls` 必须是 CSV 中的 JSON 数组字符串：
 
@@ -140,6 +143,7 @@ beta-keyboard-keynova-k75,KeyNova K75 静音三模机械键盘,机械键盘,KeyN
 一份可进入 closed beta 的商品目录必须满足：
 
 - `validate_beta_catalog` 返回 `ok: true`。
+- `validate_product_images` 对实际导入的单个目录 CSV 通过，且主图 COS URL 和 HTTP ETag 在该目录内均不重复。
 - `import_products --require-real-assets` 可成功导入。
 - 商品列表和详情接口返回的 `image_url` 能直接在浏览器打开。
 - Android 商品卡片能稳定显示主图。

@@ -1,5 +1,7 @@
 # 计划：后端框架工程化加固
 
+Status: Implemented
+
 ## 目标
 
 把 BuyWise 后端从功能闭环稳定推进到更接近生产级工程实现。重点不是新增业务能力，而是收敛事务、依赖、配置、外部调用韧性、发布门禁和可观测治理，使后续导购、RAG、多模态、订单反馈和 closed beta 运维可以继续扩展而不明显增加框架债。
@@ -112,4 +114,4 @@
 
 ## 完成记录
 
-完成后记录实际落地内容，并将本文件移动到 `docs/plans/archive/`。
+2026-06-07 归档。后端框架加固已落地统一事务边界、typed composition root、同步 DB 阻塞边界、配置域拆分、provider 拆分、resilience policy、RAG eval release gate、真实依赖 smoke、OpenAPI contract、后台作业 artifact、安全模型升级路径和 SLO 运维口径。常规维护基线已通过后端测试和仓库验证。

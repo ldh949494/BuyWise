@@ -1,6 +1,6 @@
 # 设计：普通用户账号登录系统
 
-Status: Draft
+Status: Implemented
 
 ## 背景
 
@@ -141,6 +141,11 @@ Android 验证至少覆盖：
 
 提交前运行相关后端测试。修改 docs 时运行 `python scripts/validate_docs.py`。
 
+## 实现进度/剩余边界
+
+- 已实现手机号 OTP request/verify、dev/test debug OTP、access JWT、refresh token 哈希存储与轮换、logout、`/auth/me`、用户 JWT scope 兼容、prod 配置校验和 Android auth DTO/token store/repository 接入。
+- 真实短信供应商、资料编辑、头像上传、收货地址、实名、支付信息、会员等级、游客后端身份、游客数据迁移和写接口幂等键仍不在第一版范围内。
+
 ## 最近检查
 
-2026-06-01
+2026-06-07

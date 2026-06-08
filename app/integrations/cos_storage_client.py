@@ -40,6 +40,7 @@ class TencentCosStorageClient:
                 Body=fileobj,
                 Key=key,
                 ContentType=content_type,
+                ACL="public-read",
             ),
         )
         return self._public_url(key)
