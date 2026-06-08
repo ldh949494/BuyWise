@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from io import BytesIO
 
 from app.integrations.cos_storage_client import TencentCosStorageClient
 from app.scripts import real_dependency_smoke
@@ -83,6 +84,46 @@ def test_cos_smoke_uses_read_only_bucket_probe(monkeypatch) -> None:
         real_dependency_smoke.settings.cos_region = previous_region
         real_dependency_smoke.settings.tencent_secret_id = previous_secret_id
         real_dependency_smoke.settings.tencent_secret_key = previous_secret_key
+
+
+def test_cos_upload_sets_public_read_acl(monkeypatch) -> None:
+    previous_bucket = real_dependency_smoke.settings.cos_bucket
+    previous_region = real_dependency_smoke.settings.cos_region
+    previous_secret_id = real_dependency_smoke.settings.tencent_secret_id
+    previous_secret_key = real_dependency_smoke.settings.tencent_secret_key
+    previous_public_base = real_dependency_smoke.settings.upload_public_base_url
+
+    class FakeCosClient:
+        def __init__(self) -> None:
+            self.put_object_kwargs = None
+
+        def put_object(self, **kwargs):
+            self.put_object_kwargs = kwargs
+
+    fake_client = FakeCosClient()
+    real_dependency_smoke.settings.cos_bucket = "bucket"
+    real_dependency_smoke.settings.cos_region = "ap-shanghai"
+    real_dependency_smoke.settings.tencent_secret_id = "sid"
+    real_dependency_smoke.settings.tencent_secret_key = "skey"
+    real_dependency_smoke.settings.upload_public_base_url = ""
+    try:
+        client = TencentCosStorageClient(client=fake_client)
+        url = client.upload_fileobj(
+            key="product-images/demo/main.jpg",
+            fileobj=BytesIO(b"image"),
+            content_type="image/jpeg",
+        )
+
+        assert url == "https://bucket.cos.ap-shanghai.myqcloud.com/product-images/demo/main.jpg"
+        assert fake_client.put_object_kwargs["ACL"] == "public-read"
+        assert fake_client.put_object_kwargs["Bucket"] == "bucket"
+        assert fake_client.put_object_kwargs["ContentType"] == "image/jpeg"
+    finally:
+        real_dependency_smoke.settings.cos_bucket = previous_bucket
+        real_dependency_smoke.settings.cos_region = previous_region
+        real_dependency_smoke.settings.tencent_secret_id = previous_secret_id
+        real_dependency_smoke.settings.tencent_secret_key = previous_secret_key
+        real_dependency_smoke.settings.upload_public_base_url = previous_public_base
 
 
 def test_real_dependency_smoke_aggregates_selected_checks(monkeypatch) -> None:

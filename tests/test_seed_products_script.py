@@ -8,6 +8,8 @@ from app.scripts.demo_desktop_products import DEMO_DESKTOP_PRODUCTS
 from app.scripts.demo_products import DEMO_SHOWCASE_PRODUCTS
 from app.scripts.seed_products import ANDROID_CONTRACT_PRODUCTS, seed_products
 
+COS_PREFIX = "https://buywise-1392410096.cos.ap-guangzhou.myqcloud.com/product-images/"
+
 
 def make_session_factory():
     engine = create_engine(
@@ -49,3 +51,13 @@ def test_seed_products_demo_profile_upserts_showcase_products() -> None:
     assert product_by_id[1201].category == "电脑"
     assert product_by_id[1204].category == "显示器"
     assert product_by_id[1207].category == "鼠标"
+
+
+def test_seed_product_profiles_use_real_cos_images() -> None:
+    products = [*ANDROID_CONTRACT_PRODUCTS, *DEMO_SHOWCASE_PRODUCTS, *DEMO_DESKTOP_PRODUCTS]
+
+    for product in products:
+        assert product["product_url"].startswith("https://")
+        assert "example.com" not in product["product_url"]
+        assert product["image_url"].startswith(COS_PREFIX)
+        assert product["image_url"] in product["image_urls"]

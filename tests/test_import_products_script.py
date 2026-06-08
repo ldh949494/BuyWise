@@ -20,7 +20,9 @@ EXPECTED_FIELDS = {
     "price",
     "original_price",
     "platform",
+    "product_url",
     "image_url",
+    "image_urls",
     "rating",
     "sales",
     "description",
@@ -28,7 +30,11 @@ EXPECTED_FIELDS = {
     "tags",
     "suitable_scene",
     "stock",
+    "stock_status",
+    "review_summary",
 }
+
+COS_HOST = "buywise-1392410096.cos.ap-guangzhou.myqcloud.com"
 
 
 def make_session_factory():
@@ -56,9 +62,13 @@ def test_products_csv_contains_50_demo_products() -> None:
     }
     assert len({row["name"] for row in rows}) == 50
     assert len({row["sku"] for row in rows}) == 50
+    assert len({row["image_url"] for row in rows}) == 50
 
     for row in rows:
         assert row["sku"]
+        assert "example.com" not in row["product_url"]
+        assert row["image_url"].startswith(f"https://{COS_HOST}/product-images/")
+        assert row["image_url"] in json.loads(row["image_urls"])
         assert Decimal(row["price"]) > 0
         assert Decimal(row["original_price"]) >= Decimal(row["price"])
         assert 0 <= float(row["rating"]) <= 5
@@ -82,7 +92,7 @@ def test_import_products_upserts_rows_by_sku() -> None:
     assert first_result == {"inserted": 50, "updated": 0, "failed": 0}
     assert second_result == {"inserted": 0, "updated": 50, "failed": 0}
     assert len(products) == 50
-    assert products[0].sku == "bulk-product-001"
+    assert products[0].sku == "beta-keyboard-keychron-k3-max-se"
     assert products[0].image_url.startswith("https://")
     assert products[0].name
     assert isinstance(products[0].specs, dict)
