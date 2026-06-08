@@ -69,6 +69,7 @@ fun CompareScreen(
     onRefresh: () -> Unit,
     onOpenHome: () -> Unit,
     onOpenGuide: () -> Unit,
+    onContinueCompareChat: () -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -86,7 +87,7 @@ fun CompareScreen(
             )
         }
         if (state.isLoading) {
-            item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
+            item { AnalysisProgressCard(title = "BuyWise 正在生成对比") }
         }
         state.errorMessage?.let { message ->
             item { ErrorPanel(message = message, actionLabel = "刷新", onAction = onRefresh) }
@@ -103,6 +104,7 @@ fun CompareScreen(
         } else {
             item { Text("${state.products.size} 个商品", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold) }
             item { CompareDecisionCard(state = state) }
+            item { CompareFitDecisionCard(products = state.products, winnerId = state.winnerId) }
             item { CompareScoreStrip(products = state.products, onProductClick = onProductClick) }
             item { CompareTable(rows = state.rows, products = state.products) }
             item { CompareProsCons(products = state.products) }
@@ -112,6 +114,7 @@ fun CompareScreen(
                     body = state.summary ?: "综合价格、评分和当前购物需求，优先看整体价值更稳的候选。",
                 )
             }
+            item { ContinueCompareChatCard(onContinueCompareChat = onContinueCompareChat) }
         }
     }
 }

@@ -280,6 +280,10 @@ private fun BuyWiseRoot(
                         onRefresh = viewModel::refreshCompare,
                         onOpenHome = { navController.navigateTopLevel("home") },
                         onOpenGuide = { navController.navigateTopLevel("guide") },
+                        onContinueCompareChat = {
+                            viewModel.prepareCompareChatDraft()
+                            navController.navigate("guide/chat")
+                        },
                     )
                 }
                 composable("vision") {

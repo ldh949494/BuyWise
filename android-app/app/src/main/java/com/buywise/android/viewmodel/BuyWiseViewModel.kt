@@ -136,6 +136,26 @@ class BuyWiseViewModel(
         guideViewModel.prepareChatDraft()
     }
 
+    fun prepareCompareChatDraft() {
+        val products = compareState.products.take(4)
+        if (products.size < 2) {
+            guideViewModel.prepareChatDraft()
+            return
+        }
+        val productNames = products.joinToString("、") { it.name }
+        val summary = compareState.summary?.takeIf { it.isNotBlank() }
+        val draft = buildString {
+            append("继续帮我对比这几个商品：")
+            append(productNames)
+            append("。我的关注点是价格、风险和真实评价，帮我判断哪个更适合。")
+            if (summary != null) {
+                append(" 当前对比摘要：")
+                append(summary)
+            }
+        }
+        guideViewModel.useChatDraft(draft)
+    }
+
     fun submitGuideQuery() {
         guideViewModel.submitQuery()
     }
