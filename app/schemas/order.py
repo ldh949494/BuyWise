@@ -36,6 +36,12 @@ class OrderRead(BaseSchema):
     fulfillment_status: str
     external_platform: str | None = None
     external_order_ref: str | None = None
+    checkout_session_id: int | None = None
+    source_session_id: str | None = None
+    payment_mode: str | None = None
+    address_snapshot: dict | None = None
+    cart_snapshot: dict | None = None
+    total_price_snapshot: float | None = None
     paid_at: datetime | None = None
     shipped_at: datetime | None = None
     delivered_at: datetime | None = None

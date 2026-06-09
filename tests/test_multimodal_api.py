@@ -227,11 +227,14 @@ def test_vision_recognize_endpoint_returns_mock_product_info() -> None:
     response = client.post("/api/v1/vision/recognize", json={"image_url": "/uploads/demo.png"})
 
     assert response.status_code == 200
-    assert response.json() == {
+    payload = response.json()
+    assert payload | {
         "category": "\u673a\u68b0\u952e\u76d8",
         "features": ["\u767d\u8272", "\u65e0\u7ebf", "\u7d27\u51d1\u5e03\u5c40"],
         "query": "\u767d\u8272 \u65e0\u7ebf \u7d27\u51d1\u5e03\u5c40 \u673a\u68b0\u952e\u76d8",
-    }
+    } == payload
+    assert payload["colors"] == ["\u767d\u8272"]
+    assert payload["confidence"] == 0.92
 
 
 def test_upload_endpoint_requires_authentication() -> None:
@@ -267,4 +270,5 @@ def test_multimodal_routes_are_registered() -> None:
 
     assert "/api/v1/upload" in paths
     assert "/api/v1/vision/recognize" in paths
+    assert "/api/v1/visual-search" in paths
     assert "/api/v1/speech/asr" in paths

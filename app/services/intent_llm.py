@@ -142,8 +142,15 @@ class LlmIntentExtractor:
             category=values["category"],
             budget_max=values["budget_max"],
             scenario=values["scenario"],
+            target_date=values["target_date"],
+            location=values["location"],
+            duration_days=values["duration_days"],
+            occasion=values["occasion"],
             preferences=values["preferences"],
             avoid=values["avoid"],
+            style_preferences=values["style_preferences"],
+            must_have_categories=values["must_have_categories"],
+            excluded_categories=values["excluded_categories"],
             purchase_stage=values["purchase_stage"],
             retrieval_strategy=values["retrieval_strategy"],
             need_clarify=bool(missing_fields),
@@ -151,29 +158,52 @@ class LlmIntentExtractor:
         )
 
     def _payload_values(self, payload: dict[str, Any]) -> dict[str, Any]:
+        values = self._core_payload_values(payload)
+        values.update(self._scenario_payload_values(payload))
+        values.update(self._list_payload_values(payload))
+        values["retrieval_strategy"] = self._payload_retrieval_strategy(payload, values["intent"], values["purchase_stage"])
+        return values
+
+    def _core_payload_values(self, payload: dict[str, Any]) -> dict[str, Any]:
         intent = self._normalize_intent(payload.get("intent"))
         budget_max = self._optional_float(payload.get("budget_max"))
         scenario = self._normalize_scenario(payload.get("scenario"))
         preferences = self._normalize_preferences(payload.get("preferences"))
-        purchase_stage = self._normalize_purchase_stage(
-            payload.get("purchase_stage"),
-            budget_max=budget_max,
-            scenario=scenario,
-            preferences=preferences,
-        )
-        retrieval_strategy = self._normalize_retrieval_strategy(payload.get("retrieval_strategy"))
-        if payload.get("retrieval_strategy") in (None, ""):
-            retrieval_strategy = retrieval_strategy_for(intent, purchase_stage)
         return {
             "intent": intent,
             "category": self._normalize_category(payload.get("category")),
             "budget_max": budget_max,
             "scenario": scenario,
             "preferences": preferences,
-            "avoid": dedupe_strings(self._text_list(payload.get("avoid"))),
-            "purchase_stage": purchase_stage,
-            "retrieval_strategy": retrieval_strategy,
+            "purchase_stage": self._normalize_purchase_stage(
+                payload.get("purchase_stage"),
+                budget_max=budget_max,
+                scenario=scenario,
+                preferences=preferences,
+            ),
         }
+
+    def _scenario_payload_values(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "target_date": self._optional_text(payload.get("target_date")),
+            "location": self._optional_text(payload.get("location")),
+            "duration_days": self._optional_int(payload.get("duration_days")),
+            "occasion": self._optional_text(payload.get("occasion")),
+        }
+
+    def _list_payload_values(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "avoid": dedupe_strings(self._text_list(payload.get("avoid"))),
+            "style_preferences": dedupe_strings(self._text_list(payload.get("style_preferences"))),
+            "must_have_categories": dedupe_strings(self._text_list(payload.get("must_have_categories"))),
+            "excluded_categories": dedupe_strings(self._text_list(payload.get("excluded_categories"))),
+        }
+
+    def _payload_retrieval_strategy(self, payload: dict[str, Any], intent: str, purchase_stage: str) -> str:
+        retrieval_strategy = self._normalize_retrieval_strategy(payload.get("retrieval_strategy"))
+        if payload.get("retrieval_strategy") in (None, ""):
+            return retrieval_strategy_for(intent, purchase_stage)
+        return retrieval_strategy
 
     def _normalize_intent(self, value: Any) -> str:
         intent = self._optional_text(value) or ""
@@ -244,7 +274,9 @@ class LlmIntentExtractor:
     def _prompt(self, text: str, image_info: dict, history_context: dict) -> str:
         return (
             "Extract shopping intent as JSON with fields: intent, category, "
-            "budget_max, scenario, preferences, avoid, purchase_stage, "
+            "budget_max, scenario, target_date, location, duration_days, "
+            "occasion, preferences, avoid, style_preferences, "
+            "must_have_categories, excluded_categories, purchase_stage, "
             "retrieval_strategy, need_clarify, "
             "Use intent bundle_recommend when the user asks for a bundle, kit, "
             "set, checklist, or cross-category scenario plan. "
@@ -272,6 +304,14 @@ class LlmIntentExtractor:
             return None
         normalized = str(value).strip()
         return normalized or None
+
+    def _optional_int(self, value: Any) -> int | None:
+        if value in (None, ""):
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
 
     def _optional_float(self, value: Any) -> float | None:
         if value in (None, ""):

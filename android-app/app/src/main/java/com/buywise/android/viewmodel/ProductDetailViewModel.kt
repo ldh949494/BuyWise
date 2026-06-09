@@ -69,6 +69,10 @@ class ProductDetailViewModel(
         }
     }
 
+    fun setCartStatus(message: String?) {
+        state = state.copy(cartStatusMessage = message, errorMessage = null)
+    }
+
     fun clear() {
         onCleared()
     }

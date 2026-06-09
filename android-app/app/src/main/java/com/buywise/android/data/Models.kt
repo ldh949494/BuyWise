@@ -114,6 +114,39 @@ data class VisionResult(
     val confidence: Int,
     val labels: List<String>,
     val similarProducts: List<Product>,
+    val fallbackUsed: Boolean = false,
+)
+
+data class CartItem(
+    val id: String,
+    val productId: String,
+    val quantity: Int,
+    val name: String,
+    val unitPrice: Double,
+    val lineTotal: Double,
+    val imageUrl: String? = null,
+)
+
+data class CartState(
+    val items: List<CartItem> = emptyList(),
+    val totalQuantity: Int = 0,
+    val totalPrice: Double = 0.0,
+    val isLoading: Boolean = false,
+    val message: String? = null,
+    val errorMessage: String? = null,
+)
+
+data class Address(
+    val id: String,
+    val receiverName: String,
+    val phone: String,
+    val detail: String,
+    val isDefault: Boolean,
+)
+
+data class CheckoutResult(
+    val orderId: String,
+    val status: String,
 )
 
 data class HomeState(
@@ -216,6 +249,7 @@ data class ProductDetailState(
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val orderStatusMessage: String? = null,
+    val cartStatusMessage: String? = null,
 )
 
 data class FeedbackPrompt(

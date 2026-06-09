@@ -13,10 +13,14 @@ class OrderRepository:
         self.db = db
 
     def create(self, order: Order, item: OrderItem) -> Order:
+        return self.create_with_items(order, [item])
+
+    def create_with_items(self, order: Order, items: list[OrderItem]) -> Order:
         self.db.add(order)
         self.db.flush()
-        item.order_id = order.id
-        self.db.add(item)
+        for item in items:
+            item.order_id = order.id
+            self.db.add(item)
         self.db.flush()
         return order
 

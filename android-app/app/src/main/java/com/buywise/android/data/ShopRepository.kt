@@ -24,6 +24,7 @@ class ShopRepository(
     val guidePreferencesRepository = GuidePreferencesRepository(apiClient)
     val compareRepository = CompareRepository(apiClient)
     val orderRepository = OrderRepository(apiClient)
+    val cartRepository = CartRepository(apiClient)
     val feedbackRepository = FeedbackRepository(apiClient)
     val uploadRepository = UploadRepository(apiClient)
     val authRepository: AuthRepository? = tokenStore?.let { AuthRepository(apiClient, it) }
@@ -43,6 +44,8 @@ class ShopRepository(
     )
 
     fun compareState(): CompareState = CompareState(products = emptyList(), rows = emptyList())
+
+    fun cartState(): CartState = CartState()
 
     fun visionState(): VisionState = VisionState(
         result = VisionResult(
@@ -70,6 +73,10 @@ class ShopRepository(
     @Throws(IOException::class)
     fun recordPurchase(productId: String): String =
         orderRepository.recordPurchase(productId)
+
+    @Throws(IOException::class)
+    fun addProductToCart(product: Product, sessionId: String? = null): CartState =
+        cartRepository.addProduct(product, sessionId = sessionId)
 
     @Throws(IOException::class)
     fun fetchFeedbackPrompts(): List<FeedbackPrompt> =

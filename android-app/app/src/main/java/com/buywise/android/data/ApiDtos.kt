@@ -79,6 +79,39 @@ data class OrderResponseDto(
 )
 
 @Serializable
+data class CartItemAddRequestDto(
+    @SerialName("product_id") val productId: Int,
+    val quantity: Int = 1,
+    @SerialName("source_session_id") val sourceSessionId: String? = null,
+    @SerialName("source_label") val sourceLabel: String? = null,
+)
+
+@Serializable
+data class CartItemUpdateRequestDto(
+    val quantity: Int,
+)
+
+@Serializable
+data class CheckoutRequestDto(
+    @SerialName("use_default_address") val useDefaultAddress: Boolean = true,
+    @SerialName("source_session_id") val sourceSessionId: String? = null,
+)
+
+@Serializable
+data class CheckoutResponseDto(
+    @SerialName("checkout_session_id") val checkoutSessionId: Int,
+    val order: OrderResponseDto,
+)
+
+@Serializable
+data class AddressCreateRequestDto(
+    @SerialName("receiver_name") val receiverName: String,
+    val phone: String,
+    val detail: String,
+    @SerialName("is_default") val isDefault: Boolean = true,
+)
+
+@Serializable
 data class FeedbackPromptListResponseDto(
     val items: List<FeedbackPromptDto> = emptyList(),
 )
@@ -118,6 +151,27 @@ data class VisionResponseDto(
     val category: String? = null,
     val features: List<String> = emptyList(),
     val query: String? = null,
+    val colors: List<String> = emptyList(),
+    val materials: List<String> = emptyList(),
+    val shape: String? = null,
+    val style: String? = null,
+    @SerialName("brand_cues") val brandCues: List<String> = emptyList(),
+    val confidence: Double? = null,
+    @SerialName("detected_objects") val detectedObjects: List<String> = emptyList(),
+)
+
+@Serializable
+data class VisualSearchRequestDto(
+    @SerialName("image_url") val imageUrl: String,
+    val message: String? = null,
+    @SerialName("top_k") val topK: Int = 8,
+)
+
+@Serializable
+data class VisualSearchResponseDto(
+    val recognized: VisionResponseDto,
+    val products: List<ProductCardDto> = emptyList(),
+    @SerialName("fallback_used") val fallbackUsed: Boolean = false,
 )
 
 @Serializable

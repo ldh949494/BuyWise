@@ -60,6 +60,16 @@ internal class BuyWiseApiClient(
         executeText(authorized(Request.Builder().url("$baseUrl$path").post(requestBody), requireAuth).build())
     }
 
+    inline fun <reified RequestDto, reified ResponseDto> patch(
+        path: String,
+        body: RequestDto,
+        requireAuth: Boolean = false,
+    ): ResponseDto {
+        val requestBody = json.encodeToString(body).toRequestBody(jsonMediaType)
+        val request = authorized(Request.Builder().url("$baseUrl$path").patch(requestBody), requireAuth).build()
+        return json.decodeFromString(executeText(request))
+    }
+
     fun postEmpty(path: String, requireAuth: Boolean = false): OrderResponseDto {
         val request = authorized(Request.Builder().url("$baseUrl$path").post("{}".toRequestBody(jsonMediaType)), requireAuth).build()
         return json.decodeFromString(executeText(request))
@@ -95,6 +105,12 @@ internal class BuyWiseApiClient(
     @Throws(IOException::class)
     fun putJson(path: String, body: RequestBody, requireAuth: Boolean = false): JSONObject {
         val request = authorized(Request.Builder().url("$baseUrl$path").put(body), requireAuth).build()
+        return executeJson(request)
+    }
+
+    @Throws(IOException::class)
+    fun patchJson(path: String, body: RequestBody, requireAuth: Boolean = false): JSONObject {
+        val request = authorized(Request.Builder().url("$baseUrl$path").patch(body), requireAuth).build()
         return executeJson(request)
     }
 

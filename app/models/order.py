@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Any, Optional
 
-from sqlalchemy import BigInteger, DateTime, Index, Integer, Numeric, String
+from sqlalchemy import BigInteger, DateTime, Index, Integer, JSON, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -26,6 +26,12 @@ class Order(Base):
     fulfillment_status: Mapped[str] = mapped_column(String(32), nullable=False)
     external_platform: Mapped[Optional[str]] = mapped_column(String(64))
     external_order_ref: Mapped[Optional[str]] = mapped_column(String(128))
+    checkout_session_id: Mapped[Optional[int]] = mapped_column(BigInteger)
+    source_session_id: Mapped[Optional[str]] = mapped_column(String(64))
+    payment_mode: Mapped[Optional[str]] = mapped_column(String(32))
+    address_snapshot: Mapped[Optional[Any]] = mapped_column(JSON)
+    cart_snapshot: Mapped[Optional[Any]] = mapped_column(JSON)
+    total_price_snapshot: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
     paid_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
     shipped_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
     delivered_at: Mapped[Optional[datetime]] = mapped_column(DateTime)

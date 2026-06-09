@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import android.content.Context
+import com.buywise.android.data.CartItem
+import com.buywise.android.data.CartState
 import com.buywise.android.data.CompareBasketState
 import com.buywise.android.data.CompareState
 import com.buywise.android.data.FeedbackDraft
@@ -23,6 +25,7 @@ class BuyWiseViewModel(
     private val guideViewModel = GuideViewModel.from(repository)
     private val compareViewModel = CompareViewModel.from(repository)
     private val productDetailViewModel = ProductDetailViewModel.from(repository)
+    private val cartViewModel = CartViewModel.from(repository)
     private val feedbackViewModel = FeedbackViewModel.from(repository)
     private val uploadViewModel = UploadViewModel.from(repository)
     private val accountViewModel = AccountViewModel(repository.authRepository, repository.guidePreferencesRepository, viewModelScope)
@@ -33,6 +36,7 @@ class BuyWiseViewModel(
     val visionState: VisionState get() = uploadViewModel.state
     val guideState: GuideState get() = guideViewModel.state
     val productDetailState: ProductDetailState get() = productDetailViewModel.state
+    val cartState: CartState get() = cartViewModel.state
     val feedbackState: FeedbackUiState get() = feedbackViewModel.state
     val accountState get() = accountViewModel.state
 
@@ -83,6 +87,34 @@ class BuyWiseViewModel(
 
     fun recordPurchase(productId: String) {
         productDetailViewModel.recordPurchase(productId) { refreshFeedbackPrompts() }
+    }
+
+    fun refreshCart() {
+        cartViewModel.refresh()
+    }
+
+    fun addProductToCart(product: Product) {
+        cartViewModel.addProduct(product, guideState.sessionId) { message ->
+            productDetailViewModel.setCartStatus(message)
+        }
+    }
+
+    fun updateCartItemQuantity(item: CartItem, quantity: Int) {
+        cartViewModel.updateQuantity(item, quantity)
+    }
+
+    fun removeCartItem(item: CartItem) {
+        cartViewModel.removeItem(item)
+    }
+
+    fun checkoutCart() {
+        cartViewModel.checkout(guideState.sessionId) {
+            refreshFeedbackPrompts()
+        }
+    }
+
+    fun clearCartMessage() {
+        cartViewModel.clearMessage()
     }
 
     fun refreshFeedbackPrompts() {
@@ -237,6 +269,7 @@ class BuyWiseViewModel(
 
     fun verifyAccountOtp(onLoggedIn: () -> Unit = {}) {
         accountViewModel.verifyOtp {
+            cartViewModel.refresh()
             refreshFeedbackPrompts()
             onLoggedIn()
         }
@@ -290,6 +323,7 @@ class BuyWiseViewModel(
         guideViewModel.clear()
         compareViewModel.clear()
         productDetailViewModel.clear()
+        cartViewModel.clear()
         feedbackViewModel.clear()
         uploadViewModel.clear()
         super.onCleared()

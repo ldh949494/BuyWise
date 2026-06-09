@@ -45,11 +45,12 @@ def test_mock_clients_preserve_existing_contract() -> None:
     vision = asyncio.run(MockVisionClient().recognize("/uploads/demo.png"))
     speech = asyncio.run(MockSpeechClient().transcribe("/uploads/demo.wav"))
 
-    assert vision == {
+    assert vision | {
         "category": "机械键盘",
         "features": ["白色", "无线", "紧凑布局"],
         "query": "白色 无线 紧凑布局 机械键盘",
-    }
+    } == vision
+    assert vision["colors"] == ["白色"]
     assert speech == "我想买一个宿舍用的机械键盘，预算三百以内"
 
 
@@ -58,11 +59,12 @@ def test_parse_vision_json_extracts_json_from_model_text() -> None:
         '```json\n{"category":"蓝牙耳机","features":["降噪","通勤"],"query":"降噪 通勤 蓝牙耳机"}\n```'
     )
 
-    assert result == {
+    assert result | {
         "category": "蓝牙耳机",
         "features": ["降噪", "通勤"],
         "query": "降噪 通勤 蓝牙耳机",
-    }
+    } == result
+    assert result["colors"] == []
 
 
 def test_llm_vision_client_sends_public_image_url_to_model() -> None:

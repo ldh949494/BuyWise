@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.CompareArrows
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.AddShoppingCart
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.Share
@@ -65,6 +66,7 @@ fun ProductDetailScreen(
     onBack: () -> Unit,
     isInCompareBasket: (String) -> Boolean,
     onToggleCompare: (Product) -> Unit,
+    onAddToCart: (Product) -> Unit,
     onRecordPurchase: (String) -> Unit,
     onOpenProductPage: (String) -> Unit,
 ) {
@@ -129,12 +131,16 @@ fun ProductDetailScreen(
             state.orderStatusMessage?.let { message ->
                 item { InfoPanel(icon = { Icon(Icons.Outlined.ShoppingBag, contentDescription = null) }, title = "购买记录", body = message) }
             }
+            state.cartStatusMessage?.let { message ->
+                item { InfoPanel(icon = { Icon(Icons.Outlined.AddShoppingCart, contentDescription = null) }, title = "购物车", body = message) }
+            }
             item {
                 DetailPurchaseBar(
                     product = product,
                     isInCompareBasket = isInCompareBasket(product.id),
                     canRecordPurchase = state.canRecordPurchase,
                     onToggleCompare = { onToggleCompare(product) },
+                    onAddToCart = { onAddToCart(product) },
                     onRecordPurchase = { onRecordPurchase(product.id) },
                     onOpenProductPage = onOpenProductPage,
                 )
@@ -331,6 +337,7 @@ private fun DetailPurchaseBar(
     isInCompareBasket: Boolean,
     canRecordPurchase: Boolean,
     onToggleCompare: () -> Unit,
+    onAddToCart: () -> Unit,
     onRecordPurchase: () -> Unit,
     onOpenProductPage: (String) -> Unit,
 ) {
@@ -344,6 +351,14 @@ private fun DetailPurchaseBar(
                 Icon(Icons.AutoMirrored.Outlined.CompareArrows, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(if (isInCompareBasket) "已选入对比" else "加入对比")
+            }
+            Button(
+                onClick = onAddToCart,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.Outlined.AddShoppingCart, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("加入购物车")
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 OutlinedButton(

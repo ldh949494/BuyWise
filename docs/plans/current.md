@@ -23,6 +23,7 @@
 - 已完成阶段 1 发布底座：新增 prod Compose、readiness token 和深探针、closed beta smoke/verify 脚本、外部购买立即可评价策略、`orders:advance` 独立 scope、`.env.prod.example` 和 closed beta runbook。
 - 已完成普通用户手机号 OTP 登录、refresh/logout/me、用户 JWT scope 兼容和 Android auth token store/repository 接入；真实短信 provider 仍不在当前版本范围内。
 - 已完成组合方案推荐：`bundle_recommend` 意图、`bundle_plans` 契约、方案生成服务、JSON/SSE chat 返回、Android 方案卡片和 demo bundle 流程测试。
+- 已完成能力补齐：场景需求结构化已扩展到日期、地点、时长、场合、风格、必选和排除品类；购物车、地址和 shadow checkout 已覆盖后端 API、对话动作和 Android 购物车页；拍照找货已走视觉特征提取、混合相似检索和 Android 相似商品展示。
 - 已完成后台作业 artifact：商品导入、索引构建、COS 图片迁移、MySQL 备份检查和 release prepare 聚合 artifact 已纳入发布记录要求。
 - 2026-06-07 常规维护基线：工作区干净；`python scripts/validate_docs.py`、`python scripts/validate_entropy.py`、`.\\.venv\\Scripts\\python.exe -m pytest` 和 `auto_validate.ps1 -SkipDependencyInstall -SkipAndroidBuild` 均通过。
 

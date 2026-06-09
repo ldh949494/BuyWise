@@ -25,6 +25,13 @@ class MockVisionClient:
             "category": category,
             "features": features,
             "query": " ".join([*features, category]),
+            "colors": ["白色"],
+            "materials": [],
+            "shape": "紧凑布局",
+            "style": "简约",
+            "brand_cues": [],
+            "confidence": 0.92,
+            "detected_objects": [category],
         }
 
 
@@ -51,7 +58,10 @@ class LlmVisionClient:
                     "role": "system",
                     "content": (
                         "你是电商识图助手。只返回 JSON，字段为 "
-                        "category:string, features:string[], query:string。"
+                        "category:string, features:string[], query:string, "
+                        "colors:string[], materials:string[], shape:string, "
+                        "style:string, brand_cues:string[], confidence:number, "
+                        "detected_objects:string[]。"
                     ),
                 },
                 {
@@ -59,7 +69,7 @@ class LlmVisionClient:
                     "content": [
                         {
                             "type": "text",
-                            "text": "识别图片中的商品类别、关键特征，并生成中文搜索 query。",
+                            "text": "识别图片中的商品类别、颜色、材质、形状、风格、品牌线索和关键特征，并生成中文搜索 query。",
                         },
                         {"type": "image_url", "image_url": {"url": public_url}},
                     ],
@@ -92,8 +102,28 @@ def parse_vision_json(content: str) -> dict[str, Any]:
     category = str(data.get("category") or "").strip()
     features = [str(item).strip() for item in data.get("features") or [] if str(item).strip()]
     query = str(data.get("query") or " ".join([*features, category])).strip()
+    colors = [str(item).strip() for item in data.get("colors") or [] if str(item).strip()]
+    materials = [str(item).strip() for item in data.get("materials") or [] if str(item).strip()]
+    brand_cues = [str(item).strip() for item in data.get("brand_cues") or [] if str(item).strip()]
+    detected_objects = [str(item).strip() for item in data.get("detected_objects") or [] if str(item).strip()]
     return {
         "category": category,
         "features": features,
         "query": query,
+        "colors": colors,
+        "materials": materials,
+        "shape": str(data.get("shape") or "").strip() or None,
+        "style": str(data.get("style") or "").strip() or None,
+        "brand_cues": brand_cues,
+        "confidence": _optional_float(data.get("confidence")),
+        "detected_objects": detected_objects,
     }
+
+
+def _optional_float(value: Any) -> float | None:
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
