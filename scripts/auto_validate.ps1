@@ -1,6 +1,7 @@
 param(
     [switch]$SkipDependencyInstall,
-    [switch]$SkipAndroidBuild
+    [switch]$SkipAndroidBuild,
+    [switch]$SkipAdminWebBuild
 )
 
 $ErrorActionPreference = "Stop"
@@ -105,6 +106,37 @@ if ($testFiles.Count -gt 0) {
     }
 } else {
     Write-Host "No project tests directory found, smoke check only."
+}
+
+Write-Host "========== Admin Web Build Validation =========="
+
+if ($SkipAdminWebBuild) {
+    Write-Host "Admin web build skipped."
+} elseif (Test-Path -LiteralPath "admin-web/package.json") {
+    if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
+        throw "npm is required to build admin-web. Install Node.js/npm or pass -SkipAdminWebBuild for backend-only validation."
+    }
+
+    Push-Location "admin-web"
+    try {
+        if (-not $SkipDependencyInstall) {
+            if (Test-Path -LiteralPath "package-lock.json") {
+                npm ci
+            } else {
+                npm install
+            }
+            Assert-LastExitCode "admin-web dependency installation"
+        } elseif (-not (Test-Path -LiteralPath "node_modules")) {
+            throw "admin-web dependencies are missing. Run npm ci in admin-web, rerun without -SkipDependencyInstall, or pass -SkipAdminWebBuild."
+        }
+
+        npm run build
+        Assert-LastExitCode "admin-web build"
+    } finally {
+        Pop-Location
+    }
+} else {
+    Write-Host "admin-web package.json not found, build skipped."
 }
 
 Write-Host "========== Android Build Validation =========="

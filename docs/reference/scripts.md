@@ -2,7 +2,7 @@
 
 ## 验证
 
-- `scripts/auto_validate.ps1`：仓库提交前和 CI 验证入口。它会运行文档校验、provider lint、仓库 lint、熵债校验、后端 smoke check、使用仓库内 basetemp 且禁用 cache 的 pytest，并可选择构建 Android。
+- `scripts/auto_validate.ps1`：仓库提交前和 CI 验证入口。它会运行文档校验、provider lint、仓库 lint、熵债校验、后端 smoke check、使用仓库内 basetemp 且禁用 cache 的 pytest，并默认构建 `admin-web`；可用 `-SkipAdminWebBuild` 跳过后台前端构建，可用 `-SkipAndroidBuild` 跳过 Android 构建。
 - `scripts/release_check.ps1`：发版前聚合验证入口。默认调用 `auto_validate.ps1`、Android lint 和 Android debug build；传入 `-CheckIndex` 时运行 `app.scripts.check_vector_index`，传入 `-RunRagEval` 时运行 RAG 质量阈值门禁，传入 `-RunRealDependencySmoke` 时运行 MySQL 与 COS 真实或沙箱依赖 smoke，传入 `-Token` 与 `-ReadinessToken` 时运行 closed beta readiness 和 smoke。可用 `-ExpectedActiveProducts <count>` 把固定目录规模门禁传给 readiness；可用 `-RagEvalProfile android-contract|demo|beta-fixture`、`-RagEvalRetrieval fallback|vector`、`-MinRagRecall`、`-MinRagTop1`、`-MinRagMrr`、`-MaxRagFallbackRate`、`-MaxRagEmptyResultRate` 和 `-RagEvalOutputJson` 配置 RAG 门禁；可用 `-SmokeMySql`、`-SmokeCos` 和 `-RealDependencySmokeOutputJson` 配置真实依赖 smoke；可用 `-SkipAndroidBuild`、`-SkipAndroidAnalyze` 和 `-SkipDependencyInstall` 控制本地耗时。
 - `scripts/validate_docs.py`：校验 `AGENTS.md` 和 `docs/`。
 - `scripts/validate_providers.py`：校验后端模块是否通过统一 Provider 入口访问横切能力。
@@ -19,6 +19,7 @@
 - `requirements-dev.in`：叠加在生产依赖上的开发依赖输入。
 - `requirements-dev.txt`：`scripts/auto_validate.ps1` 使用的开发锁定依赖文件。
 - 有意修改依赖输入后，使用 `pip-compile requirements.in` 和 `pip-compile requirements-dev.in` 重新生成锁定文件。
+- `admin-web/package-lock.json`：后台前端 npm 锁定依赖文件。修改 `admin-web/package.json` 后在 `admin-web/` 下运行 `npm install` 更新锁定文件。
 
 ## 运行时
 

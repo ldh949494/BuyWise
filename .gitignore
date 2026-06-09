@@ -22,3 +22,4 @@ android-app/**/build/
 android-app/local.properties
 admin-web/node_modules/
 admin-web/dist/
+admin-web/*.tsbuildinfo
