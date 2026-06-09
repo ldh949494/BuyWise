@@ -89,6 +89,9 @@ class FakeRecommendService:
 
 
 class FakeLLMClient:
+    def __init__(self) -> None:
+        self.chat_messages = []
+
     async def generate_clarify_question(self, need):
         return "请补充预算和使用场景。"
 
@@ -100,6 +103,10 @@ class FakeLLMClient:
 
     async def stream_recommendation(self, need, products, **kwargs):
         yield await self.generate_recommendation(need, products)
+
+    async def stream_chat(self, messages, **kwargs):
+        self.chat_messages.append(messages)
+        yield "追问回答：基于当前推荐，优先看首推商品。"
 
 
 def make_product(name="K87 静音红轴机械键盘"):

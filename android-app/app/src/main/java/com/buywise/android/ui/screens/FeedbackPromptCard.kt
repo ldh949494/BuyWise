@@ -57,7 +57,7 @@ fun FeedbackPromptCard(
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(prompt.productName, style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
-                    Text("已购买", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
+                    Text("这件商品用下来怎么样？", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
                 }
                 EvidenceTag("待反馈", tone = EvidenceTone.Warning)
             }
@@ -65,7 +65,7 @@ fun FeedbackPromptCard(
                 Text(it, color = BuyWiseTheme.colors.danger, style = MaterialTheme.typography.bodyMedium)
             }
             Button(onClick = onToggle, enabled = canUseFeedback && !isSubmitting, modifier = Modifier.fillMaxWidth()) {
-                Text(if (expanded) "收起反馈表单" else "评价")
+                Text(if (expanded) "收起反馈表单" else "写购买后反馈")
             }
             if (expanded) {
                 FeedbackForm(
@@ -89,7 +89,7 @@ private fun FeedbackForm(
     onSubmit: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("评分", fontWeight = FontWeight.Bold, color = BuyWiseTheme.colors.ink)
+        Text("满意度", fontWeight = FontWeight.Bold, color = BuyWiseTheme.colors.ink)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             (1..5).forEach { rating ->
                 FilterChip(
@@ -104,7 +104,7 @@ private fun FeedbackForm(
             onValueChange = { onDraftChange(draft.copy(content = it)) },
             modifier = Modifier.fillMaxWidth(),
             minLines = 3,
-            label = { Text("使用体验") },
+            label = { Text("满意点、踩坑点或实际使用场景") },
         )
         Text("是否符合预期", fontWeight = FontWeight.Bold, color = BuyWiseTheme.colors.ink)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

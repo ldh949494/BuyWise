@@ -78,7 +78,7 @@ class GuideViewModel(
     }
 
     fun prepareChatDraft() {
-        if (state.chatDraft.isBlank() && state.query.isNotBlank()) {
+        if (state.chatDraft.isBlank() && state.query.isNotBlank() && state.chatMessages.isEmpty()) {
             state = state.copy(chatDraft = state.query)
         }
     }
@@ -87,9 +87,21 @@ class GuideViewModel(
         val query = state.query.ifBlank { "300 元以内，适合宿舍写代码的低噪音机械键盘" }
         guideStream?.cancel()
         streamMode = StreamMode.Workbench
-        activeAssistantMessageId = null
+        val userMessage = GuideChatMessage(
+            id = newMessageId(),
+            role = GuideChatRole.USER,
+            text = query,
+        )
+        val assistantMessage = GuideChatMessage(
+            id = newMessageId(),
+            role = GuideChatRole.ASSISTANT,
+            text = "",
+        )
+        activeAssistantMessageId = assistantMessage.id
         state = state.copy(
             query = query,
+            chatDraft = "",
+            chatMessages = listOf(userMessage, assistantMessage),
             intentSummary = "正在理解预算、场景和偏好...",
             recommendations = emptyList(),
             bundlePlans = emptyList(),
@@ -97,6 +109,7 @@ class GuideViewModel(
             partialReply = "",
             isStreaming = true,
             errorMessage = null,
+            sessionId = null,
         )
         guideStream = repository.streamGuide(
             query = query,
@@ -134,7 +147,7 @@ class GuideViewModel(
             isStreaming = true,
             errorMessage = null,
         )
-        guideStream = repository.streamGuide(
+        guideStream = repository.streamGuideFollowUp(
             query = message,
             sessionId = state.sessionId,
             ignoreSavedPreferences = state.ignoreSavedPreferences,
@@ -173,7 +186,7 @@ class GuideViewModel(
                 event.bundlePlans,
                 event.appliedPreferences,
             )
-            is ChatStreamEvent.Done -> applyDone(event.reply)
+            is ChatStreamEvent.Done -> applyDone(event)
             is ChatStreamEvent.Error -> applyError(event.message)
             ChatStreamEvent.Heartbeat -> state
         }
@@ -181,7 +194,10 @@ class GuideViewModel(
 
     private fun applyToken(text: String): GuideState {
         if (streamMode != StreamMode.Chat) {
-            return state.copy(partialReply = state.partialReply + text)
+            val withPartialReply = state.copy(partialReply = state.partialReply + text)
+            return updateAssistantMessage(withPartialReply) { message ->
+                message.copy(text = message.text + text)
+            }
         }
         return updateAssistantMessage { message -> message.copy(text = message.text + text) }
     }
@@ -198,7 +214,7 @@ class GuideViewModel(
             bundlePlans = bundlePlans,
             appliedPreferences = appliedPreferences,
         )
-        if (streamMode != StreamMode.Chat || (recommendations.isEmpty() && bundlePlans.isEmpty())) {
+        if (recommendations.isEmpty() && bundlePlans.isEmpty()) {
             return synced
         }
         return updateAssistantMessage(synced) { message ->
@@ -210,19 +226,36 @@ class GuideViewModel(
         }
     }
 
-    private fun applyDone(reply: String): GuideState {
-        if (streamMode != StreamMode.Chat) {
-            return state.copy(partialReply = reply.ifBlank { state.partialReply }, isStreaming = false)
+    private fun applyDone(event: ChatStreamEvent.Done): GuideState {
+        if (event.shouldRefresh) {
+            val reply = event.reply.ifBlank { "这个问题需要刷新导购结果。" }
+            val withReply = updateAssistantMessage { message -> message.copy(text = reply) }
+            activeAssistantMessageId = null
+            return withReply.copy(
+                chatDraft = state.query,
+                isStreaming = false,
+            )
         }
-        val withReply = if (reply.isBlank()) {
-            state
+        val reply = event.reply
+        val finalReply = reply.ifBlank { if (streamMode == StreamMode.Workbench) state.partialReply else "" }
+            .ifBlank { fallbackAssistantReply() }
+        val baseState = state.copy(
+            partialReply = if (streamMode == StreamMode.Workbench) finalReply else state.partialReply,
+            isStreaming = false,
+        )
+        val withReply = if (finalReply.isBlank()) {
+            baseState
         } else {
-            updateAssistantMessage { message ->
-                message.copy(text = reply)
+            updateAssistantMessage(baseState) { message ->
+                if (reply.isNotBlank() || streamMode == StreamMode.Workbench || message.text.isBlank()) {
+                    message.copy(text = finalReply)
+                } else {
+                    message
+                }
             }
         }
         activeAssistantMessageId = null
-        return withReply.copy(isStreaming = false)
+        return withReply
     }
 
     private fun applyError(message: String): GuideState {
@@ -240,6 +273,12 @@ class GuideViewModel(
                 if (message.id == id) transform(message) else message
             },
         )
+    }
+
+    private fun fallbackAssistantReply(): String = when {
+        state.bundlePlans.isNotEmpty() -> "已根据你的需求整理出组合方案。"
+        state.recommendations.isNotEmpty() -> "已根据你的需求整理出推荐候选。"
+        else -> ""
     }
 
     private fun newMessageId(): String = "guide-chat-${nextMessageId++}"

@@ -32,6 +32,8 @@ class ChatStreamDoneEventData(BaseSchema):
     reply: str
     degraded: bool = False
     degraded_reason: str | None = None
+    should_refresh: bool = False
+    refresh_reason: str | None = None
 
 
 class ChatStreamErrorEventData(BaseSchema):

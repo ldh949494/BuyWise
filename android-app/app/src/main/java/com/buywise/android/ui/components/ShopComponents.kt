@@ -143,7 +143,8 @@ fun ProductCard(
                 }
             }
             Text(
-                product.displayRecommendationReason(recommendationReason),
+                if (isFeatured) "为什么先看：${product.displayRecommendationReason(recommendationReason)}"
+                else product.displayRecommendationReason(recommendationReason),
                 color = BuyWiseTheme.colors.muted,
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 3,
@@ -162,7 +163,7 @@ fun ProductCard(
                     ) {
                         Icon(BuyWiseIcons.Compare, contentDescription = null)
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("已加入对比")
+                        Text("已选入对比")
                     }
                 } else {
                     OutlinedButton(
@@ -175,7 +176,7 @@ fun ProductCard(
                     ) {
                         Icon(BuyWiseIcons.Compare, contentDescription = null)
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("+ 加入对比")
+                        Text("加入对比")
                     }
                 }
             }
@@ -186,12 +187,28 @@ fun ProductCard(
 @Composable
 private fun ProductDecisionSignals(product: Product) {
     val caution = product.cautions.firstOrNull { it.isNotBlank() }
+    val hasEvidence = product.productUrl?.isNotBlank() == true ||
+        product.reviewSummary?.isNotBlank() == true ||
+        product.price != null ||
+        product.stockStatus?.isNotBlank() == true
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        product.productUrl?.takeIf { it.isNotBlank() }?.let {
+            EvidenceTag("真实商品页", tone = EvidenceTone.Info)
+        }
+        if (product.price != null || product.stockStatus?.isNotBlank() == true) {
+            EvidenceTag("价格/库存快照", tone = EvidenceTone.Success)
+        }
+        product.reviewSummary?.takeIf { it.isNotBlank() }?.let {
+            EvidenceTag("评价摘要", tone = EvidenceTone.Info)
+        }
         product.stockStatus?.takeIf { it.isNotBlank() }?.let {
             EvidenceTag(it, tone = EvidenceTone.Success)
         }
         product.tags.take(2).forEach { tag ->
             EvidenceTag(tag, tone = EvidenceTone.Info)
+        }
+        if (!hasEvidence) {
+            EvidenceTag("证据较少，建议核实", tone = EvidenceTone.Warning)
         }
     }
     caution?.let {

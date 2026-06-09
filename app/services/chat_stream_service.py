@@ -27,6 +27,7 @@ from app.schemas.chat_stream import (
     ChatStreamStatusEventData,
     ChatStreamTokenEventData,
 )
+from app.services.guide_follow_up_stream_service import GuideFollowUpStreamService
 from app.utils.logging import get_logger
 
 
@@ -52,6 +53,51 @@ class ChatStreamRunner:
             observe_chat_latency("sse", "success", time.perf_counter() - started_at)
         except RuntimeError:
             logger.exception("Streaming chat handling failed", extra={"session_id": context["session_id"]})
+            self.chat_service._rollback(context["chat_repo"])
+            observe_chat_latency("sse", "error", time.perf_counter() - started_at)
+            yield self._event(
+                "error",
+                ChatStreamErrorEventData(
+                    code="chat_stream_failed",
+                    message="chat_stream_failed",
+                    session_id=context["session_id"],
+                ),
+            )
+
+    async def generate_guide_events(
+        self,
+        request: ChatRequest,
+        db: Session,
+        user_id: int | None = None,
+    ) -> AsyncIterator[dict[str, Any]]:
+        async for event in self._generate_with_handler(request, db, user_id, self._generate_guide_from_context):
+            yield event
+
+    async def generate_follow_up_events(
+        self,
+        request: ChatRequest,
+        db: Session,
+        user_id: int | None = None,
+    ) -> AsyncIterator[dict[str, Any]]:
+        async for event in self._generate_with_handler(request, db, user_id, self._generate_follow_up_from_context):
+            yield event
+
+    async def _generate_with_handler(
+        self,
+        request: ChatRequest,
+        db: Session,
+        user_id: int | None,
+        handler: Any,
+    ) -> AsyncIterator[dict[str, Any]]:
+        started_at = time.perf_counter()
+        context = self._build_context(request, db, user_id)
+        try:
+            async for event in handler(context, request, db):
+                yield event
+            observe_chat_stream_done_latency(context["stream_path"], time.perf_counter() - context["started_at"])
+            observe_chat_latency("sse", "success", time.perf_counter() - started_at)
+        except RuntimeError:
+            logger.exception("Streaming guide handling failed", extra={"session_id": context["session_id"]})
             self.chat_service._rollback(context["chat_repo"])
             observe_chat_latency("sse", "error", time.perf_counter() - started_at)
             yield self._event(
@@ -98,6 +144,34 @@ class ChatStreamRunner:
             return
         self._apply_preferences(context, request, need, db)
         async for event in self._stream_recommendation(context, need, db):
+            yield event
+
+    async def _generate_guide_from_context(
+        self,
+        context: dict[str, Any],
+        request: ChatRequest,
+        db: Session,
+    ) -> AsyncIterator[dict[str, Any]]:
+        yield self._event("meta", ChatStreamMetaEventData(session_id=context["session_id"]))
+        yield self._event("status", ChatStreamStatusEventData(stage="intent", message="intent"))
+        need = await self._extract_need(context, request)
+        if need.need_clarify:
+            context["stream_path"] = "guide_clarify"
+            async for event in self._stream_clarify(context, need):
+                yield event
+            return
+        self._apply_preferences(context, request, need, db)
+        async for event in self._stream_recommendation(context, need, db):
+            yield event
+
+    async def _generate_follow_up_from_context(
+        self,
+        context: dict[str, Any],
+        request: ChatRequest,
+        db: Session,
+    ) -> AsyncIterator[dict[str, Any]]:
+        yield self._event("meta", ChatStreamMetaEventData(session_id=context["session_id"]))
+        async for event in GuideFollowUpStreamService(self.chat_service, self._event).generate_events(context, request):
             yield event
 
     async def _extract_need(self, context: dict[str, Any], request: ChatRequest) -> Any:

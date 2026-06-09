@@ -17,7 +17,11 @@ sealed interface ChatStreamEvent {
         val bundlePlans: List<BundlePlan> = emptyList(),
         val appliedPreferences: AppliedPreferences = AppliedPreferences(),
     ) : ChatStreamEvent
-    data class Done(val reply: String) : ChatStreamEvent
+    data class Done(
+        val reply: String,
+        val shouldRefresh: Boolean = false,
+        val refreshReason: String? = null,
+    ) : ChatStreamEvent
     data class Error(val message: String) : ChatStreamEvent
     data object Heartbeat : ChatStreamEvent
 }
@@ -33,15 +37,39 @@ class GuideRepository internal constructor(
         sessionId: String?,
         ignoreSavedPreferences: Boolean = false,
         onEvent: (ChatStreamEvent) -> Unit,
+    ): EventSource = streamGuideRequest(
+        request = apiClient.guideStreamRequest(
+            GuideStreamRequestDto(
+                sessionId = sessionId,
+                message = query,
+                ignoreSavedPreferences = ignoreSavedPreferences,
+            )
+        ),
+        onEvent = onEvent,
+    )
+
+    fun streamGuideFollowUp(
+        query: String,
+        sessionId: String?,
+        ignoreSavedPreferences: Boolean = false,
+        onEvent: (ChatStreamEvent) -> Unit,
+    ): EventSource = streamGuideRequest(
+        request = apiClient.guideFollowUpStreamRequest(
+            GuideStreamRequestDto(
+                sessionId = sessionId,
+                message = query,
+                ignoreSavedPreferences = ignoreSavedPreferences,
+            )
+        ),
+        onEvent = onEvent,
+    )
+
+    private fun streamGuideRequest(
+        request: okhttp3.Request,
+        onEvent: (ChatStreamEvent) -> Unit,
     ): EventSource {
         return eventSourceFactory.newEventSource(
-            apiClient.guideStreamRequest(
-                GuideStreamRequestDto(
-                    sessionId = sessionId,
-                    message = query,
-                    ignoreSavedPreferences = ignoreSavedPreferences,
-                )
-            ),
+            request,
             object : EventSourceListener() {
                 override fun onEvent(eventSource: EventSource, id: String?, type: String?, data: String) {
                     onEvent(parseStreamEvent(type, data))
@@ -62,7 +90,11 @@ class GuideRepository internal constructor(
             "token" -> ChatStreamEvent.Token(json.optString("text"))
             "products" -> parseProductsEvent(json)
             "heartbeat" -> ChatStreamEvent.Heartbeat
-            "done" -> ChatStreamEvent.Done(json.optString("reply"))
+            "done" -> ChatStreamEvent.Done(
+                reply = json.optString("reply"),
+                shouldRefresh = json.optBoolean("should_refresh", false),
+                refreshReason = json.optStringOrNull("refresh_reason"),
+            )
             "error" -> parseErrorEvent(json)
             else -> ChatStreamEvent.Status(type ?: "message")
         }

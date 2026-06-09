@@ -65,10 +65,16 @@ internal class BuyWiseApiClient(
         return json.decodeFromString(executeText(request))
     }
 
-    fun guideStreamRequest(body: GuideStreamRequestDto): Request {
+    fun guideStreamRequest(body: GuideStreamRequestDto): Request =
+        guideStreamRequest("/api/v1/ai/guide/stream", body)
+
+    fun guideFollowUpStreamRequest(body: GuideStreamRequestDto): Request =
+        guideStreamRequest("/api/v1/ai/guide/follow-up/stream", body)
+
+    private fun guideStreamRequest(path: String, body: GuideStreamRequestDto): Request {
         val requestBody = json.encodeToString(body).toRequestBody(jsonMediaType)
         return Request.Builder()
-            .url("$baseUrl/api/v1/ai/chat/stream")
+            .url("$baseUrl$path")
             .apply { accessToken?.let { header("Authorization", "Bearer $it") } }
             .post(requestBody)
             .build()

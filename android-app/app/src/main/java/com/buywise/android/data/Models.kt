@@ -188,9 +188,9 @@ data class CompareBasketState(
         val nextNeed = if (products.isEmpty()) userNeed?.takeIf { it.isNotBlank() } else this.userNeed
         val nextProducts = products + product
         val nextMessage = if (nextProducts.size < 2) {
-            "已加入对比，再选 1 件即可开始"
+            "已选入对比，再选 1 件即可开始"
         } else {
-            "已加入对比，可开始比较"
+            "已选入对比，可开始比较"
         }
         return copy(products = nextProducts, userNeed = nextNeed, message = nextMessage)
     }
