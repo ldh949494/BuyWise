@@ -51,6 +51,38 @@ async def stream_chat(
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
+@router.post("/guide/stream")
+async def stream_guide(
+    http_request: Request,
+    request: ChatRequest,
+    db: Session = Depends(get_db),
+    service: ChatService = Depends(get_chat_service),
+    app_settings: Settings = Depends(get_settings),
+) -> StreamingResponse:
+    async def event_stream():
+        events = _generate_guide_stream(service, request, db, _optional_user_id(http_request))
+        async for event in _stream_with_keepalive(events, request.session_id, app_settings):
+            yield _format_sse(event["event"], event["data"])
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@router.post("/guide/follow-up/stream")
+async def stream_guide_follow_up(
+    http_request: Request,
+    request: ChatRequest,
+    db: Session = Depends(get_db),
+    service: ChatService = Depends(get_chat_service),
+    app_settings: Settings = Depends(get_settings),
+) -> StreamingResponse:
+    async def event_stream():
+        events = _generate_follow_up_stream(service, request, db, _optional_user_id(http_request))
+        async for event in _stream_with_keepalive(events, request.session_id, app_settings):
+            yield _format_sse(event["event"], event["data"])
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
 async def _stream_with_keepalive(
     events: AsyncIterator[dict[str, Any]],
     session_id: str | None,
@@ -132,6 +164,20 @@ def _generate_chat_stream(service: ChatService, request: ChatRequest, db: Sessio
     if "user_id" in parameters:
         return service.generate_chat_stream(request, db, user_id=user_id)
     return service.generate_chat_stream(request, db)
+
+
+def _generate_guide_stream(service: ChatService, request: ChatRequest, db: Session, user_id: int | None):
+    parameters = inspect.signature(service.generate_guide_stream).parameters
+    if "user_id" in parameters:
+        return service.generate_guide_stream(request, db, user_id=user_id)
+    return service.generate_guide_stream(request, db)
+
+
+def _generate_follow_up_stream(service: ChatService, request: ChatRequest, db: Session, user_id: int | None):
+    parameters = inspect.signature(service.generate_follow_up_stream).parameters
+    if "user_id" in parameters:
+        return service.generate_follow_up_stream(request, db, user_id=user_id)
+    return service.generate_follow_up_stream(request, db)
 
 
 async def _handle_chat(service: ChatService, request: ChatRequest, db: Session, user_id: int | None) -> ChatResponse:

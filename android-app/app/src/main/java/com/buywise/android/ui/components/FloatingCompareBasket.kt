@@ -23,7 +23,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.CompareArrows
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteSweep
-import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -115,11 +114,11 @@ private fun BasketButton(count: Int, expanded: Boolean, onClick: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Icon(
-                if (expanded) Icons.Outlined.Close else Icons.Outlined.ShoppingBag,
+                if (expanded) Icons.Outlined.Close else Icons.AutoMirrored.Outlined.CompareArrows,
                 contentDescription = null,
                 tint = BuyWiseTheme.colors.panel,
             )
-            Text("对比", color = BuyWiseTheme.colors.panel, fontWeight = FontWeight.Bold)
+            Text("已选 $count/2", color = BuyWiseTheme.colors.panel, fontWeight = FontWeight.Bold)
             Box(
                 modifier = Modifier
                     .scale(badgeScale)
@@ -177,7 +176,7 @@ private fun ExpandedBasket(
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("继续选择商品")
+                    Text("继续看备选")
                 }
             } else {
                 Button(

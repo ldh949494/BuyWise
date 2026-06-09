@@ -122,6 +122,26 @@ class ChatService:
 
         return ChatStreamRunner(self).generate_events(request, db, user_id=user_id)
 
+    def generate_guide_stream(
+        self,
+        request: ChatRequest,
+        db: Session,
+        user_id: int | None = None,
+    ) -> AsyncIterator[dict[str, Any]]:
+        from app.services.chat_stream_service import ChatStreamRunner
+
+        return ChatStreamRunner(self).generate_guide_events(request, db, user_id=user_id)
+
+    def generate_follow_up_stream(
+        self,
+        request: ChatRequest,
+        db: Session,
+        user_id: int | None = None,
+    ) -> AsyncIterator[dict[str, Any]]:
+        from app.services.chat_stream_service import ChatStreamRunner
+
+        return ChatStreamRunner(self).generate_follow_up_events(request, db, user_id=user_id)
+
     async def _build_user_text(self, request: ChatRequest) -> str:
         text = request.message or ""
         if request.audio_url:

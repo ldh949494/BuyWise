@@ -19,7 +19,6 @@ import androidx.compose.material.icons.automirrored.outlined.CompareArrows
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -54,7 +53,6 @@ import com.buywise.android.ui.components.AdvicePanel
 import com.buywise.android.ui.components.CategoryShortcut
 import com.buywise.android.ui.components.EvidenceTag
 import com.buywise.android.ui.components.EvidenceTone
-import com.buywise.android.ui.components.ProductCard
 import com.buywise.android.ui.components.ProductImagePreview
 import com.buywise.android.ui.components.FloatingGlassCard
 import com.buywise.android.ui.components.FloatingGlassTone
@@ -102,9 +100,9 @@ fun CompareScreen(
                 }
             }
         } else {
-            item { Text("${state.products.size} 个商品", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold) }
             item { CompareDecisionCard(state = state) }
             item { CompareFitDecisionCard(products = state.products, winnerId = state.winnerId) }
+            item { Text("关键候选 ${state.products.size} 个", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold) }
             item { CompareScoreStrip(products = state.products, onProductClick = onProductClick) }
             item { CompareTable(rows = state.rows, products = state.products) }
             item { CompareProsCons(products = state.products) }
@@ -276,8 +274,8 @@ private fun CompareProsCons(products: List<Product>) {
             radius = 14.dp,
             contentPadding = 12.dp,
         ) {
-            Text("优点", color = BuyWiseTheme.colors.secondary, fontWeight = FontWeight.Bold)
-            products.first().advantages.take(4).ifEmpty { listOf("价格稳定", "评分可靠") }.forEach {
+            Text("首推优势", color = BuyWiseTheme.colors.secondary, fontWeight = FontWeight.Bold)
+            products.first().advantages.take(4).ifEmpty { listOf("价格更好核对", "评价信息更完整") }.forEach {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = BuyWiseTheme.colors.secondary, modifier = Modifier.size(14.dp))
                     Text(it, color = BuyWiseTheme.colors.ink, style = MaterialTheme.typography.labelMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -290,8 +288,8 @@ private fun CompareProsCons(products: List<Product>) {
             radius = 14.dp,
             contentPadding = 12.dp,
         ) {
-            Text("注意", color = BuyWiseTheme.colors.danger, fontWeight = FontWeight.Bold)
-            products.first().cautions.take(4).ifEmpty { listOf("确认尺寸", "查看售后") }.forEach {
+            Text("购买前注意", color = BuyWiseTheme.colors.danger, fontWeight = FontWeight.Bold)
+            products.first().cautions.take(4).ifEmpty { listOf("确认尺寸和兼容性", "查看商家售后说明") }.forEach {
                 Text("- $it", color = BuyWiseTheme.colors.ink, style = MaterialTheme.typography.labelMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }

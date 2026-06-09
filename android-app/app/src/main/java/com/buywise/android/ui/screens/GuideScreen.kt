@@ -71,7 +71,7 @@ fun GuideScreen(
         contentPadding = PaddingValues(18.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        item { WorkbenchHeader() }
+        item { GuideDecisionHeader() }
         item { GuideInputPanel(state = state, onQueryChange = onQueryChange, onSubmit = onSubmit, onOpenChat = onOpenChat) }
         item {
             PreferenceUsagePanel(
@@ -93,8 +93,8 @@ fun GuideScreen(
         }
         item {
             SectionTitle(
-                title = "推荐结果",
-                subtitle = "先看首推，再对比关键差异。",
+                title = if (state.bundlePlans.isNotEmpty()) "组合方案" else "首推与备选",
+                subtitle = "先看商品候选，再核对理由、风险和证据。",
             )
         }
         if (state.appliedPreferences.hasVisibleSummary) {
@@ -122,6 +122,7 @@ fun GuideScreen(
                             product = recommendation.product,
                             onClick = { onProductClick(recommendation.product.id) },
                         )
+                        EvidenceConfidenceNotice(product = recommendation.product)
                     }
                     ProductCard(
                         product = recommendation.product,
@@ -197,16 +198,16 @@ private fun preferenceSummaryText(appliedPreferences: AppliedPreferences, ignore
 }
 
 @Composable
-private fun WorkbenchHeader() {
+private fun GuideDecisionHeader() {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
-            Text("AI 导购工作台", style = MaterialTheme.typography.headlineMedium, color = BuyWiseTheme.colors.ink)
+            Text("导购决策", style = MaterialTheme.typography.headlineMedium, color = BuyWiseTheme.colors.ink)
             Text(
-                "先提取需求，再给出候选商品和可核查理由。",
+                "先确认需求，再给出可核查的首推、备选和购买前注意。",
                 color = BuyWiseTheme.colors.muted,
                 style = MaterialTheme.typography.bodyMedium,
             )
@@ -231,7 +232,8 @@ private fun GuideInputPanel(
     val haptic = LocalHapticFeedback.current
     FloatingGlassCard(
         tone = FloatingGlassTone.Neutral,
-        radius = BuyWiseDimens.HeroRadius.dp,
+        radius = 12.dp,
+        elevated = false,
         contentPadding = 18.dp,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -417,7 +419,7 @@ private fun RecommendationEmptyState() {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("还没有推荐结果", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
                 Text(
-                    "输入预算、用途和偏好后，这里会展示候选商品、推荐理由和冲突点。",
+                    "输入预算、用途和偏好后，这里会先展示候选商品，再补齐推荐理由、风险和证据。",
                     color = BuyWiseTheme.colors.muted,
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -430,7 +432,7 @@ private fun RecommendationEmptyState() {
 private fun TopRecommendationStrip(product: Product, onClick: () -> Unit) {
     FloatingGlassCard(
         tone = FloatingGlassTone.Success,
-        radius = 16.dp,
+        radius = 12.dp,
         contentPadding = 14.dp,
         onClick = onClick,
     ) {
@@ -442,10 +444,32 @@ private fun TopRecommendationStrip(product: Product, onClick: () -> Unit) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("优先推荐", color = BuyWiseTheme.colors.secondary, fontWeight = FontWeight.Bold)
                 Text(product.name, color = BuyWiseTheme.colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("理由清楚，适合先看", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
+                Text("先核对证据，再看是否符合你的核心需求", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
             }
             Text(product.price.displayPrice(), color = BuyWiseTheme.colors.primary, style = MaterialTheme.typography.titleMedium)
         }
+    }
+}
+
+@Composable
+private fun EvidenceConfidenceNotice(product: Product) {
+    val hasProductPage = product.productUrl?.isNotBlank() == true
+    val hasSnapshot = product.price != null || product.stockStatus?.isNotBlank() == true
+    val hasReview = product.reviewSummary?.isNotBlank() == true
+    if (hasProductPage && hasSnapshot && hasReview) {
+        return
+    }
+    FloatingGlassCard(
+        tone = FloatingGlassTone.Warm,
+        radius = 12.dp,
+        elevated = false,
+        contentPadding = 12.dp,
+    ) {
+        Text(
+            "证据较少，建议打开商家页面确认价格、库存和评价后再决定。",
+            color = BuyWiseTheme.colors.ink,
+            style = MaterialTheme.typography.bodyMedium,
+        )
     }
 }
 

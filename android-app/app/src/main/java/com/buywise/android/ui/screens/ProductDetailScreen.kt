@@ -46,7 +46,6 @@ import com.buywise.android.ui.BuyWiseVisualAssets
 import com.buywise.android.ui.displayPrice
 import com.buywise.android.ui.displayRating
 import com.buywise.android.ui.displayRecommendationReason
-import com.buywise.android.ui.components.AdvicePanel
 import com.buywise.android.ui.components.EvidenceTag
 import com.buywise.android.ui.components.EvidenceTone
 import com.buywise.android.ui.components.FloatingAssetBadge
@@ -113,16 +112,13 @@ fun ProductDetailScreen(
         }
         if (product != null) {
             item {
+                ProductDecisionSummaryCard(product = product)
+            }
+            item {
                 ReviewSummaryCard(product = product)
             }
             item {
                 KeySpecsCard(product = product)
-            }
-            item {
-                AdvicePanel(
-                    title = "BuyWise 建议",
-                    body = product.displayRecommendationReason(),
-                )
             }
             if (product.cautions.isNotEmpty()) {
                 item { DetailBlock("购买前注意", product.cautions, BuyWiseTheme.colors.dangerSoft) }
@@ -148,22 +144,46 @@ fun ProductDetailScreen(
 }
 
 @Composable
-private fun PurchaseAdviceCard(product: Product) {
+private fun ProductDecisionSummaryCard(product: Product) {
     FloatingGlassCard(
-        tone = FloatingGlassTone.Primary,
+        tone = FloatingGlassTone.Neutral,
         radius = BuyWiseDimens.CardRadius.dp,
+        elevated = false,
         contentPadding = 16.dp,
     ) {
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = BuyWiseTheme.colors.primary)
-                Text("为什么推荐", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
+                Text("决策摘要", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
             }
-            val reasons = product.advantages.take(3).ifEmpty {
+            Text(
+                product.headline.takeIf { it.isNotBlank() } ?: product.displayRecommendationReason(),
+                color = BuyWiseTheme.colors.ink,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            val reasons = product.advantages.take(2).ifEmpty {
                 listOf(product.displayRecommendationReason())
             }
-            reasons.forEachIndexed { index, reason ->
-                AdviceLine("理由 ${index + 1}", reason)
+            reasons.forEach { reason ->
+                AdviceLine("适合", reason)
+            }
+            val caution = product.cautions.firstOrNull { it.isNotBlank() }
+                ?: "购买前建议核对商家页面的价格、库存和售后信息。"
+            AdviceLine("注意", caution)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                product.productUrl?.takeIf { it.isNotBlank() }?.let {
+                    EvidenceTag("真实商品页", tone = EvidenceTone.Info)
+                }
+                if (product.price != null || product.stockStatus?.isNotBlank() == true) {
+                    EvidenceTag("价格/库存快照", tone = EvidenceTone.Success)
+                }
+                product.reviewSummary?.takeIf { it.isNotBlank() }?.let {
+                    EvidenceTag("评价摘要", tone = EvidenceTone.Info)
+                }
+                if (product.productUrl.isNullOrBlank() && product.reviewSummary.isNullOrBlank()) {
+                    EvidenceTag("证据较少，建议核实", tone = EvidenceTone.Warning)
+                }
             }
         }
     }
@@ -217,14 +237,20 @@ private fun ProductHeader(
                 product.stockStatus?.takeIf { it.isNotBlank() }?.let {
                     EvidenceTag(it, tone = EvidenceTone.Success)
                 }
+                if (product.price != null || product.stockStatus?.isNotBlank() == true) {
+                    EvidenceTag("价格/库存快照", tone = EvidenceTone.Success)
+                }
                 product.productUrl?.takeIf { it.isNotBlank() }?.let {
-                    EvidenceTag("可查看商品页", tone = EvidenceTone.Info)
+                    EvidenceTag("真实商品页", tone = EvidenceTone.Info)
                 }
                 product.reviewSummary?.takeIf { it.isNotBlank() }?.let {
-                    EvidenceTag("有评价摘要", tone = EvidenceTone.Info)
+                    EvidenceTag("评价摘要", tone = EvidenceTone.Info)
                 }
                 product.tags.take(2).forEach { tag ->
                     EvidenceTag(tag, tone = EvidenceTone.Info)
+                }
+                if (product.productUrl.isNullOrBlank() && product.reviewSummary.isNullOrBlank()) {
+                    EvidenceTag("证据较少", tone = EvidenceTone.Warning)
                 }
             }
             if (!canRecordPurchase) {
@@ -244,7 +270,7 @@ private fun ReviewSummaryCard(product: Product) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("评价摘要", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
-                Text("查看全部", color = BuyWiseTheme.colors.primary, style = MaterialTheme.typography.labelMedium)
+                Text("购买前参考", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 Text(product.rating.displayRating(), style = MaterialTheme.typography.headlineMedium, color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold)
@@ -317,7 +343,7 @@ private fun DetailPurchaseBar(
             ) {
                 Icon(Icons.AutoMirrored.Outlined.CompareArrows, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(if (isInCompareBasket) "已加入对比" else "加入对比")
+                Text(if (isInCompareBasket) "已选入对比" else "加入对比")
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 OutlinedButton(
