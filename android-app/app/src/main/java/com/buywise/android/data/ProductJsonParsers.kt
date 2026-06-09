@@ -122,6 +122,46 @@ internal fun parseCompareItem(json: JSONObject): Product {
     )
 }
 
+internal fun parseCart(json: JSONObject): CartState {
+    val itemsJson = json.optJSONArray("items")
+    val items = (0 until (itemsJson?.length() ?: 0)).mapNotNull { index ->
+        itemsJson?.optJSONObject(index)?.let(::parseCartItem)
+    }
+    return CartState(
+        items = items,
+        totalQuantity = json.optInt("total_quantity", items.sumOf { it.quantity }),
+        totalPrice = json.optDoubleOrNull("total_price") ?: items.sumOf { it.lineTotal },
+    )
+}
+
+internal fun parseCartItem(json: JSONObject): CartItem =
+    CartItem(
+        id = json.optInt("id").toString(),
+        productId = json.optInt("product_id").toString(),
+        quantity = json.optInt("quantity", 1),
+        name = json.optString("name_snapshot", "购物车商品"),
+        unitPrice = json.optDoubleOrNull("unit_price_snapshot") ?: 0.0,
+        lineTotal = json.optDoubleOrNull("line_total") ?: 0.0,
+        imageUrl = json.optStringOrNull("image_url_snapshot"),
+    )
+
+internal fun parseAddress(json: JSONObject): Address =
+    Address(
+        id = json.optInt("id").toString(),
+        receiverName = json.optString("receiver_name", "收货人"),
+        phone = json.optString("phone"),
+        detail = json.optString("detail"),
+        isDefault = json.optBoolean("is_default", false),
+    )
+
+internal fun parseCheckout(json: JSONObject): CheckoutResult {
+    val order = json.optJSONObject("order") ?: JSONObject()
+    return CheckoutResult(
+        orderId = order.optInt("id").toString(),
+        status = order.optString("fulfillment_status", "created"),
+    )
+}
+
 private fun JSONArray?.toStringList(): List<String> {
     if (this == null) {
         return emptyList()

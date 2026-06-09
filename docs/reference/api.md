@@ -7,7 +7,8 @@
 - 健康检查：`/api/v1/health`、`/api/v1/ready`
 - 商品：`/api/v1/products`
 - 商品对比：`/api/v1/products/compare`
-- 模拟订单：`/api/v1/orders`
+- 购物车与默认地址：`/api/v1/cart`、`/api/v1/addresses`
+- 影子订单：`/api/v1/orders`
 - 待评价提示：`/api/v1/feedback/prompts`
 - 已购评价：`/api/v1/reviews`
 - AI 聊天：`/api/v1/ai/chat`
@@ -18,6 +19,7 @@
 - RAG 搜索：`/api/v1/rag/search`
 - 上传：`/api/v1/upload`
 - 视觉识别：`/api/v1/vision/recognize`
+- 拍照找货：`/api/v1/visual-search`
 - 语音识别：`/api/v1/speech/asr`
 - 普通用户认证：`/api/v1/auth/...`
 - 内部后台：`/api/v1/admin/...`
@@ -29,13 +31,17 @@
 ## 响应说明
 
 - 商品响应包含可选扩展电商字段：`sku`、`product_url`、`image_urls`、`stock_status`、`review_summary`、`feedback_metrics` 和 `price_history`。
-- 订单响应是 BuyWise 内部交易影子模型，只表达模拟付款、物流状态和订单项快照，不代表真实支付或真实履约。
+- 购物车、地址和 checkout 是 BuyWise 内部交易影子模型：支持会话商品加入、数量编辑、删除、默认地址结算和订单快照，不代表真实支付或真实履约。
+- 订单响应表达模拟付款、物流状态和订单项快照；购物车 checkout 创建的订单会带 `payment_mode=shadow_paid`、`address_snapshot`、`cart_snapshot` 和 `checkout_session_id`。
 - 已购评价通过服务端校验订单项归属和已收货状态后写入 `reviews`。Closed beta 外部购买记录使用 `purchase_evidence=buywise_recorded`，不声明平台验真；未来接入平台验真后才使用 `platform_verified` 等级。
-- 订单相关接口只表示 BuyWise 内部的购买记录和影子订单状态，不提供购物车、支付、地址和真实结算；`POST /api/v1/orders/{order_id}/advance` 仅用于 demo、smoke 或管理推进。
+- 订单相关接口只表示 BuyWise 内部的购买记录和影子订单状态；`POST /api/v1/orders/{order_id}/advance` 仅用于 demo、smoke 或管理推进。
 - 聊天响应通过 `extra.session_id` 返回持久化会话标识。
 - 聊天流式响应使用 Server-Sent Events，事件包括 `meta`、`status`、`token`、`products`、`heartbeat`、`done` 和 `error`。
 - 流式聊天不长期暴露 `fallback` 事件；降级通过 `status.stage=fallback` 和 `done.degraded=true` 表达。
 - 聊天商品卡片包含解释字段：`budget_match`、`scenario_match`、`conflicts` 和 `alternatives`。
+- AI 导购会在组合场景中返回 `bundle_plans`；结构化需求包含日期、地点、时长、场合、风格偏好、必选品类和排除品类，用于跨类目检索和方案编排。
+- AI 导购追问支持会话内购物车动作，如“把刚才那款加到购物车”“删掉第二个”“下单吧，地址用默认的”；动作结果会作为普通回复或 SSE token/done 返回。
+- 拍照找货接口返回 `recognized` 视觉特征、相似商品 `products` 和 `fallback_used`，视觉索引为空时会退回文本/RAG 候选。
 - RAG 搜索响应的 `items` 使用强类型 `RagItem`，只承诺 `product_id`、`name`、`price`、`score`、`reason`、`category`、`platform`、`product_url` 和 `stock_status`。
 
 ## 鉴权说明
@@ -72,6 +78,14 @@
 | 后台商品下架 | `DELETE` | `/api/v1/admin/products/{product_id}` | Admin JWT | 无 |
 | 后台上传 | `POST` | `/api/v1/admin/upload` | Admin JWT | 无 |
 | 商品对比 | `POST` | `/api/v1/products/compare` | 公开 | 无 |
+| 购物车读取 | `GET` | `/api/v1/cart` | prod Bearer token；dev/test 可选 | `orders:read` |
+| 加入购物车 | `POST` | `/api/v1/cart/items` | prod Bearer token；dev/test 可选 | `orders:write` |
+| 修改购物车数量 | `PATCH` | `/api/v1/cart/items/{item_id}` | prod Bearer token；dev/test 可选 | `orders:write` |
+| 删除购物车商品 | `DELETE` | `/api/v1/cart/items/{item_id}` | prod Bearer token；dev/test 可选 | `orders:write` |
+| 购物车结算 | `POST` | `/api/v1/cart/checkout` | prod Bearer token；dev/test 可选 | `orders:write` |
+| 地址列表 | `GET` | `/api/v1/addresses` | prod Bearer token；dev/test 可选 | `orders:read` |
+| 创建地址 | `POST` | `/api/v1/addresses` | prod Bearer token；dev/test 可选 | `orders:write` |
+| 设置默认地址 | `PATCH` | `/api/v1/addresses/{address_id}/default` | prod Bearer token；dev/test 可选 | `orders:write` |
 | 创建模拟订单 | `POST` | `/api/v1/orders` | prod Bearer token；dev/test 可选 | `orders:write` |
 | 订单列表 | `GET` | `/api/v1/orders` | prod Bearer token；dev/test 可选 | `orders:read` |
 | 订单详情 | `GET` | `/api/v1/orders/{order_id}` | prod Bearer token；dev/test 可选 | `orders:read` |
@@ -91,6 +105,7 @@
 | RAG 搜索 | `POST` | `/api/v1/rag/search` | 公开 | 无 |
 | 上传 | `POST` | `/api/v1/upload` | Bearer token | `upload:write` |
 | 视觉识别 | `POST` | `/api/v1/vision/recognize` | 公开 | 无 |
+| 拍照找货 | `POST` | `/api/v1/visual-search` | 公开 | 无 |
 | 语音识别 | `POST` | `/api/v1/speech/asr` | 公开 | 无 |
 
 ## Android 合同流
@@ -100,10 +115,11 @@
 - 商品浏览：`GET /api/v1/products` 支持类目、关键词、价格和分页筛选；`GET /api/v1/products/{product_id}` 获取详情。
 - 商品维护：`POST /api/v1/products` 创建商品，`PATCH /api/v1/products/{product_id}` 更新商品，`DELETE /api/v1/products/{product_id}` 软下架商品。下架商品默认不进入公开浏览、详情、RAG、推荐和对比。
 - 商品对比：`POST /api/v1/products/compare`，请求体包含 `product_ids` 和可选 `user_need`。
-- 订单反馈闭环：`POST /api/v1/orders` 记录购买，closed beta 外部购买记录带 `external_platform` 后可直接进入待评价；`POST /api/v1/orders/{order_id}/advance` 仅用于 demo、smoke 或管理推进；`GET /api/v1/feedback/prompts` 获取待评价项，`POST /api/v1/reviews/from-order-item` 提交已购评价。
-- 订单反馈闭环不包含购物车 CRUD、数量编辑、支付、真实 checkout、退款或售后；这些能力不在当前 BuyWise 验收范围内。
+- 购物车与下单：`GET /api/v1/cart` 读取当前 active cart，`POST /api/v1/cart/items` 加入商品，`PATCH /api/v1/cart/items/{item_id}` 修改数量，`DELETE /api/v1/cart/items/{item_id}` 删除商品；`GET/POST/PATCH /api/v1/addresses` 管理默认地址；`POST /api/v1/cart/checkout` 用默认地址生成 BuyWise 影子订单并清空购物车。
+- 订单反馈闭环：`POST /api/v1/orders` 仍支持直接记录购买；购物车 checkout 会生成同一订单模型。closed beta 外部购买记录带 `external_platform` 后可直接进入待评价；`POST /api/v1/orders/{order_id}/advance` 仅用于 demo、smoke 或管理推进；`GET /api/v1/feedback/prompts` 获取待评价项，`POST /api/v1/reviews/from-order-item` 提交已购评价。
 - AI 导购：`POST /api/v1/ai/chat` 返回 JSON，`POST /api/v1/ai/chat/stream` 保留为兼容流式入口。Android 主链路使用快慢接口：`POST /api/v1/ai/guide/stream` 用于开始或刷新导购，完整执行理解、检索、排序和生成；`POST /api/v1/ai/guide/follow-up/stream` 用于基于当前 `session_id` 的最新推荐快照继续追问，不重新检索和排序。请求包含 `session_id` 和 `message`，可选 `image_url`、`audio_url`、`ignore_saved_preferences` 和 `temporary_preferences`。普通用户带 User JWT 时会自动合并账号级导购偏好；单品需求返回 `products`，组合搭配需求返回 `bundle_plans`，响应会返回结构化 `applied_preferences`。
 - 导购偏好：`GET /api/v1/guide/preferences` 获取账号级导购偏好，`PUT /api/v1/guide/preferences` 保存结构化偏好，`DELETE /api/v1/guide/preferences` 清除偏好。偏好包括预算策略、单品/整套预算区间、核心偏好、排除项、已有设备和推荐呈现方式。
+- 拍照找货：Android 上传图片后调用 `POST /api/v1/visual-search`，将识别出的品类、颜色、材质、版型、风格和品牌线索转成相似商品候选。返回候选可继续进入详情、对比或加入购物车。
 
 ### AI 导购 SSE 事件契约
 

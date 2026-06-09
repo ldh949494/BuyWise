@@ -22,8 +22,15 @@ class StructuredNeed(BaseSchema):
     category: str | None = None
     budget_max: float | None = None
     scenario: str | None = None
+    target_date: str | None = None
+    location: str | None = None
+    duration_days: int | None = None
+    occasion: str | None = None
     preferences: list[str] = Field(default_factory=list)
     avoid: list[str] = Field(default_factory=list)
+    style_preferences: list[str] = Field(default_factory=list)
+    must_have_categories: list[str] = Field(default_factory=list)
+    excluded_categories: list[str] = Field(default_factory=list)
     budget_policy: str | None = None
     budget_flex_rate: float | None = None
     presentation_style: str | None = None

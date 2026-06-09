@@ -43,6 +43,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.buywise.android.ui.BuyWiseTheme
 import com.buywise.android.ui.components.FloatingCompareBasket
+import com.buywise.android.ui.screens.CartScreen
 import com.buywise.android.ui.screens.CompareScreen
 import com.buywise.android.ui.screens.AccountScreen
 import com.buywise.android.ui.screens.GuidePreferencesScreen
@@ -87,6 +88,7 @@ private fun BuyWiseRoot(
     val showCompareBasket = currentRoute != null &&
         currentRoute != "landing" &&
         currentRoute != "search" &&
+        currentRoute != "cart" &&
         currentRoute != "compare"
     val snackbarHostState = remember { SnackbarHostState() }
     val basketMessage = viewModel.compareBasketState.message
@@ -309,6 +311,19 @@ private fun BuyWiseRoot(
                         onToggleCompare = { viewModel.toggleCompareBasket(it) },
                     )
                 }
+                composable("cart") {
+                    LaunchedEffect(Unit) {
+                        viewModel.refreshCart()
+                    }
+                    CartScreen(
+                        state = viewModel.cartState,
+                        onRefresh = viewModel::refreshCart,
+                        onOpenHome = { navController.navigateTopLevel("home") },
+                        onQuantityChange = viewModel::updateCartItemQuantity,
+                        onRemove = viewModel::removeCartItem,
+                        onCheckout = viewModel::checkoutCart,
+                    )
+                }
                 composable("account") {
                     AccountScreen(
                         state = viewModel.accountState,
@@ -368,6 +383,7 @@ private fun BuyWiseRoot(
                         onBack = navController::popBackStack,
                         isInCompareBasket = viewModel::isInCompareBasket,
                         onToggleCompare = { viewModel.toggleCompareBasket(it) },
+                        onAddToCart = viewModel::addProductToCart,
                         onRecordPurchase = viewModel::recordPurchase,
                         onOpenProductPage = { url ->
                             if (!context.openExternalUrl(url)) {

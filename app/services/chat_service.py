@@ -20,11 +20,15 @@ from app.repositories.review_repo import ReviewRepository
 from app.schemas.chat import BundlePlan, ChatRequest, ChatResponse
 from app.schemas.guide_preferences import AppliedPreferences
 from app.services.bundle_recommend_service import BundleRecommendService
+from app.services.chat_action_service import ChatActionResult, ChatActionService
+from app.services.chat_visual_search import handle_visual_search_request, validate_visual_search_request
 from app.services.guide_preferences_service import GuidePreferencesService
 from app.services.intent_service import IntentService
 from app.services.noop_chat_repo import NoopChatRepository
+from app.services.order_service import get_current_user_ref
 from app.services.recommend_service import RecommendService
 from app.services.speech_service import SpeechService
+from app.services.visual_search_service import VisualSearchService
 from app.services.vision_service import VisionService
 from app.utils.logging import get_logger
 
@@ -41,6 +45,8 @@ class ChatService:
         rag_pipeline: RAGPipeline | None = None,
         recommend_service: RecommendService | None = None,
         bundle_recommend_service: BundleRecommendService | None = None,
+        visual_search_service: VisualSearchService | None = None,
+        chat_action_service: ChatActionService | None = None,
         llm_client: AIModelGateway | None = None,
     ) -> None:
         self.speech_service = speech_service or SpeechService()
@@ -50,6 +56,12 @@ class ChatService:
         self.rag_pipeline = rag_pipeline or RAGPipeline()
         self.recommend_service = recommend_service or RecommendService()
         self.bundle_recommend_service = bundle_recommend_service or BundleRecommendService(self.recommend_service)
+        self.visual_search_service = visual_search_service or VisualSearchService(
+            vision_service=self.vision_service,
+            rag_pipeline=self.rag_pipeline,
+            recommend_service=self.recommend_service,
+        )
+        self.chat_action_service = chat_action_service or ChatActionService()
 
     async def handle_chat(self, request: ChatRequest, db: Session, user_id: int | None = None) -> ChatResponse:
         started_at = time.perf_counter()
@@ -87,11 +99,62 @@ class ChatService:
         image_info = await self._build_image_info(request)
         history_context = self._load_history_context(chat_repo, session_id)
         self._save_user_message(chat_repo, session_id, request, text, image_info)
+        if action_result := self._execute_chat_action(text, chat_repo, session_id, db, user_id):
+            return self._handle_action_result(chat_repo, session_id, action_result)
+        if validate_visual_search_request(request, text):
+            return await handle_visual_search_request(
+                request,
+                text,
+                chat_repo,
+                session_id,
+                db,
+                self.visual_search_service,
+                dump=self._dump,
+            )
         need = await self._extract_need(text, image_info, history_context)
         if need.need_clarify:
             return await self._handle_clarify(chat_repo, session_id, need)
         applied_preferences = self._apply_preferences(request, need, db, user_id)
         return await self._handle_recommendation(chat_repo, session_id, need, db, applied_preferences)
+
+    def _execute_chat_action(
+        self,
+        text: str,
+        chat_repo: Any,
+        session_id: str,
+        db: Session,
+        user_id: int | None,
+    ) -> ChatActionResult | None:
+        return self.chat_action_service.handle_if_action(
+            text=text,
+            chat_repo=chat_repo,
+            session_id=session_id,
+            db=db,
+            user_ref=get_current_user_ref(str(user_id) if user_id is not None else None),
+        )
+
+    def _handle_action_result(
+        self,
+        chat_repo: Any,
+        session_id: str,
+        action_result: ChatActionResult,
+    ) -> ChatResponse:
+        chat_repo.create_message(
+            session_id,
+            "assistant",
+            action_result.reply,
+            structured_data={"action": action_result.action, **action_result.data},
+        )
+        self._commit(chat_repo)
+        return ChatResponse(
+            reply=action_result.reply,
+            need_clarify=False,
+            structured_need=None,
+            products=[],
+            bundle_plans=[],
+            applied_preferences=AppliedPreferences(),
+            extra={"session_id": session_id, "action": action_result.action, **action_result.data},
+        )
 
     async def _extract_need(
         self,
@@ -190,11 +253,11 @@ class ChatService:
             reply=reply,
             need_clarify=True,
             structured_need=need,
-        products=[],
-        bundle_plans=[],
-        applied_preferences=AppliedPreferences(),
-        extra={"session_id": session_id},
-    )
+            products=[],
+            bundle_plans=[],
+            applied_preferences=AppliedPreferences(),
+            extra={"session_id": session_id},
+        )
 
     async def _handle_recommendation(
         self,
@@ -308,6 +371,7 @@ class ChatService:
         db = getattr(chat_repo, "db", None)
         if db is not None:
             UnitOfWork(db).rollback()
+
     def _chat_repo(self, request: ChatRequest, db: Session):
         if hasattr(db, "scalar") and hasattr(db, "add"):
             return ChatRepository(db)

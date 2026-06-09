@@ -12,29 +12,23 @@ from app.schemas.chat import (
     BundlePlanItem,
     ProductCard,
 )
+from app.services.bundle_templates import (
+    DESKTOP_TEMPLATE as BUNDLE_DESKTOP_TEMPLATE,
+    GENERAL_TEMPLATE as BUNDLE_GENERAL_TEMPLATE,
+    TRAVEL_TEMPLATE as BUNDLE_TRAVEL_TEMPLATE,
+    ScenarioTemplate,
+)
 from app.services.recommend_service import RecommendService
 
 
 class BundleRecommendService:
-    REQUIRED_DESKTOP_CATEGORIES = ["电脑", "显示器", "机械键盘", "鼠标", "蓝牙耳机"]
-    SUPPORT_DESKTOP_CATEGORIES = ["台灯", "支架", "拓展坞", "插排"]
-    REQUIRED_BUDGET_WEIGHTS = {
-        "电脑": 0.55,
-        "显示器": 0.22,
-        "机械键盘": 0.07,
-        "鼠标": 0.04,
-        "蓝牙耳机": 0.08,
-    }
-    SUPPORT_BUDGET_WEIGHTS = {
-        "台灯": 0.04,
-        "支架": 0.03,
-        "拓展坞": 0.04,
-        "插排": 0.02,
-    }
+    DESKTOP_TEMPLATE = BUNDLE_DESKTOP_TEMPLATE
+    TRAVEL_TEMPLATE = BUNDLE_TRAVEL_TEMPLATE
+    GENERAL_TEMPLATE = BUNDLE_GENERAL_TEMPLATE
     TIER_CONFIGS = [
-        ("entry", "方案一 · 入门桌面档", 0.72, "够用、省预算，优先配齐核心品类。"),
-        ("balanced", "方案二 · 均衡桌面档", 1.0, "显示体验、输入体验和稳定性更均衡。"),
-        ("premium", "方案三 · 高配桌面档", 1.32, "性能和舒适度余量更高，适合长期使用。"),
+        ("entry", "方案一 · 入门档", 0.72, "够用、省预算，优先配齐核心品类。"),
+        ("balanced", "方案二 · 均衡档", 1.0, "核心体验和长期使用更均衡。"),
+        ("premium", "方案三 · 高配档", 1.32, "预算更高，优先换取品质和舒适度余量。"),
     ]
 
     def __init__(self, recommend_service: RecommendService | None = None) -> None:
@@ -48,30 +42,33 @@ class BundleRecommendService:
         if not ranked_cards:
             return []
         category_cards = self._cards_by_category(ranked_cards, products)
+        template = self._template_for_need(need, category_cards)
         budget_max = self._optional_float(self._get_value(need, "budget_max"))
-        target_budget = budget_max or self._sum_reasonable_baseline(category_cards)
+        target_budget = budget_max or self._sum_reasonable_baseline(category_cards, template)
         return [
             plan
             for tier_index, tier_config in enumerate(self.TIER_CONFIGS, start=1)
-            if (plan := self._build_plan(category_cards, need, target_budget, tier_index, tier_config)) is not None
+            if (plan := self._build_plan(category_cards, need, template, target_budget, tier_index, tier_config)) is not None
         ]
 
     def _build_plan(
         self,
         category_cards: dict[str, list[ProductCard]],
         need: Any,
+        template: ScenarioTemplate,
         target_budget: float,
         tier_index: int,
         tier_config: tuple[str, str, float, str],
     ) -> BundlePlan | None:
         tier, title, multiplier, summary = tier_config
         tier_budget = round(target_budget * multiplier, 2)
-        items = self._build_plan_items(category_cards, tier_budget, tier_index, need)
+        items = self._build_plan_items(category_cards, tier_budget, tier_index, need, template)
         if not items:
             return None
         total_price = round(sum(item.product.price for item in items if not item.excluded), 2)
         budget_status = self._budget_status(total_price, tier_budget, need)
-        return self._plan_from_parts(tier, title, summary, tier_budget, total_price, budget_status, items, need)
+        title = title.replace("· ", f"· {template.title_prefix}")
+        return self._plan_from_parts(tier, title, summary, tier_budget, total_price, budget_status, items, need, template)
 
     def _plan_from_parts(
         self,
@@ -83,10 +80,11 @@ class BundleRecommendService:
         budget_status: str,
         items: list[BundlePlanItem],
         need: Any,
+        template: ScenarioTemplate,
     ) -> BundlePlan:
         return BundlePlan(
-            **self._plan_core(tier, title, summary, tier_budget, total_price, budget_status, items, need),
-            **self._plan_details(tier, total_price, tier_budget, budget_status, items),
+            **self._plan_core(tier, title, summary, tier_budget, total_price, budget_status, items, need, template),
+            **self._plan_details(tier, total_price, tier_budget, budget_status, items, template),
         )
 
     def _plan_core(
@@ -99,9 +97,10 @@ class BundleRecommendService:
         budget_status: str,
         items: list[BundlePlanItem],
         need: Any,
+        template: ScenarioTemplate,
     ) -> dict[str, Any]:
         return {
-            "id": f"desktop-{tier}-{int(tier_budget)}",
+            "id": f"{template.key}-{tier}-{int(tier_budget)}",
             "title": title,
             "budget_tier": tier,
             "target_budget": tier_budget,
@@ -109,9 +108,9 @@ class BundleRecommendService:
             "budget_status": budget_status,
             "budget_delta": round(total_price - tier_budget, 2),
             "recommendation_level": "high" if tier == "balanced" else "medium",
-            "scenario_fit": self._scenario_fit(need),
+            "scenario_fit": self._scenario_fit(need, template),
             "summary": self._summary_with_preferences(summary, need),
-            "completeness": self._completeness(items),
+            "completeness": self._completeness(items, template),
             "budget_allocation": self._budget_allocation(items),
             "items": items,
             "revision": 1,
@@ -124,12 +123,13 @@ class BundleRecommendService:
         tier_budget: float,
         budget_status: str,
         items: list[BundlePlanItem],
+        template: ScenarioTemplate,
     ) -> dict[str, Any]:
         return {
-            "tradeoffs": self._tradeoffs(tier, total_price, tier_budget, budget_status),
-            "compare_highlights": self._compare_highlights(tier),
-            "exclusion_notes": self._exclusion_notes(items),
-            "compatibility_checks": self._compatibility_checks(items),
+            "tradeoffs": self._tradeoffs(tier, total_price, tier_budget, budget_status, template),
+            "compare_highlights": self._compare_highlights(tier, template),
+            "exclusion_notes": self._exclusion_notes(items, template),
+            "compatibility_checks": self._compatibility_checks(items, template),
             "availability_status": self._availability_status(items),
         }
 
@@ -159,26 +159,54 @@ class BundleRecommendService:
         tier_budget: float,
         tier_index: int,
         need: Any,
+        template: ScenarioTemplate,
+    ) -> list[BundlePlanItem]:
+        owned_categories = set(self._string_list(self._get_value(need, "owned_categories")))
+        excluded_categories = set(self._string_list(self._get_value(need, "excluded_categories")))
+        items = self._required_plan_items(category_cards, tier_budget, tier_index, template, owned_categories, excluded_categories)
+        remaining_budget = tier_budget - sum(item.product.price for item in items)
+        items.extend(self._optional_plan_items(category_cards, remaining_budget, tier_budget, tier_index, template, excluded_categories))
+        return items
+
+    def _required_plan_items(
+        self,
+        category_cards: dict[str, list[ProductCard]],
+        tier_budget: float,
+        tier_index: int,
+        template: ScenarioTemplate,
+        owned_categories: set[str],
+        excluded_categories: set[str],
     ) -> list[BundlePlanItem]:
         items = []
-        owned_categories = set(self._string_list(self._get_value(need, "owned_categories")))
-        for category in self.REQUIRED_DESKTOP_CATEGORIES:
-            if self._is_owned_category(category, owned_categories):
+        for category in template.required_categories:
+            if category in excluded_categories or self._is_owned_category(category, owned_categories):
                 continue
-            category_budget = tier_budget * self.REQUIRED_BUDGET_WEIGHTS.get(category, 0.1)
+            category_budget = tier_budget * template.budget_weights.get(category, 0.1)
             card = self._pick_card(category_cards.get(category, []), category_budget, tier_index)
-            if card is None:
+            if card is not None:
+                items.append(BundlePlanItem(category=category, product=card, role=self._role_for(category, template), required=True))
+        return items
+
+    def _optional_plan_items(
+        self,
+        category_cards: dict[str, list[ProductCard]],
+        remaining_budget: float,
+        tier_budget: float,
+        tier_index: int,
+        template: ScenarioTemplate,
+        excluded_categories: set[str],
+    ) -> list[BundlePlanItem]:
+        items = []
+        for category in template.optional_categories:
+            if category in excluded_categories:
                 continue
-            items.append(BundlePlanItem(category=category, product=card, role=self._role_for(category), required=True))
-        remaining_budget = tier_budget - sum(item.product.price for item in items)
-        for category in self.SUPPORT_DESKTOP_CATEGORIES:
-            category_budget = min(remaining_budget, tier_budget * self.SUPPORT_BUDGET_WEIGHTS.get(category, 0.03))
+            category_budget = min(remaining_budget, tier_budget * template.optional_budget_weights.get(category, 0.03))
             card = self._pick_card(category_cards.get(category, []), max(category_budget, 0), max(tier_index - 1, 1))
             if card is None:
                 continue
             if remaining_budget < card.price:
                 continue
-            items.append(BundlePlanItem(category=category, product=card, role=self._role_for(category), required=False))
+            items.append(BundlePlanItem(category=category, product=card, role=self._role_for(category, template), required=False))
             remaining_budget -= card.price
         return items
 
@@ -190,17 +218,13 @@ class BundleRecommendService:
         index = min(max(tier_index - 1, 0), len(candidates) - 1)
         return candidates[index]
 
-    def _completeness(self, items: list[BundlePlanItem]) -> BundleCompleteness:
+    def _completeness(self, items: list[BundlePlanItem], template: ScenarioTemplate) -> BundleCompleteness:
         included_required = len({item.category for item in items if item.required})
-        missing = [category for category in self.REQUIRED_DESKTOP_CATEGORIES if category not in {item.category for item in items}]
-        needs_confirmation = []
-        if "显示器" in missing:
-            needs_confirmation.append("是否已有显示器")
-        if "电脑" in missing:
-            needs_confirmation.append("是否已有电脑或主机")
+        missing = [category for category in template.required_categories if category not in {item.category for item in items}]
+        needs_confirmation = [template.confirmation_prompts[category] for category in missing if category in template.confirmation_prompts]
         return BundleCompleteness(
             included_required=included_required,
-            expected_required=len(self.REQUIRED_DESKTOP_CATEGORIES),
+            expected_required=len(template.required_categories),
             optional_included=len([item for item in items if not item.required]),
             missing=missing,
             needs_confirmation=needs_confirmation,
@@ -214,11 +238,18 @@ class BundleRecommendService:
             return "slightly_over_budget"
         return "over_budget"
 
-    def _tradeoffs(self, tier: str, total_price: float, target_budget: float, budget_status: str) -> list[str]:
+    def _tradeoffs(
+        self,
+        tier: str,
+        total_price: float,
+        target_budget: float,
+        budget_status: str,
+        template: ScenarioTemplate,
+    ) -> list[str]:
         tradeoffs = {
-            "entry": "优先压低总价，可选配件会更克制。",
-            "balanced": "比入门档更重视显示器、输入设备和长期稳定性。",
-            "premium": "预算更高，优先换取性能余量、显示体验和舒适度。",
+            "entry": f"优先压低总价，先覆盖{template.title_prefix}核心品类。",
+            "balanced": f"比入门档更重视{template.title_prefix}场景的完整度和稳定性。",
+            "premium": f"预算更高，优先换取{template.title_prefix}场景的品质余量。",
         }
         result = [tradeoffs.get(tier, "按当前预算平衡核心品类。")]
         if budget_status == "slightly_over_budget":
@@ -227,21 +258,25 @@ class BundleRecommendService:
             result.append(f"当前超预算 {round(total_price - target_budget, 2)} 元，建议替换高价单品。")
         return result
 
-    def _compare_highlights(self, tier: str) -> list[str]:
+    def _compare_highlights(self, tier: str, template: ScenarioTemplate) -> list[str]:
         highlights = {
-            "entry": ["适合先配齐核心桌面，后续再升级配件。"],
-            "balanced": ["多花的钱主要换来更稳的显示和输入体验。"],
-            "premium": ["适合长期办公、编程和轻度游戏的高舒适度组合。"],
+            "entry": [f"适合先配齐{template.title_prefix}核心清单，后续再升级。"],
+            "balanced": [f"多花的钱主要换来更完整的{template.title_prefix}体验。"],
+            "premium": [f"适合对{template.title_prefix}体验和品质余量要求更高的用户。"],
         }
         return highlights.get(tier, [])
 
-    def _exclusion_notes(self, items: list[BundlePlanItem]) -> list[str]:
+    def _exclusion_notes(self, items: list[BundlePlanItem], template: ScenarioTemplate) -> list[str]:
         categories = {item.category for item in items}
         notes = []
-        if "音箱" not in categories:
+        if template.key == "desktop" and "音箱" not in categories:
             notes.append("音箱未纳入：耳机已覆盖会议、网课和轻度娱乐。")
-        if "摄像头" not in categories:
+        if template.key == "desktop" and "摄像头" not in categories:
             notes.append("摄像头未纳入：仅在频繁视频会议时建议补充。")
+        if template.key == "travel" and "防晒" not in categories:
+            notes.append("防晒未纳入：当前商品池缺少对应商品，需单独补齐。")
+        if template.key == "travel" and "鞋履" not in categories:
+            notes.append("鞋履未纳入：建议按行程步行强度另行确认。")
         return notes[:2]
 
     def _summary_with_preferences(self, summary: str, need: Any) -> str:
@@ -250,13 +285,17 @@ class BundleRecommendService:
             return summary
         return f"{summary} 已按偏好跳过已有品类：{'、'.join(owned_categories[:3])}。"
 
-    def _compatibility_checks(self, items: list[BundlePlanItem]) -> list[BundleCompatibilityCheck]:
+    def _compatibility_checks(self, items: list[BundlePlanItem], template: ScenarioTemplate) -> list[BundleCompatibilityCheck]:
         categories = {item.category for item in items}
         checks = []
-        if {"电脑", "显示器"}.issubset(categories):
+        if template.key == "desktop" and {"电脑", "显示器"}.issubset(categories):
             checks.append(BundleCompatibilityCheck(title="显示连接", status="needs_confirmation", message="购买前确认电脑接口与显示器线材匹配。"))
-        if {"显示器", "支架"}.issubset(categories):
+        if template.key == "desktop" and {"显示器", "支架"}.issubset(categories):
             checks.append(BundleCompatibilityCheck(title="桌面空间", status="needs_confirmation", message="显示器和支架需要确认桌面深度。"))
+        if template.key == "travel" and {"外套", "上衣"}.issubset(categories):
+            checks.append(BundleCompatibilityCheck(title="穿搭层次", status="needs_confirmation", message="确认目的地昼夜温差和外套厚度是否匹配。"))
+        if template.key == "travel" and "防晒" not in categories:
+            checks.append(BundleCompatibilityCheck(title="防晒完整度", status="needs_confirmation", message="商品池缺少防晒品类，需要外部补齐。"))
         if not checks:
             checks.append(BundleCompatibilityCheck(title="搭配风险", status="pass", message="核心品类之间暂无明显搭配冲突。"))
         return checks
@@ -266,41 +305,91 @@ class BundleRecommendService:
             return "partially_available"
         return "available"
 
-    def _role_for(self, category: str) -> str:
-        roles = {
-            "电脑": "性能核心",
-            "显示器": "显示体验",
-            "机械键盘": "输入体验",
-            "鼠标": "指针控制",
-            "蓝牙耳机": "会议与降噪",
-            "台灯": "学习照明",
-            "支架": "桌面人体工学",
-            "拓展坞": "接口扩展",
-            "插排": "供电补齐",
-        }
-        return roles.get(category, "方案补充")
+    def _role_for(self, category: str, template: ScenarioTemplate) -> str:
+        return template.roles.get(category, "方案补充")
 
-    def _scenario_fit(self, need: Any) -> str:
+    def _scenario_fit(self, need: Any, template: ScenarioTemplate) -> str:
         scenario = self._get_value(need, "scenario")
+        location = self._get_value(need, "location")
         if scenario:
-            return f"{scenario}桌面、办公学习和日常电子设备使用"
-        return "学习、办公、编程和日常桌面使用"
+            prefix = f"{location}{scenario}" if location else str(scenario)
+            return f"{prefix}：{template.scenario_fit}"
+        return template.scenario_fit
 
-    def _sum_reasonable_baseline(self, category_cards: dict[str, list[ProductCard]]) -> float:
+    def _sum_reasonable_baseline(self, category_cards: dict[str, list[ProductCard]], template: ScenarioTemplate) -> float:
         total = 0.0
-        for category in self.REQUIRED_DESKTOP_CATEGORIES:
+        for category in template.required_categories:
             cards = category_cards.get(category, [])
             if cards:
                 total += cards[0].price
-        return total or 6000.0
+        return total or template.default_budget
 
     def _category_from_name(self, name: str) -> str | None:
-        for category in self.REQUIRED_DESKTOP_CATEGORIES + self.SUPPORT_DESKTOP_CATEGORIES:
+        for category in self._all_template_categories():
             if category in name:
                 return category
         if "主机" in name or "笔记本" in name:
             return "电脑"
         return None
+
+    def _template_for_need(self, need: Any, category_cards: dict[str, list[ProductCard]]) -> ScenarioTemplate:
+        explicit = self._explicit_template(need, category_cards)
+        if explicit is not None:
+            return explicit
+        scenario_text = " ".join(
+            str(value or "")
+            for value in [
+                self._get_value(need, "scenario"),
+                self._get_value(need, "location"),
+                " ".join(self._string_list(self._get_value(need, "preferences"))),
+            ]
+        )
+        if any(keyword in scenario_text for keyword in ["桌面", "办公", "编程", "宿舍"]):
+            return self.DESKTOP_TEMPLATE
+        if any(keyword in scenario_text for keyword in ["旅行", "出行", "度假", "三亚", "海边", "穿搭"]):
+            return self.TRAVEL_TEMPLATE
+        return self._generic_template(category_cards)
+
+    def _explicit_template(self, need: Any, category_cards: dict[str, list[ProductCard]]) -> ScenarioTemplate | None:
+        required = self._string_list(self._get_value(need, "must_have_categories"))
+        if not required:
+            return None
+        optional = [category for category in category_cards if category not in required]
+        weight = round(1 / max(len(required), 1), 3)
+        return ScenarioTemplate(
+            key="custom",
+            title_prefix="定制",
+            required_categories=required,
+            optional_categories=optional[:5],
+            budget_weights={category: weight for category in required},
+            roles={category: "核心品类" for category in required},
+            scenario_fit="按用户明确点名的品类组合",
+            default_budget=self.GENERAL_TEMPLATE.default_budget,
+        )
+
+    def _generic_template(self, category_cards: dict[str, list[ProductCard]]) -> ScenarioTemplate:
+        categories = list(category_cards.keys())
+        required = categories[: min(5, len(categories))]
+        optional = categories[len(required) : len(required) + 5]
+        weight = round(1 / max(len(required), 1), 3)
+        return ScenarioTemplate(
+            key="general",
+            title_prefix="场景",
+            required_categories=required,
+            optional_categories=optional,
+            budget_weights={category: weight for category in required},
+            roles={category: "核心品类" for category in required},
+            scenario_fit=self.GENERAL_TEMPLATE.scenario_fit,
+            default_budget=self.GENERAL_TEMPLATE.default_budget,
+        )
+
+    def _all_template_categories(self) -> list[str]:
+        templates = [self.DESKTOP_TEMPLATE, self.TRAVEL_TEMPLATE]
+        categories: list[str] = []
+        for template in templates:
+            categories.extend(template.required_categories)
+            categories.extend(template.optional_categories)
+        return categories
 
     def _select_bundle_cards(
         self,
@@ -346,6 +435,12 @@ class BundleRecommendService:
             "机械键盘": {"机械键盘", "键盘"},
             "鼠标": {"鼠标"},
             "蓝牙耳机": {"蓝牙耳机", "耳机"},
+            "双肩包": {"双肩包", "背包", "包"},
+            "防晒": {"防晒", "防晒霜", "遮阳"},
+            "外套": {"外套", "夹克"},
+            "上衣": {"上衣", "T恤", "衬衫"},
+            "裤装": {"裤装", "裤子", "短裤"},
+            "鞋履": {"鞋履", "鞋", "凉鞋", "拖鞋"},
         }.get(category, {category})
         return bool(aliases & owned_categories)
 

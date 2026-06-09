@@ -1,11 +1,15 @@
 from decimal import Decimal
 
-from sqlalchemy import BigInteger, Date, DateTime, Integer, JSON, Numeric, String, Text
+from sqlalchemy import BigInteger, Boolean, Date, DateTime, Integer, JSON, Numeric, String, Text
 
 from app.core.database import Base
 from app.models import (
+    Address,
+    Cart,
+    CartItem,
     ChatMessage,
     ChatSession,
+    CheckoutSession,
     Order,
     OrderItem,
     OtpChallenge,
@@ -90,6 +94,11 @@ def test_order_table_schema() -> None:
     assert isinstance(column(Order, "fulfillment_status").type, String)
     assert isinstance(column(Order, "external_platform").type, String)
     assert isinstance(column(Order, "external_order_ref").type, String)
+    assert isinstance(column(Order, "checkout_session_id").type, BigInteger)
+    assert isinstance(column(Order, "payment_mode").type, String)
+    assert isinstance(column(Order, "address_snapshot").type, JSON)
+    assert isinstance(column(Order, "cart_snapshot").type, JSON)
+    assert isinstance(column(Order, "total_price_snapshot").type, Numeric)
     assert isinstance(column(Order, "paid_at").type, DateTime)
     assert isinstance(column(Order, "shipped_at").type, DateTime)
     assert isinstance(column(Order, "delivered_at").type, DateTime)
@@ -112,6 +121,36 @@ def test_order_item_table_schema() -> None:
     assert ("order_id",) in index_columns(OrderItem)
     assert ("product_id",) in index_columns(OrderItem)
     assert ("feedback_due_at",) in index_columns(OrderItem)
+
+
+def test_cart_checkout_table_schemas() -> None:
+    assert Cart.__tablename__ == "carts"
+    assert isinstance(column(Cart, "id").type, BigInteger)
+    assert isinstance(column(Cart, "user_ref").type, String)
+    assert isinstance(column(Cart, "status").type, String)
+    assert ("user_ref",) in index_columns(Cart)
+
+    assert CartItem.__tablename__ == "cart_items"
+    assert isinstance(column(CartItem, "cart_id").type, BigInteger)
+    assert isinstance(column(CartItem, "product_id").type, BigInteger)
+    assert isinstance(column(CartItem, "quantity").type, Integer)
+    assert isinstance(column(CartItem, "unit_price_snapshot").type, Numeric)
+    assert isinstance(column(CartItem, "name_snapshot").type, String)
+    assert ("cart_id",) in index_columns(CartItem)
+    assert ("product_id",) in index_columns(CartItem)
+
+    assert Address.__tablename__ == "addresses"
+    assert isinstance(column(Address, "receiver_name").type, String)
+    assert isinstance(column(Address, "phone").type, String)
+    assert isinstance(column(Address, "is_default").type, Boolean)
+    assert ("user_ref",) in index_columns(Address)
+
+    assert CheckoutSession.__tablename__ == "checkout_sessions"
+    assert isinstance(column(CheckoutSession, "address_snapshot").type, JSON)
+    assert isinstance(column(CheckoutSession, "cart_snapshot").type, JSON)
+    assert isinstance(column(CheckoutSession, "total_price_snapshot").type, Numeric)
+    assert ("user_ref",) in index_columns(CheckoutSession)
+    assert ("order_id",) in index_columns(CheckoutSession)
 
 
 def test_price_history_table_schema() -> None:

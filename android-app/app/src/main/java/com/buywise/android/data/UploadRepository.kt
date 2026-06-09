@@ -21,14 +21,29 @@ class UploadRepository internal constructor(
             contentType = contentType,
             bytes = bytes,
         )
-        val response: VisionResponseDto = apiClient.post("/api/v1/vision/recognize", VisionRequestDto(upload.url))
-        val category = response.category ?: "识别结果"
-        val query = response.query ?: listOf(response.features.joinToString(" "), category).joinToString(" ").trim()
+        val response: VisualSearchResponseDto = apiClient.post(
+            "/api/v1/visual-search",
+            VisualSearchRequestDto(
+                imageUrl = upload.url,
+                message = "我想要同款或相似商品",
+            ),
+        )
+        val recognized = response.recognized
+        val category = recognized.category ?: recognized.detectedObjects.firstOrNull() ?: "识别结果"
+        val labelQuery = recognizedLabels(recognized).joinToString(" ").trim()
+        val query = recognized.query
+            ?.takeIf { it.isNotBlank() }
+            ?: labelQuery.takeIf { it.isNotBlank() }
+            ?: category
+        val products = response.products.map {
+            it.toProduct(category = category, fallbackReason = "与图片特征相似")
+        }
         return VisionResult(
             title = query.ifBlank { category },
-            confidence = 100,
-            labels = listOfNotBlank(category) + response.features,
-            similarProducts = emptyList(),
+            confidence = recognized.confidence.toPercent(),
+            labels = recognizedLabels(recognized),
+            similarProducts = products,
+            fallbackUsed = response.fallbackUsed,
         )
     }
 
@@ -53,6 +68,27 @@ class UploadRepository internal constructor(
             ?: throw IOException("没有识别到文本，请换个更清晰的录音再试")
     }
 
-    private fun listOfNotBlank(value: String?): List<String> =
-        if (value.isNullOrBlank()) emptyList() else listOf(value)
+    private fun recognizedLabels(response: VisionResponseDto): List<String> =
+        (
+            listOfNotBlank(response.category, response.style, response.shape) +
+                response.features +
+                response.detectedObjects +
+                response.colors +
+                response.materials +
+                response.brandCues
+        ).distinct()
+
+    private fun listOfNotBlank(vararg values: String?): List<String> =
+        values.mapNotNull { it?.takeIf(String::isNotBlank) }
+
+    private fun Double?.toPercent(): Int {
+        if (this == null) {
+            return 100
+        }
+        return if (this <= 1.0) {
+            (this * 100).toInt()
+        } else {
+            toInt()
+        }.coerceIn(0, 100)
+    }
 }

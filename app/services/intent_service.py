@@ -64,6 +64,13 @@ class IntentService:
             "\u6392\u63d2",
             "\u63d2\u7ebf\u677f",
         ],
+        "\u9632\u6652": ["\u9632\u6652", "\u9632\u6652\u971c", "\u9632\u6652\u55b7\u96fe"],
+        "\u5916\u5957": ["\u5916\u5957", "\u5939\u514b", "\u51b2\u950b\u8863"],
+        "\u4e0a\u8863": ["\u4e0a\u8863", "T\u6064", "\u886c\u886b", "\u77ed\u8896"],
+        "\u88e4\u88c5": ["\u88e4\u88c5", "\u88e4\u5b50", "\u77ed\u88e4", "\u957f\u88e4"],
+        "\u978b\u5c65": ["\u978b", "\u978b\u5c65", "\u51c9\u978b", "\u62d6\u978b", "\u8fd0\u52a8\u978b"],
+        "\u58a8\u955c": ["\u58a8\u955c", "\u592a\u9633\u955c"],
+        "\u5e3d\u5b50": ["\u5e3d\u5b50", "\u906e\u9633\u5e3d"],
     }
     SCENARIO_KEYWORDS = [
         "\u5bbf\u820d",
@@ -78,6 +85,9 @@ class IntentService:
         "\u5e94\u6025",
         "\u684c\u9762",
         "\u7535\u8111\u5916\u8bbe",
+        "\u6d77\u8fb9",
+        "\u6237\u5916",
+        "\u7a7f\u642d",
     ]
     PREFERENCE_KEYWORDS = [
         "\u4f4e\u566a\u97f3",
@@ -90,6 +100,11 @@ class IntentService:
         "\u5feb\u5145",
         "\u9632\u6cfc\u6c34",
         "\u5c0f\u5de7",
+        "\u900f\u6c14",
+        "\u901f\u5e72",
+        "\u9632\u6652",
+        "\u9ad8\u989c\u503c",
+        "\u4f11\u95f2",
     ]
     BUDGET_PATTERNS = [
         re.compile(
@@ -172,8 +187,15 @@ class IntentService:
             "category": category,
             "budget_max": budget_max,
             "scenario": scenario,
+            "target_date": self._extract_target_date(normalized_text),
+            "location": self._extract_location(normalized_text),
+            "duration_days": self._extract_duration_days(normalized_text),
+            "occasion": self._extract_occasion(normalized_text),
             "preferences": preferences,
             "avoid": self._extract_avoid(normalized_text),
+            "style_preferences": self._extract_style_preferences(normalized_text),
+            "must_have_categories": self._extract_must_have_categories(normalized_text) if intent == "bundle_recommend" else [],
+            "excluded_categories": self._extract_excluded_categories(normalized_text),
             "purchase_stage": purchase_stage,
             "retrieval_strategy": retrieval_strategy_for(intent, purchase_stage),
         }
@@ -237,6 +259,7 @@ class IntentService:
                 "\u684c\u9762\u88c5\u5907",
                 "\u7535\u8111\u5916\u8bbe",
                 "\u4ece",
+                "\u7a7f\u642d",
             ],
         )
 
@@ -273,6 +296,24 @@ class IntentService:
                 return category
         return None
 
+    def _extract_must_have_categories(self, text: str) -> list[str]:
+        categories = []
+        for category, keywords in self.CATEGORY_KEYWORDS.items():
+            if any(keyword in text for keyword in keywords):
+                categories.append(category)
+        if "\u7a7f\u642d" in text and not any(category in categories for category in ["\u4e0a\u8863", "\u88e4\u88c5", "\u978b\u5c65"]):
+            categories.extend(["\u4e0a\u8863", "\u88e4\u88c5", "\u978b\u5c65"])
+        return dedupe_strings(categories)
+
+    def _extract_excluded_categories(self, text: str) -> list[str]:
+        if not self._contains_keyword(text, ["\u4e0d\u8981", "\u4e0d\u9700\u8981", "\u6392\u9664", "\u53bb\u6389"]):
+            return []
+        return [
+            category
+            for category, keywords in self.CATEGORY_KEYWORDS.items()
+            if any(self._contains_any_negative_context(text, keyword) for keyword in keywords)
+        ]
+
     def _extract_budget(self, text: str) -> float | None:
         for pattern in self.BUDGET_PATTERNS:
             match = pattern.search(text)
@@ -285,6 +326,33 @@ class IntentService:
         for scenario in self.SCENARIO_KEYWORDS:
             if scenario in text:
                 return scenario
+        return None
+
+    def _extract_location(self, text: str) -> str | None:
+        match = re.search(r"(?:\u53bb|\u5230|\u5728)([\u4e00-\u9fa5A-Za-z]{2,16})(?:\u65c5\u884c|\u5ea6\u5047|\u51fa\u5dee|\u65c5\u6e38|\u73a9|\u7a7f\u642d|\u4e0b\u5468|\uff0c|,|\u3002|$)", text)
+        if match:
+            return match.group(1)
+        return None
+
+    def _extract_target_date(self, text: str) -> str | None:
+        for marker in ["\u4eca\u5929", "\u660e\u5929", "\u5468\u672b", "\u4e0b\u5468", "\u8fd9\u4e2a\u6708", "\u56fd\u5e86", "\u6625\u8282"]:
+            if marker in text:
+                return marker
+        match = re.search(r"(\d{1,2})\u6708(\d{1,2})\u65e5", text)
+        if match:
+            return f"{match.group(1)}\u6708{match.group(2)}\u65e5"
+        return None
+
+    def _extract_duration_days(self, text: str) -> int | None:
+        match = re.search(r"(\d{1,2})\s*(?:\u5929|\u65e5)", text)
+        if match:
+            return int(match.group(1))
+        return None
+
+    def _extract_occasion(self, text: str) -> str | None:
+        for occasion in ["\u5a5a\u793c", "\u9762\u8bd5", "\u901a\u52e4", "\u5ea6\u5047", "\u6d77\u8fb9", "\u9732\u8425", "\u5f92\u6b65", "\u4e0a\u8bfe", "\u7ea6\u4f1a"]:
+            if occasion in text:
+                return occasion
         return None
 
     def _extract_preferences(self, text: str) -> list[str]:
@@ -303,6 +371,10 @@ class IntentService:
             if quiet_preference not in preferences:
                 preferences.append(quiet_preference)
         return preferences
+
+    def _extract_style_preferences(self, text: str) -> list[str]:
+        styles = ["\u4f11\u95f2", "\u901a\u52e4", "\u8fd0\u52a8", "\u6781\u7b80", "\u65e5\u7cfb", "\u6237\u5916", "\u751c\u9177", "\u5546\u52a1", "\u9ad8\u989c\u503c", "\u8f7b\u719f"]
+        return [style for style in styles if style in text]
 
     def _extract_avoid(self, text: str) -> list[str]:
         if not self._contains_keyword(text, ["\u4e0d\u8981", "\u4e0d\u60f3\u8981", "\u907f\u514d", "\u6392\u9664"]):

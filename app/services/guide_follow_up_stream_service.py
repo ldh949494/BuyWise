@@ -28,7 +28,7 @@ class GuideFollowUpStreamService:
     ) -> AsyncIterator[dict[str, Any]]:
         yield self._event("status", ChatStreamStatusEventData(stage="context", message="follow_up_context"))
         text = (request.message or "").strip()
-        if not request.session_id or not text:
+        if refresh_reason := self._missing_context_reason(request, text):
             async for event in self._stream_refresh_signal(context, "missing_context"):
                 yield event
             return
@@ -38,12 +38,26 @@ class GuideFollowUpStreamService:
                 yield event
             return
         self.chat_service._save_user_message(context["chat_repo"], context["session_id"], request, text, None)
+        if action_result := self._execute_action_if_present(context, text):
+            async for event in self._stream_action_result(context, action_result):
+                yield event
+            return
         if self._should_refresh_follow_up(text, snapshot):
             async for event in self._stream_refresh_signal(context, "needs_new_recommendation"):
                 yield event
             return
         async for event in self._stream_follow_up_answer(context, text, snapshot):
             yield event
+
+    def _missing_context_reason(self, request: ChatRequest, text: str) -> str | None:
+        if not request.session_id or not text:
+            return "missing_context"
+        return None
+
+    def _execute_action_if_present(self, context: dict[str, Any], text: str) -> Any:
+        chat_repo = context["chat_repo"]
+        db = chat_repo.db if hasattr(chat_repo, "db") else object()
+        return self.chat_service._execute_chat_action(text, chat_repo, context["session_id"], db, context.get("user_id"))
 
     async def _stream_follow_up_answer(
         self,
@@ -71,6 +85,19 @@ class GuideFollowUpStreamService:
         reply = "".join(chunks)
         self._save_follow_up_assistant(context, reply, snapshot)
         yield self._event("done", ChatStreamDoneEventData(reply=reply))
+
+    async def _stream_action_result(self, context: dict[str, Any], action_result: Any) -> AsyncIterator[dict[str, Any]]:
+        context["stream_path"] = "follow_up_action"
+        context["chat_repo"].create_message(
+            context["session_id"],
+            "assistant",
+            action_result.reply,
+            structured_data={"action": action_result.action, **action_result.data},
+        )
+        self.chat_service._commit(context["chat_repo"])
+        yield self._event("status", ChatStreamStatusEventData(stage="action", message=action_result.action))
+        yield self._event("token", ChatStreamTokenEventData(text=action_result.reply))
+        yield self._event("done", ChatStreamDoneEventData(reply=action_result.reply))
 
     async def _stream_refresh_signal(
         self,

@@ -15,8 +15,9 @@ from app.models.order import Order, OrderItem
 from app.models.product import Product
 from app.repositories.order_repo import OrderRepository
 from app.repositories.product_repo import ProductRepository
-from app.schemas.order import FeedbackPromptRead, OrderCreate, OrderItemRead, OrderRead
+from app.schemas.order import FeedbackPromptRead, OrderCreate, OrderRead
 from app.services.policies.order_state_machine import FulfillmentStatus, OrderStateMachine, PaymentStatus
+from app.services.order_read_service import build_order_read, validate_purchasable_product
 
 
 def get_current_user_ref(subject: str | None) -> str:
@@ -71,6 +72,12 @@ class OrderService:
             fulfillment_status=fulfillment_status,
             external_platform=payload.external_platform or product.platform,
             external_order_ref=payload.external_order_ref,
+            checkout_session_id=None,
+            source_session_id=None,
+            payment_mode="direct_record",
+            address_snapshot=None,
+            cart_snapshot=None,
+            total_price_snapshot=Decimal(product.price) * payload.quantity,
             paid_at=now,
             delivered_at=delivered_at,
             created_at=now,
@@ -157,14 +164,7 @@ class OrderService:
         return prompts
 
     def _purchasable_product(self, product_id: int) -> Product:
-        product = self.products.get_by_id(product_id)
-        if product is None:
-            raise AppError("Product not found", status_code=404, code="not_found")
-        if product.stock_status == "out_of_stock":
-            raise AppError("Product is out of stock", status_code=409, code="out_of_stock")
-        if product.price is None:
-            raise AppError("Product price is required", status_code=409, code="missing_price")
-        return product
+        return validate_purchasable_product(self.products.get_by_id(product_id))
 
     def _get_order(self, order_id: int, user_ref: str) -> Order:
         order = self.orders.get_for_user(order_id, user_ref)
@@ -173,18 +173,4 @@ class OrderService:
         return order
 
     def _read_order(self, order: Order) -> OrderRead:
-        items = [OrderItemRead.model_validate(item) for item in self.orders.list_items(order.id)]
-        return OrderRead(
-            id=order.id,
-            user_ref=order.user_ref,
-            payment_status=order.payment_status,
-            fulfillment_status=order.fulfillment_status,
-            external_platform=order.external_platform,
-            external_order_ref=order.external_order_ref,
-            paid_at=order.paid_at,
-            shipped_at=order.shipped_at,
-            delivered_at=order.delivered_at,
-            created_at=order.created_at,
-            updated_at=order.updated_at,
-            items=items,
-        )
+        return build_order_read(order, self.orders.list_items(order.id))
