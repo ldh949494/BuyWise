@@ -175,10 +175,10 @@ Closed beta 生产模式使用单独的 `docker-compose.prod.yml`、COS、HTTPS 
 
 ## 验证
 
-常用验证命令：
+后端和文档的快速验证命令：
 
 ```powershell
-powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1 -SkipDependencyInstall -SkipAndroidBuild
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1 -SkipDependencyInstall -SkipAndroidBuild -SkipAdminWebBuild
 ```
 
 本机临时目录权限异常时，可以将 pytest 临时目录切到仓库内：
@@ -187,6 +187,12 @@ powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1 -SkipDe
 .\.venv\Scripts\python.exe -m pytest -q --basetemp .pytest_tmp\manual
 ```
 
+
+包含后台前端构建的验证：
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1 -SkipDependencyInstall -SkipAndroidBuild
+```
 
 包含 Android 构建的一键验证：
 

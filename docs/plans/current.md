@@ -33,5 +33,6 @@
 - `python scripts/validate_repo_lint.py`
 - `python scripts/validate_entropy.py`
 - `.\\.venv\\Scripts\\python.exe -m pytest`
-- `flutter analyze`
-- `powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1 -SkipDependencyInstall -SkipAndroidBuild`
+- `cd android-app; .\gradlew.bat :app:assembleDebug`
+- `cd admin-web; npm run build`
+- `powershell.exe -ExecutionPolicy Bypass -File .\scripts\auto_validate.ps1 -SkipDependencyInstall -SkipAndroidBuild -SkipAdminWebBuild`
