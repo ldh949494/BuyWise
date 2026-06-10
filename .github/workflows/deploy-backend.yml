@@ -29,18 +29,24 @@ jobs:
           DEPLOY_PATH_SECRET: ${{ secrets.DEPLOY_PATH }}
         run: |
           set -euo pipefail
+          trim_secret() {
+            printf '%s' "$1" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+          }
+          DEPLOY_HOST="$(trim_secret "$DEPLOY_HOST_SECRET")"
+          DEPLOY_USER="$(trim_secret "$DEPLOY_USER_SECRET")"
+          DEPLOY_PATH="$(trim_secret "${DEPLOY_PATH_SECRET:-/home/ubuntu/BuyWise}")"
           missing=()
-          [ -n "$DEPLOY_HOST_SECRET" ] || missing+=("DEPLOY_HOST")
-          [ -n "$DEPLOY_USER_SECRET" ] || missing+=("DEPLOY_USER")
+          [ -n "$DEPLOY_HOST" ] || missing+=("DEPLOY_HOST")
+          [ -n "$DEPLOY_USER" ] || missing+=("DEPLOY_USER")
           [ -n "$DEPLOY_SSH_KEY_SECRET" ] || missing+=("DEPLOY_SSH_KEY")
           if [ "${#missing[@]}" -gt 0 ]; then
             printf 'Missing required secrets: %s\n' "${missing[*]}"
             exit 1
           fi
           {
-            echo "DEPLOY_HOST=$DEPLOY_HOST_SECRET"
-            echo "DEPLOY_USER=$DEPLOY_USER_SECRET"
-            echo "DEPLOY_PATH=${DEPLOY_PATH_SECRET:-/home/ubuntu/BuyWise}"
+            echo "DEPLOY_HOST=$DEPLOY_HOST"
+            echo "DEPLOY_USER=$DEPLOY_USER"
+            echo "DEPLOY_PATH=$DEPLOY_PATH"
           } >> "$GITHUB_ENV"
 
       - name: Configure SSH
