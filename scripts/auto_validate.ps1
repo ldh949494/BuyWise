@@ -52,6 +52,10 @@ Write-Host "========== Custom Repository Lint =========="
 & $python scripts/validate_repo_lint.py
 Assert-LastExitCode "custom repository lint"
 
+Write-Host "========== Secret Validation =========="
+& $python scripts/validate_secrets.py
+Assert-LastExitCode "secret validation"
+
 Write-Host "========== Entropy Validation =========="
 & $python scripts/validate_entropy.py
 Assert-LastExitCode "entropy validation"

@@ -62,9 +62,9 @@ def _load_product_docs(
     with session_factory() as db:
         repo = ProductRepository(db)
         products = (
-            repo.get_by_ids(product_ids, include_inactive=True)
+            repo.get_by_ids(product_ids)
             if product_ids
-            else repo.get_all(include_inactive=True)
+            else repo.get_all()
         )
         return [doc for product in products for doc in _build_product_docs(product)]
 
@@ -99,7 +99,7 @@ def validate_vector_index_health(
     indexed_ids = set(product_store.indexed_product_ids())
     indexed_hashes = _indexed_content_hashes(product_store.indexed_product_metadata())
     with session_factory() as db:
-        products = ProductRepository(db).get_all(include_inactive=True)
+        products = ProductRepository(db).get_all()
         db_ids = {product.id for product in products}
         db_hashes = {product.id: _product_content_hash(product) for product in products}
 

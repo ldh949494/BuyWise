@@ -30,9 +30,7 @@ on:
       - "README.md"
 
 permissions:
-  contents: write
-  pull-requests: write
-  models: read
+  contents: read
 
 concurrency:
   group: ai-auto-${{ github.ref }}
@@ -88,6 +86,9 @@ jobs:
   doc-gardening:
     if: github.event_name == 'workflow_dispatch' && inputs.run_doc_gardening == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      models: read
     defaults:
       run:
         shell: pwsh
@@ -133,6 +134,10 @@ jobs:
   ai-automation:
     if: github.event_name != 'pull_request' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      models: read
     defaults:
       run:
         shell: pwsh

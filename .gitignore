@@ -2,6 +2,8 @@
 .env.dev
 .env.test
 .env.prod
+*.jks
+*.keystore
 .venv/
 __pycache__/
 *.py[cod]
@@ -15,6 +17,9 @@ vector_store/chroma/*
 !vector_store/chroma/.gitkeep
 .chrome-agent/
 .idea/
+.vscode/
+.playwright-mcp/
+.impeccable/live/
 android-app/.idea/
 android-app/.gradle/
 android-app/.kotlin/
