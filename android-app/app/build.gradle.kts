@@ -1,10 +1,52 @@
+import org.gradle.api.GradleException
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
+}
+
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.isFile) {
+        localPropertiesFile.inputStream().use(::load)
+    }
+}
+
+fun localProperty(name: String): String? =
+    localProperties.getProperty(name)?.takeIf { it.isNotBlank() }
+
+fun configValue(name: String, defaultValue: String) =
+    providers.gradleProperty(name)
+        .orElse(providers.environmentVariable(name))
+        .orElse(providers.provider { localProperty(name) })
+        .orElse(defaultValue)
+
+fun envValue(name: String): String? =
+    providers.environmentVariable(name).orNull?.takeIf { it.isNotBlank() }
+
+val releaseSigningEnvNames = listOf(
+    "ANDROID_RELEASE_KEYSTORE_FILE",
+    "ANDROID_RELEASE_KEYSTORE_PASSWORD",
+    "ANDROID_RELEASE_KEY_ALIAS",
+    "ANDROID_RELEASE_KEY_PASSWORD",
+)
+val releaseSigningValues = releaseSigningEnvNames.associateWith(::envValue)
+val hasReleaseSigning = releaseSigningEnvNames.all { releaseSigningValues[it] != null }
+val isReleaseBuildRequested = gradle.startParameter.taskNames.any { taskName ->
+    taskName.contains("Release", ignoreCase = true)
+}
+
+fun releaseSigningValue(name: String): String =
+    releaseSigningValues[name] ?: throw GradleException("Missing release signing value: $name")
+
+if (isReleaseBuildRequested && !hasReleaseSigning) {
+    throw GradleException(
+        "Release signing requires ${releaseSigningEnvNames.joinToString(", ")} environment variables."
+    )
 }
 
 android {
@@ -17,26 +59,37 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
-        val apiBaseUrl = providers.gradleProperty("ANDROID_API_BASE_URL")
-            .orElse(providers.environmentVariable("ANDROID_API_BASE_URL"))
-            .orElse("http://10.0.2.2:8000")
+        val apiBaseUrl = configValue("ANDROID_API_BASE_URL", "http://10.0.2.2:8000")
         buildConfigField("String", "BUYWISE_API_BASE_URL", "\"${apiBaseUrl.get()}\"")
-        val uploadToken = providers.gradleProperty("BUYWISE_UPLOAD_TOKEN")
-            .orElse(providers.environmentVariable("BUYWISE_UPLOAD_TOKEN"))
-            .orElse("upload-token")
+        val uploadToken = configValue("BUYWISE_UPLOAD_TOKEN", "upload-token")
         buildConfigField("String", "BUYWISE_UPLOAD_TOKEN", "\"${uploadToken.get()}\"")
-        val betaToken = providers.gradleProperty("BUYWISE_BETA_TOKEN")
-            .orElse(providers.environmentVariable("BUYWISE_BETA_TOKEN"))
-            .orElse("")
+        val betaToken = configValue("BUYWISE_BETA_TOKEN", "")
         buildConfigField("String", "BUYWISE_BETA_TOKEN", "\"${betaToken.get()}\"")
-        val showDebugInfo = providers.gradleProperty("BUYWISE_SHOW_DEBUG_INFO")
-            .orElse(providers.environmentVariable("BUYWISE_SHOW_DEBUG_INFO"))
-            .orElse("false")
+        val showDebugInfo = configValue("BUYWISE_SHOW_DEBUG_INFO", "false")
         buildConfigField("Boolean", "BUYWISE_SHOW_DEBUG_INFO", showDebugInfo.get())
     }
 
     buildFeatures {
         buildConfig = true
+    }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(releaseSigningValue("ANDROID_RELEASE_KEYSTORE_FILE"))
+                storePassword = releaseSigningValue("ANDROID_RELEASE_KEYSTORE_PASSWORD")
+                keyAlias = releaseSigningValue("ANDROID_RELEASE_KEY_ALIAS")
+                keyPassword = releaseSigningValue("ANDROID_RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
     }
 
     compileOptions {
