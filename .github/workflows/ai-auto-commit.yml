@@ -78,7 +78,7 @@ jobs:
         run: python scripts/entropy_gc.py
 
       - name: Upload entropy GC report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: entropy-gc-report
           path: artifacts/entropy-gc/report.md
@@ -126,7 +126,7 @@ jobs:
         run: python scripts/doc_gardening.py
 
       - name: Upload doc-gardening report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: doc-gardening-report
           path: artifacts/doc-gardening/report.md
