@@ -215,7 +215,7 @@ jobs:
 
       - name: Setup Node
         if: ${{ steps.changes.outputs.admin_web_changed == 'true' && !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: npm
