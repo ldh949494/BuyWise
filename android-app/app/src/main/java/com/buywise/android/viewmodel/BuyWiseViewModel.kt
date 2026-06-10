@@ -145,7 +145,7 @@ class BuyWiseViewModel(
     fun startGuideFromHome(query: String): Boolean {
         val normalized = query.trim()
         if (normalized.isBlank()) {
-            homeViewModel.setError("先描述预算、用途和偏好，再开始导购。")
+            homeViewModel.setError("先输入品类、商品名或需求，再开始导购。")
             return false
         }
         guideViewModel.useQuery(normalized)

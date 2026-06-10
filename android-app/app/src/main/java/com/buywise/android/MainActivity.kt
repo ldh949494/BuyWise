@@ -11,6 +11,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,6 +43,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.buywise.android.ui.BuyWiseTheme
+import com.buywise.android.ui.components.CompareBasketDockMode
 import com.buywise.android.ui.components.FloatingCompareBasket
 import com.buywise.android.ui.screens.CartScreen
 import com.buywise.android.ui.screens.CompareScreen
@@ -91,6 +93,11 @@ private fun BuyWiseRoot(
         currentRoute != "search" &&
         currentRoute != "cart" &&
         currentRoute != "compare"
+    val compareBasketDockMode = if (currentRoute == "guide/chat") {
+        CompareBasketDockMode.SideDocked
+    } else {
+        CompareBasketDockMode.BottomFloating
+    }
     val snackbarHostState = remember { SnackbarHostState() }
     val basketMessage = viewModel.compareBasketState.message
     val scope = rememberCoroutineScope()
@@ -132,12 +139,13 @@ private fun BuyWiseRoot(
         if (bitmap == null) {
             return@rememberLauncherForActivityResult
         }
+        val filename = "camera-photo-${System.currentTimeMillis()}.png"
         if (multimodalTarget == MultimodalTarget.GuideChat) {
             viewModel.recognizeImageForGuideChat(
-                filename = "camera-photo.png", contentType = "image/png", bytes = bitmap.toPngBytes())
+                filename = filename, contentType = "image/png", bytes = bitmap.toPngBytes())
         } else {
             viewModel.recognizeImage(
-                filename = "camera-photo.png", contentType = "image/png", bytes = bitmap.toPngBytes())
+                filename = filename, contentType = "image/png", bytes = bitmap.toPngBytes())
         }
     }
 
@@ -410,14 +418,23 @@ private fun BuyWiseRoot(
                     onContinueShopping = {
                         viewModel.setCompareBasketExpanded(false)
                     },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 18.dp, bottom = 88.dp),
+                    mode = compareBasketDockMode,
+                    modifier = compareBasketDockModifier(compareBasketDockMode),
                 )
             }
         }
     }
 }
+
+private fun BoxScope.compareBasketDockModifier(mode: CompareBasketDockMode): Modifier =
+    when (mode) {
+        CompareBasketDockMode.SideDocked -> Modifier
+            .align(Alignment.CenterEnd)
+            .padding(bottom = 48.dp)
+        CompareBasketDockMode.BottomFloating -> Modifier
+            .align(Alignment.BottomEnd)
+            .padding(end = 18.dp, bottom = 88.dp)
+    }
 
 private fun NavHostController.navigateHomeFromLanding() {
     navigate("home") {

@@ -421,16 +421,10 @@ class IntentService:
         scenario: str | None,
         preferences: list[str],
     ) -> list[str]:
-        missing_fields = []
+        _ = budget_max, scenario, preferences
         if category is None:
-            missing_fields.append("category")
-        if budget_max is None:
-            missing_fields.append("budget_max")
-        if scenario is None:
-            missing_fields.append("scenario")
-        if not preferences:
-            missing_fields.append("preferences")
-        return missing_fields
+            return ["category"]
+        return []
 
     def _coerce_list(self, value: Any) -> list[str]:
         if value is None:
@@ -440,5 +434,4 @@ class IntentService:
         if isinstance(value, list):
             return [str(item).strip() for item in value if str(item).strip()]
         return [str(value).strip()] if str(value).strip() else []
-
 

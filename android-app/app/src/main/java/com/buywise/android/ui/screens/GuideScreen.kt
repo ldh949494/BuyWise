@@ -254,7 +254,7 @@ private fun GuideInputPanel(
                         tone = TactileIconTone.Primary,
                     )
                     Text(
-                        "描述预算、用途和偏好，BuyWise 会给出候选商品和理由。",
+                        "说出品类或商品名即可开始，预算、用途和偏好可以继续补充。",
                         modifier = Modifier.weight(1f),
                         color = BuyWiseTheme.colors.primary,
                         fontWeight = FontWeight.Bold,
@@ -419,7 +419,7 @@ private fun RecommendationEmptyState() {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("还没有推荐结果", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
                 Text(
-                    "输入预算、用途和偏好后，这里会先展示候选商品，再补齐推荐理由、风险和证据。",
+                    "输入品类、商品名或需求后，这里会先展示候选商品，再补齐推荐理由、风险和证据。",
                     color = BuyWiseTheme.colors.muted,
                     style = MaterialTheme.typography.bodyMedium,
                 )

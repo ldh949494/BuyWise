@@ -13,7 +13,7 @@ from app.utils.list_values import dedupe_strings
 
 MissingFieldsFn = Callable[[str, str | None, float | None, str | None, list[str], str], list[str]]
 
-CORE_MISSING_FIELDS = {"category", "budget_max", "scenario", "preferences"}
+CORE_MISSING_FIELDS = {"category"}
 INTENT_ALIASES = {
     "推荐": "商品推荐",
     "商品推荐": "商品推荐",

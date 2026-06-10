@@ -113,15 +113,29 @@ async def test_extract_casual_browse_still_asks_for_missing_category() -> None:
 
 
 @pytest.mark.anyio
-async def test_extract_marks_underspecified_request_for_clarification() -> None:
+async def test_extract_allows_category_only_recommendation() -> None:
     service = IntentService()
 
     need = await service.extract("推荐一个耳机")
 
     assert need.intent == "商品推荐"
     assert need.category == "蓝牙耳机"
+    assert need.purchase_stage == "consider"
+    assert need.retrieval_strategy == "balanced"
+    assert need.need_clarify is False
+    assert need.missing_fields == []
+
+
+@pytest.mark.anyio
+async def test_extract_still_asks_when_recommendation_category_is_missing() -> None:
+    service = IntentService()
+
+    need = await service.extract("推荐一下")
+
+    assert need.intent == "商品推荐"
+    assert need.category is None
     assert need.need_clarify is True
-    assert need.missing_fields == ["budget_max", "scenario", "preferences"]
+    assert need.missing_fields == ["category"]
 
 
 @pytest.mark.anyio

@@ -1,12 +1,20 @@
 package com.buywise.android.data
 
 import java.io.IOException
+import okhttp3.MediaType
+
+interface UploadRecognitionRepository {
+    fun runVisionDemo(): VisionResult
+    fun recognizeImage(filename: String, contentType: MediaType, bytes: ByteArray): VisionResult
+    fun runSpeechDemo(): String
+    fun transcribeAudio(filename: String, contentType: MediaType, bytes: ByteArray): String
+}
 
 class UploadRepository internal constructor(
     private val apiClient: BuyWiseApiClient,
-) {
+) : UploadRecognitionRepository {
     @Throws(IOException::class)
-    fun runVisionDemo(): VisionResult {
+    override fun runVisionDemo(): VisionResult {
         return recognizeImage(
             filename = "buywise-demo.png",
             contentType = mediaType("image/png"),
@@ -15,7 +23,7 @@ class UploadRepository internal constructor(
     }
 
     @Throws(IOException::class)
-    fun recognizeImage(filename: String, contentType: okhttp3.MediaType, bytes: ByteArray): VisionResult {
+    override fun recognizeImage(filename: String, contentType: MediaType, bytes: ByteArray): VisionResult {
         val upload = apiClient.uploadFile(
             filename = filename,
             contentType = contentType,
@@ -48,7 +56,7 @@ class UploadRepository internal constructor(
     }
 
     @Throws(IOException::class)
-    fun runSpeechDemo(): String {
+    override fun runSpeechDemo(): String {
         return transcribeAudio(
             filename = "buywise-demo.wav",
             contentType = mediaType("audio/wav"),
@@ -57,7 +65,7 @@ class UploadRepository internal constructor(
     }
 
     @Throws(IOException::class)
-    fun transcribeAudio(filename: String, contentType: okhttp3.MediaType, bytes: ByteArray): String {
+    override fun transcribeAudio(filename: String, contentType: MediaType, bytes: ByteArray): String {
         val upload = apiClient.uploadFile(
             filename = filename,
             contentType = contentType,

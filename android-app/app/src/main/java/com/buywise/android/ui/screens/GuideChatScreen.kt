@@ -127,7 +127,7 @@ private fun OpeningAssistantMessage(state: GuideState) {
     val text = when {
         state.compareChatContext != null -> "已带入当前对比结果。你可以继续问我哪个更适合、主要风险或购买前要确认什么。"
         state.query.isNotBlank() -> "我已看到你的需求：${state.query}。你可以继续问我商品区别、推荐理由或细节。"
-        else -> "告诉我预算、用途和偏好，我可以帮你筛选商品。"
+        else -> "告诉我品类、商品名或需求，我可以先筛选商品；预算、用途和偏好可以之后补充。"
     }
     AssistantBubble(text = text, recommendations = emptyList(), bundlePlans = emptyList(), appliedPreferences = AppliedPreferences(), onProductClick = {})
 }

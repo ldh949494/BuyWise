@@ -24,11 +24,23 @@ private fun String.cleanBackendError(): String {
     if ("media_url_not_public" in normalized) {
         return "音频地址不能被识别服务访问，请检查上传公网地址"
     }
+    if ("storage_provider_not_configured" in normalized) {
+        return "语音上传服务未完成配置，请检查 COS 存储设置"
+    }
+    if ("storage_provider_dependency_missing" in normalized) {
+        return "语音上传服务依赖缺失，请检查后端部署"
+    }
     if ("speech_provider_not_configured" in normalized) {
         return "语音识别服务未完成配置"
     }
+    if ("speech_provider_dependency_missing" in normalized) {
+        return "语音识别服务依赖缺失，请检查后端部署"
+    }
     if ("provider_timeout" in normalized) {
         return "外部识别服务响应超时，请稍后重试"
+    }
+    if ("provider_error" in normalized) {
+        return "外部识别服务暂时不可用，请稍后重试或改用文字输入"
     }
     if (startsWith("HTTP 500:")) {
         return "服务端暂时不可用，请稍后重试"

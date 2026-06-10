@@ -115,7 +115,19 @@ data class VisionResult(
     val labels: List<String>,
     val similarProducts: List<Product>,
     val fallbackUsed: Boolean = false,
-)
+) {
+    val hasContent: Boolean
+        get() = title.isNotBlank() || labels.isNotEmpty() || similarProducts.isNotEmpty()
+
+    companion object {
+        val Empty = VisionResult(
+            title = "",
+            confidence = 0,
+            labels = emptyList(),
+            similarProducts = emptyList(),
+        )
+    }
+}
 
 data class CartItem(
     val id: String,
