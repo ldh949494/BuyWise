@@ -6,10 +6,7 @@ on:
     - cron: "0 18 * * 0"
 
 permissions:
-  contents: write
-  issues: write
-  pull-requests: write
-  models: read
+  contents: read
 
 concurrency:
   group: entropy-cleanup-agent
@@ -18,6 +15,11 @@ concurrency:
 jobs:
   cleanup:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      models: read
     defaults:
       run:
         shell: pwsh

@@ -1,0 +1,89 @@
+name: Android Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x android-app/gradlew
+
+      - name: Validate release secrets
+        run: |
+          $requiredSecrets = @(
+            "ANDROID_RELEASE_KEYSTORE_BASE64",
+            "ANDROID_RELEASE_KEYSTORE_PASSWORD",
+            "ANDROID_RELEASE_KEY_ALIAS",
+            "ANDROID_RELEASE_KEY_PASSWORD",
+            "ANDROID_API_BASE_URL",
+            "BUYWISE_UPLOAD_TOKEN",
+            "BUYWISE_BETA_TOKEN"
+          )
+
+          $missingSecrets = @()
+          foreach ($secretName in $requiredSecrets) {
+            if (-not [Environment]::GetEnvironmentVariable($secretName)) {
+              $missingSecrets += $secretName
+            }
+          }
+
+          if ($missingSecrets.Count -gt 0) {
+            throw "Missing required release secrets: $($missingSecrets -join ', ')"
+          }
+        env:
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+          ANDROID_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}
+          ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          ANDROID_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+          ANDROID_API_BASE_URL: ${{ secrets.ANDROID_API_BASE_URL }}
+          BUYWISE_UPLOAD_TOKEN: ${{ secrets.BUYWISE_UPLOAD_TOKEN }}
+          BUYWISE_BETA_TOKEN: ${{ secrets.BUYWISE_BETA_TOKEN }}
+
+      - name: Decode release keystore
+        run: |
+          [IO.File]::WriteAllBytes(
+            "android-app/app/buywise-release.jks",
+            [Convert]::FromBase64String($env:ANDROID_RELEASE_KEYSTORE_BASE64)
+          )
+        env:
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+
+      - name: Build release APK
+        working-directory: android-app
+        run: ./gradlew assembleRelease
+        env:
+          ANDROID_RELEASE_KEYSTORE_FILE: app/buywise-release.jks
+          ANDROID_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}
+          ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          ANDROID_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+          ANDROID_API_BASE_URL: ${{ secrets.ANDROID_API_BASE_URL }}
+          BUYWISE_UPLOAD_TOKEN: ${{ secrets.BUYWISE_UPLOAD_TOKEN }}
+          BUYWISE_BETA_TOKEN: ${{ secrets.BUYWISE_BETA_TOKEN }}
+          BUYWISE_SHOW_DEBUG_INFO: "false"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: android-app/app/build/outputs/apk/release/*.apk
+          generate_release_notes: true

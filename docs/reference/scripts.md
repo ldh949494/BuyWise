@@ -7,6 +7,7 @@
 - `scripts/validate_docs.py`：校验 `AGENTS.md` 和 `docs/`。
 - `scripts/validate_providers.py`：校验后端模块是否通过统一 Provider 入口访问横切能力。
 - `scripts/validate_repo_lint.py`：自定义仓库 linter，覆盖结构化日志、命名、文件大小和导入边界。
+- `scripts/validate_secrets.py`：扫描 Git 跟踪文件中的高置信度密钥形态，只输出文件和行号，不输出疑似密钥值。
 - `scripts/validate_entropy.py`：根据 `docs/entropy/baseline.json` 校验黄金原则熵债规则。
 - `scripts/entropy_gc.py`：在 `artifacts/entropy-gc/` 下生成只读熵债清理报告。
 - `scripts/entropy_cleanup_agent.py`：通过 GitHub Models 执行一个低风险熵债清理，供后台清理流程使用。
