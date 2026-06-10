@@ -13,8 +13,10 @@ import com.buywise.android.data.GuideChatMessage
 import com.buywise.android.data.GuideChatRole
 import com.buywise.android.data.ChatStreamEvent
 import com.buywise.android.data.GuideRepository
+import com.buywise.android.data.GuideResultStatus
 import com.buywise.android.data.GuideState
 import com.buywise.android.data.AppliedPreferences
+import com.buywise.android.data.Recommendation
 import com.buywise.android.data.ShopRepository
 import okhttp3.sse.EventSource
 
@@ -123,6 +125,9 @@ class GuideViewModel(
             intentSummary = "正在理解预算、场景和偏好...",
             recommendations = emptyList(),
             bundlePlans = emptyList(),
+            resultStatus = GuideResultStatus.Idle,
+            clarificationMessage = null,
+            fallbackMessage = null,
             appliedPreferences = AppliedPreferences(),
             partialReply = "",
             isStreaming = true,
@@ -144,8 +149,14 @@ class GuideViewModel(
             return
         }
         val compareContext = state.compareChatContext
+        val shouldRunFullGuide = compareContext == null &&
+            (state.resultStatus == GuideResultStatus.Clarifying || (state.recommendations.isEmpty() && state.bundlePlans.isEmpty()))
         guideStream?.cancel()
-        streamMode = if (compareContext == null) StreamMode.Chat else StreamMode.Compare
+        streamMode = when {
+            compareContext != null -> StreamMode.Compare
+            shouldRunFullGuide -> StreamMode.Workbench
+            else -> StreamMode.Chat
+        }
         val userMessage = GuideChatMessage(
             id = newMessageId(),
             role = GuideChatRole.USER,
@@ -157,17 +168,29 @@ class GuideViewModel(
             text = "",
         )
         activeAssistantMessageId = assistantMessage.id
+        val keepExistingResults = !shouldRunFullGuide
         state = state.copy(
             query = message,
             chatDraft = "",
             chatMessages = state.chatMessages + userMessage + assistantMessage,
-            bundlePlans = emptyList(),
-            appliedPreferences = AppliedPreferences(),
+            recommendations = if (keepExistingResults) state.recommendations else emptyList(),
+            bundlePlans = if (keepExistingResults) state.bundlePlans else emptyList(),
+            resultStatus = GuideResultStatus.Idle,
+            clarificationMessage = null,
+            fallbackMessage = null,
+            appliedPreferences = if (keepExistingResults) state.appliedPreferences else AppliedPreferences(),
             partialReply = "",
             isStreaming = true,
             errorMessage = null,
         )
-        guideStream = if (compareContext == null) {
+        guideStream = if (shouldRunFullGuide) {
+            repository.streamGuide(
+                query = message,
+                sessionId = state.sessionId,
+                ignoreSavedPreferences = state.ignoreSavedPreferences,
+                onEvent = { event -> mainHandler.post { applyChatEvent(event) } },
+            )
+        } else if (compareContext == null) {
             repository.streamGuideFollowUp(
                 query = message,
                 sessionId = state.sessionId,
@@ -213,6 +236,9 @@ class GuideViewModel(
                 event.recommendations,
                 event.bundlePlans,
                 event.appliedPreferences,
+                event.needClarify,
+                event.resultStatus,
+                event.fallbackMessage,
             )
             is ChatStreamEvent.Done -> applyDone(event)
             is ChatStreamEvent.Error -> applyError(event.message)
@@ -232,14 +258,36 @@ class GuideViewModel(
 
     private fun applyProducts(
         intentSummary: String,
-        recommendations: List<com.buywise.android.data.Recommendation>,
+        recommendations: List<Recommendation>,
         bundlePlans: List<BundlePlan>,
         appliedPreferences: AppliedPreferences,
+        needClarify: Boolean,
+        resultStatus: GuideResultStatus,
+        fallbackMessage: String?,
     ): GuideState {
+        if (needClarify) {
+            val message = activeAssistantText().ifBlank { "想看哪类商品或商品名？" }
+            val synced = state.copy(
+                intentSummary = intentSummary,
+                recommendations = emptyList(),
+                bundlePlans = emptyList(),
+                resultStatus = GuideResultStatus.Clarifying,
+                clarificationMessage = message,
+                fallbackMessage = null,
+                appliedPreferences = appliedPreferences,
+            )
+            return updateAssistantMessage(synced) { assistant ->
+                if (assistant.text.isBlank()) assistant.copy(text = message) else assistant
+            }
+        }
+        val nextStatus = if (recommendations.isEmpty() && bundlePlans.isEmpty()) GuideResultStatus.Empty else resultStatus
         val synced = state.copy(
             intentSummary = intentSummary,
             recommendations = recommendations,
             bundlePlans = bundlePlans,
+            resultStatus = nextStatus,
+            clarificationMessage = null,
+            fallbackMessage = fallbackMessage,
             appliedPreferences = appliedPreferences,
         )
         if (recommendations.isEmpty() && bundlePlans.isEmpty()) {
@@ -270,6 +318,11 @@ class GuideViewModel(
         val baseState = state.copy(
             partialReply = if (streamMode == StreamMode.Workbench) finalReply else state.partialReply,
             isStreaming = false,
+            clarificationMessage = if (state.resultStatus == GuideResultStatus.Clarifying) {
+                state.clarificationMessage ?: finalReply.takeIf { it.isNotBlank() }
+            } else {
+                state.clarificationMessage
+            },
         )
         val withReply = if (finalReply.isBlank()) {
             baseState
@@ -315,9 +368,15 @@ class GuideViewModel(
     }
 
     private fun fallbackAssistantReply(): String = when {
+        state.resultStatus == GuideResultStatus.Clarifying -> state.clarificationMessage.orEmpty()
         state.bundlePlans.isNotEmpty() -> "已根据你的需求整理出组合方案。"
         state.recommendations.isNotEmpty() -> "已根据你的需求整理出推荐候选。"
         else -> ""
+    }
+
+    private fun activeAssistantText(): String {
+        val id = activeAssistantMessageId ?: return ""
+        return state.chatMessages.firstOrNull { it.id == id }?.text.orEmpty()
     }
 
     private fun newMessageId(): String = "guide-chat-${nextMessageId++}"

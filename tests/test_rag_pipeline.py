@@ -75,6 +75,15 @@ def seed_products(db):
             price=Decimal("199.00"),
             stock=5,
         ),
+        Product(
+            name="CrispAir 轻油空气炸锅",
+            category="厨房小家电",
+            price=Decimal("399.00"),
+            description="租房厨房可用的空气炸锅，容量适中，清洗方便",
+            tags=["空气炸锅", "易清洗"],
+            suitable_scene=["租房", "厨房"],
+            stock=12,
+        ),
     ]
     db.add_all(products)
     db.commit()
@@ -194,11 +203,45 @@ async def test_search_products_uses_adjacent_category_after_strict_category_fail
         intent="商品推荐",
         category="学习用品",
         budget_max=100,
-        scenario="学习",
-        preferences=["护眼"],
     )
 
     results = await pipeline.search_products(need, db, top_k=1)
 
     assert [product.name for product in results] == ["FocusLamp 护眼台灯"]
     assert pipeline.last_diagnostics["fallback_stage"] == "fallback_adjacent"
+
+
+@pytest.mark.anyio
+async def test_search_products_uses_keyword_fallback_for_non_standard_target() -> None:
+    db = make_session()
+    seed_products(db)
+    store = FakeProductStore([])
+    pipeline = RAGPipeline(product_store=store)
+    need = StructuredNeed(
+        intent="商品推荐",
+        category="空气炸锅",
+        scenario="租房",
+        preferences=["易清洗"],
+    )
+
+    results = await pipeline.search_products(need, db, top_k=5)
+
+    assert [product.name for product in results] == ["CrispAir 轻油空气炸锅"]
+    assert pipeline.last_diagnostics["fallback_stage"] == "fallback_keyword"
+
+
+@pytest.mark.anyio
+async def test_search_products_returns_popular_fallback_when_no_keyword_or_adjacent_match() -> None:
+    db = make_session()
+    seed_products(db)
+    store = FakeProductStore([])
+    pipeline = RAGPipeline(product_store=store)
+    need = StructuredNeed(
+        intent="商品推荐",
+        category="不存在的品类",
+    )
+
+    results = await pipeline.search_products(need, db, top_k=1)
+
+    assert [product.name for product in results] == ["K87 静音红轴机械键盘"]
+    assert pipeline.last_diagnostics["fallback_stage"] == "fallback_popular"

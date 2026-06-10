@@ -28,11 +28,12 @@ internal fun parseProductRead(json: JSONObject): Product {
 
 internal fun parseProductCard(json: JSONObject, category: String, reason: String): Product {
     val conflicts = json.optJSONArray("conflicts").toStringList()
+    val resolvedCategory = json.optStringOrNull("category") ?: category.ifBlank { "推荐商品" }
     return Product(
         id = json.optInt("id").toString(),
         name = json.optString("name", "未命名商品"),
-        brand = "BuyWise",
-        category = category.ifBlank { "推荐商品" },
+        brand = json.optStringOrNull("brand") ?: json.optStringOrNull("platform") ?: "BuyWise",
+        category = resolvedCategory,
         price = json.optDoubleOrNull("price"),
         rating = json.optDoubleOrNull("rating"),
         recommendationScore = json.optDoubleOrNull("score"),
@@ -41,6 +42,8 @@ internal fun parseProductCard(json: JSONObject, category: String, reason: String
         advantages = listOfNotBlank(reason),
         cautions = conflicts,
         imageUrl = json.optStringOrNull("image_url"),
+        productUrl = json.optStringOrNull("product_url"),
+        stockStatus = json.optStringOrNull("stock_status"),
     )
 }
 

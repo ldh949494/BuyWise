@@ -210,21 +210,28 @@ class ChatStreamRunner:
         db: Session,
     ) -> AsyncIterator[dict[str, Any]]:
         yield self._event("status", ChatStreamStatusEventData(stage="retrieval", message="retrieval"))
-        if self.chat_service._is_bundle_intent(need):
-            top_products, bundle_plans = await self.chat_service._recommendation_results(need, db)
-        else:
-            top_products = await self._rank_products(need, db)
-            bundle_plans = []
-        context["stream_path"] = "full_rag"
-        self._observe_first_products(context, "full_rag")
+        top_products, bundle_plans = await self._recommendation_products(need, db)
+        fallback_meta = self._record_fallback_meta(context, "full_rag")
         payload_products = self._bundle_products(bundle_plans) if bundle_plans else top_products
         yield self._event(
             "products",
-            self._products_payload(context, need, payload_products, need_clarify=False, bundle_plans=bundle_plans),
+            self._products_payload(
+                context,
+                need,
+                payload_products,
+                need_clarify=False,
+                bundle_plans=bundle_plans,
+                fallback_meta=fallback_meta,
+            ),
         )
         yield self._event("status", ChatStreamStatusEventData(stage="generation", message="generation"))
         async for event in self._stream_generation(context, need, payload_products, bundle_plans=bundle_plans):
             yield event
+
+    async def _recommendation_products(self, need: Any, db: Session) -> tuple[list[Any], list[BundlePlan]]:
+        if self.chat_service._is_bundle_intent(need):
+            return await self.chat_service._recommendation_results(need, db)
+        return await self._rank_products(need, db), []
 
     async def _stream_fast_products(
         self,
@@ -241,19 +248,35 @@ class ChatStreamRunner:
         self._apply_preferences(context, request, need, db)
 
         yield self._event("status", ChatStreamStatusEventData(stage="retrieval", message="fast_products"))
-        top_products = self._rank_fast_products(need, db)
-        if not top_products:
-            context["stream_path"] = "fast_db_empty_fallback"
-            top_products = await self._rank_products(need, db)
-            self._observe_first_products(context, "fast_db_empty_fallback")
-        else:
-            context["stream_path"] = "fast_db"
-            self._observe_first_products(context, "fast_db")
-
-        yield self._event("products", self._products_payload(context, need, top_products, need_clarify=False))
+        top_products, fallback_meta = await self._fast_product_results(context, need, db)
+        yield self._event(
+            "products",
+            self._products_payload(context, need, top_products, need_clarify=False, fallback_meta=fallback_meta),
+        )
         yield self._event("status", ChatStreamStatusEventData(stage="generation", message="generation"))
         async for event in self._stream_generation(context, need, top_products, concise=True):
             yield event
+
+    async def _fast_product_results(self, context: dict[str, Any], need: Any, db: Session) -> tuple[list[Any], dict[str, Any]]:
+        top_products = self._rank_fast_products(need, db)
+        if top_products:
+            fallback_meta = {"fallback_used": False, "fallback_stage": "fast_db", "result_quality": "exact"}
+            return top_products, self._record_fallback_meta(context, "fast_db", fallback_meta)
+        top_products = await self._rank_products(need, db)
+        fallback_meta = self.chat_service._rag_fallback_meta()
+        return top_products, self._record_fallback_meta(context, "fast_db_empty_fallback", fallback_meta)
+
+    def _record_fallback_meta(
+        self,
+        context: dict[str, Any],
+        stream_path: str,
+        fallback_meta: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        fallback_meta = fallback_meta or self.chat_service._rag_fallback_meta()
+        context["fallback_meta"] = fallback_meta
+        context["stream_path"] = stream_path
+        self._observe_first_products(context, stream_path)
+        return fallback_meta
 
     async def _stream_generation(
         self,
@@ -397,6 +420,12 @@ class ChatStreamRunner:
             structured_data["products"] = [self.chat_service._dump(product) for product in products]
         if bundle_plans:
             structured_data["bundle_plans"] = [self.chat_service._dump(plan) for plan in bundle_plans]
+        fallback_meta = None if need_clarify else context.get("fallback_meta")
+        if fallback_meta is None and not need_clarify:
+            fallback_meta = self.chat_service._rag_fallback_meta()
+        for key in ["fallback_used", "fallback_stage", "result_quality"]:
+            if fallback_meta and key in fallback_meta:
+                structured_data[key] = fallback_meta[key]
         if degraded_reason:
             structured_data["degraded"] = True
             structured_data["degraded_reason"] = degraded_reason
@@ -412,13 +441,18 @@ class ChatStreamRunner:
         *,
         need_clarify: bool,
         bundle_plans: list[BundlePlan] | None = None,
+        fallback_meta: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        fallback_meta = fallback_meta or {"fallback_used": False, "fallback_stage": None, "result_quality": "exact"}
         return ChatStreamProductsEventData(
             need_clarify=need_clarify,
             structured_need=StructuredNeed.model_validate(self.chat_service._dump(need)),
             items=[ProductCard.model_validate(self.chat_service._dump(product)) for product in products],
             bundle_plans=bundle_plans or [],
             applied_preferences=context.get("applied_preferences") or AppliedPreferences(),
+            fallback_used=bool(fallback_meta.get("fallback_used")),
+            fallback_stage=fallback_meta.get("fallback_stage"),
+            result_quality=str(fallback_meta.get("result_quality") or "exact"),
         )
 
     def _apply_preferences(

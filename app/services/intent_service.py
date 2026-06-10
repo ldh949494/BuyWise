@@ -85,6 +85,9 @@ class IntentService:
         "\u5e94\u6025",
         "\u684c\u9762",
         "\u7535\u8111\u5916\u8bbe",
+        "\u79df\u623f",
+        "\u505a\u996d",
+        "\u53a8\u623f",
         "\u6d77\u8fb9",
         "\u6237\u5916",
         "\u7a7f\u642d",
@@ -119,6 +122,22 @@ class IntentService:
     ]
     BROWSE_KEYWORDS = ["随便看看", "先看看", "看看", "逛逛", "了解一下", "有什么", "推荐几类"]
     BUY_READY_KEYWORDS = ["想买", "准备买", "马上买", "下单", "入手", "就买", "要买"]
+    SHOPPING_TARGET_KEYWORDS = [
+        "空气炸锅",
+        "电煮锅",
+        "吸尘器",
+        "清洁机",
+        "智能手表",
+        "手表",
+        "投影仪",
+        "咖啡杯",
+        "保温杯",
+        "学习平板",
+        "平板",
+        "电脑包",
+        "数码配件",
+        "小家电",
+    ]
 
     def __init__(self, llm_client: Any | None = None) -> None:
         self.llm_client = llm_client
@@ -139,7 +158,7 @@ class IntentService:
 
         extractor = LlmIntentExtractor(self.llm_client, self._missing_fields)
         llm_need = await extractor.extract(normalized_text, image_info, history_context)
-        return llm_need or rule_need
+        return self._prefer_need(rule_need, llm_need)
 
     def extract_by_rules(
         self,
@@ -209,7 +228,12 @@ class IntentService:
     ) -> str | None:
         if intent == "bundle_recommend":
             return None
-        return self._extract_category(normalized_text) or image_info.get("category") or history_context.get("category")
+        return (
+            self._extract_category(normalized_text)
+            or image_info.get("category")
+            or history_context.get("category")
+            or self._extract_shopping_target(normalized_text)
+        )
 
     def _rule_budget(self, normalized_text: str, history_context: dict) -> float | None:
         budget_max = self._extract_budget(normalized_text)
@@ -294,6 +318,12 @@ class IntentService:
         for category, keywords in self.CATEGORY_KEYWORDS.items():
             if any(keyword in text for keyword in keywords):
                 return category
+        return None
+
+    def _extract_shopping_target(self, text: str) -> str | None:
+        for target in self.SHOPPING_TARGET_KEYWORDS:
+            if target in text:
+                return target
         return None
 
     def _extract_must_have_categories(self, text: str) -> list[str]:
@@ -435,3 +465,13 @@ class IntentService:
             return [str(item).strip() for item in value if str(item).strip()]
         return [str(value).strip()] if str(value).strip() else []
 
+    def _prefer_need(self, rule_need: StructuredNeed, llm_need: StructuredNeed | None) -> StructuredNeed:
+        if llm_need is None:
+            return rule_need
+        if (
+            llm_need.need_clarify
+            and "category" in llm_need.missing_fields
+            and not rule_need.need_clarify
+        ):
+            return rule_need
+        return llm_need

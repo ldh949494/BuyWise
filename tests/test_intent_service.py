@@ -127,6 +127,41 @@ async def test_extract_allows_category_only_recommendation() -> None:
 
 
 @pytest.mark.anyio
+async def test_extract_allows_explicit_shopping_target_without_optional_fields() -> None:
+    service = IntentService()
+
+    need = await service.extract("租房做饭用的空气炸锅")
+
+    assert need.intent == "商品推荐"
+    assert need.category == "空气炸锅"
+    assert need.scenario == "租房"
+    assert need.need_clarify is False
+    assert need.missing_fields == []
+
+
+@pytest.mark.anyio
+async def test_extract_prefers_rule_target_when_llm_only_asks_for_category() -> None:
+    llm = FakeLLMClient(
+        """
+        {
+          "intent": "商品推荐",
+          "category": null,
+          "need_clarify": true,
+          "missing_fields": ["category"]
+        }
+        """
+    )
+    service = IntentService(llm_client=llm)
+
+    need = await service.extract("想买一个租房做饭用的空气炸锅")
+
+    assert need.intent == "商品推荐"
+    assert need.category == "空气炸锅"
+    assert need.need_clarify is False
+    assert need.missing_fields == []
+
+
+@pytest.mark.anyio
 async def test_extract_still_asks_when_recommendation_category_is_missing() -> None:
     service = IntentService()
 
