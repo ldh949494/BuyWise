@@ -158,6 +158,45 @@ async def test_generate_follow_up_stream_returns_refresh_signal_without_snapshot
     assert events[-1]["data"]["refresh_reason"] == "missing_recommendation_snapshot"
 
 
+@pytest.mark.anyio
+async def test_generate_follow_up_stream_returns_cart_action_payload() -> None:
+    need = StructuredNeed(intent="商品推荐", category=KEYBOARD_CATEGORY, budget_max=300)
+    service = ChatService(
+        intent_service=FakeIntentService(need),
+        rag_pipeline=FakeRAGPipeline([]),
+        recommend_service=FakeRecommendService(),
+        llm_client=FakeLLMClient(),
+    )
+    db = _sqlite_session_with_products([make_product()])
+    snapshot = {
+        "need": need.model_dump(mode="json"),
+        "products": [
+            ProductCard(id=1, name=KEYBOARD_NAME, price=299, score=90, reason="价格符合预算").model_dump(mode="json")
+        ],
+        "applied_preferences": {},
+    }
+
+    try:
+        chat_repo = service._chat_repo(ChatRequest(session_id="cart-action-follow-up"), db)
+        chat_repo.get_or_create_session("cart-action-follow-up")
+        chat_repo.create_message("cart-action-follow-up", "assistant", "推荐：" + KEYBOARD_NAME, structured_data=snapshot)
+        service._commit(chat_repo)
+        events = [
+            event
+            async for event in service.generate_follow_up_stream(
+                ChatRequest(session_id="cart-action-follow-up", message="把刚才那款加到购物车"),
+                db=db,
+            )
+        ]
+    finally:
+        db.close()
+
+    assert events[-1]["event"] == "done"
+    assert events[-1]["data"]["extra"]["action"] == "cart.add"
+    assert events[-1]["data"]["extra"]["cart"]["items"][0]["product_id"] == 1
+    assert "已加入购物车" in events[-1]["data"]["reply"]
+
+
 def test_guide_stream_route_is_registered_and_streams_sse() -> None:
     client = _chat_route_client()
 

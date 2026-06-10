@@ -33,7 +33,6 @@ class UploadRepository internal constructor(
             "/api/v1/visual-search",
             VisualSearchRequestDto(
                 imageUrl = upload.url,
-                message = "我想要同款或相似商品",
             ),
         )
         val recognized = response.recognized
