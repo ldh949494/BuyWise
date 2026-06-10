@@ -138,6 +138,8 @@ def reset_resilience_state() -> None:
 def classify_provider_failure(exc: Exception) -> ProviderFailureReason:
     if isinstance(exc, AppError) and exc.code == "capacity_limited":
         return ProviderFailureReason.CAPACITY
+    if isinstance(exc, AppError) and _is_configuration_error_code(exc.code):
+        return ProviderFailureReason.CONFIGURATION
     if isinstance(exc, TimeoutError):
         return ProviderFailureReason.TIMEOUT
     if isinstance(exc, AppError) and exc.code in {
@@ -185,6 +187,10 @@ def _should_retry(reason: ProviderFailureReason) -> bool:
 
 def _is_circuit_open_error(exc: Exception) -> bool:
     return isinstance(exc, AppError) and exc.code == "provider_circuit_open"
+
+
+def _is_configuration_error_code(code: str) -> bool:
+    return code.endswith("_not_configured") or code.endswith("_dependency_missing")
 
 
 def _exception_name_contains(exc: Exception, text: str) -> bool:

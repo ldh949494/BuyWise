@@ -120,12 +120,35 @@ def make_product(name="K87 静音红轴机械键盘"):
 
 
 @pytest.mark.anyio
-async def test_handle_chat_returns_clarify_response_when_need_incomplete() -> None:
+async def test_handle_chat_recommends_when_category_is_present_without_optional_fields() -> None:
     need = StructuredNeed(
         intent="商品推荐",
         category="蓝牙耳机",
+    )
+    product = make_product("AirBuds Lite 蓝牙耳机")
+    intent_service = FakeIntentService(need)
+    service = ChatService(
+        intent_service=intent_service,
+        rag_pipeline=FakeRAGPipeline([product]),
+        recommend_service=FakeRecommendService(),
+        llm_client=FakeLLMClient(),
+    )
+
+    response = await service.handle_chat(ChatRequest(message="推荐一个耳机"), db=object())
+
+    assert response.reply == "推荐：AirBuds Lite 蓝牙耳机"
+    assert response.need_clarify is False
+    assert response.structured_need == need
+    assert response.products[0].name == "AirBuds Lite 蓝牙耳机"
+
+
+@pytest.mark.anyio
+async def test_handle_chat_returns_clarify_response_when_category_is_missing() -> None:
+    need = StructuredNeed(
+        intent="商品推荐",
+        category=None,
         need_clarify=True,
-        missing_fields=["budget_max", "scenario"],
+        missing_fields=["category"],
     )
     intent_service = FakeIntentService(need)
     service = ChatService(
@@ -133,7 +156,7 @@ async def test_handle_chat_returns_clarify_response_when_need_incomplete() -> No
         llm_client=FakeLLMClient(),
     )
 
-    response = await service.handle_chat(ChatRequest(message="推荐一个耳机"), db=object())
+    response = await service.handle_chat(ChatRequest(message="推荐一下"), db=object())
 
     assert response.reply == "请补充预算和使用场景。"
     assert response.need_clarify is True

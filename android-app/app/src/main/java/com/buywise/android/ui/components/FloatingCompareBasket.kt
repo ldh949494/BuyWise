@@ -4,11 +4,14 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -48,6 +51,11 @@ import com.buywise.android.data.Product
 import com.buywise.android.ui.BuyWiseTheme
 import kotlinx.coroutines.delay
 
+enum class CompareBasketDockMode {
+    BottomFloating,
+    SideDocked,
+}
+
 @Composable
 fun FloatingCompareBasket(
     state: CompareBasketState,
@@ -56,12 +64,45 @@ fun FloatingCompareBasket(
     onClear: () -> Unit,
     onStartCompare: () -> Unit,
     onContinueShopping: () -> Unit,
+    mode: CompareBasketDockMode = CompareBasketDockMode.BottomFloating,
     modifier: Modifier = Modifier,
 ) {
     if (state.products.isEmpty()) {
         return
     }
 
+    when (mode) {
+        CompareBasketDockMode.BottomFloating -> BottomFloatingCompareBasket(
+            state = state,
+            onExpandedChange = onExpandedChange,
+            onRemoveProduct = onRemoveProduct,
+            onClear = onClear,
+            onStartCompare = onStartCompare,
+            onContinueShopping = onContinueShopping,
+            modifier = modifier,
+        )
+        CompareBasketDockMode.SideDocked -> SideDockedCompareBasket(
+            state = state,
+            onExpandedChange = onExpandedChange,
+            onRemoveProduct = onRemoveProduct,
+            onClear = onClear,
+            onStartCompare = onStartCompare,
+            onContinueShopping = onContinueShopping,
+            modifier = modifier,
+        )
+    }
+}
+
+@Composable
+private fun BottomFloatingCompareBasket(
+    state: CompareBasketState,
+    onExpandedChange: (Boolean) -> Unit,
+    onRemoveProduct: (Product) -> Unit,
+    onClear: () -> Unit,
+    onStartCompare: () -> Unit,
+    onContinueShopping: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Column(
         modifier = modifier.widthIn(max = 320.dp),
         horizontalAlignment = Alignment.End,
@@ -85,6 +126,61 @@ fun FloatingCompareBasket(
             expanded = state.isExpanded,
             onClick = { onExpandedChange(!state.isExpanded) },
         )
+    }
+}
+
+@Composable
+private fun SideDockedCompareBasket(
+    state: CompareBasketState,
+    onExpandedChange: (Boolean) -> Unit,
+    onRemoveProduct: (Product) -> Unit,
+    onClear: () -> Unit,
+    onStartCompare: () -> Unit,
+    onContinueShopping: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(end = 8.dp),
+        contentAlignment = Alignment.CenterEnd,
+    ) {
+        val sideButtonWidth = 56.dp
+        val sideGap = 10.dp
+        val maxPanelWidth = 284.dp
+        val minPanelWidth = 220.dp
+        val availablePanelWidth = maxWidth - sideButtonWidth - sideGap - 8.dp
+        val panelWidth = when {
+            availablePanelWidth < minPanelWidth -> minPanelWidth
+            availablePanelWidth > maxPanelWidth -> maxPanelWidth
+            else -> availablePanelWidth
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(sideGap),
+        ) {
+            AnimatedVisibility(
+                visible = state.isExpanded,
+                enter = fadeIn() + slideInHorizontally { it / 4 },
+                exit = fadeOut() + slideOutHorizontally { it / 4 },
+            ) {
+                ExpandedBasket(
+                    state = state,
+                    onRemoveProduct = onRemoveProduct,
+                    onClear = onClear,
+                    onStartCompare = onStartCompare,
+                    onContinueShopping = onContinueShopping,
+                    modifier = Modifier.width(panelWidth),
+                    fillMaxWidth = false,
+                )
+            }
+            SideDockedBasketButton(
+                count = state.products.size,
+                expanded = state.isExpanded,
+                onClick = { onExpandedChange(!state.isExpanded) },
+            )
+        }
     }
 }
 
@@ -133,18 +229,67 @@ private fun BasketButton(count: Int, expanded: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
+private fun SideDockedBasketButton(count: Int, expanded: Boolean, onClick: () -> Unit) {
+    var pulsing by remember { mutableStateOf(false) }
+    val badgeScale by animateFloatAsState(
+        targetValue = if (pulsing) 1.25f else 1f,
+        label = "compareBasketSideBadgeScale",
+    )
+    LaunchedEffect(count) {
+        pulsing = true
+        delay(180)
+        pulsing = false
+    }
+
+    FloatingGlassCard(
+        modifier = Modifier.width(56.dp),
+        tone = FloatingGlassTone.SolidPrimary,
+        radius = 999.dp,
+        fillMaxWidth = false,
+        contentPadding = 0.dp,
+        onClick = onClick,
+    ) {
+        Box(
+            modifier = Modifier.size(56.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                if (expanded) Icons.Outlined.Close else Icons.AutoMirrored.Outlined.CompareArrows,
+                contentDescription = if (expanded) "收起对比篮" else "展开对比篮",
+                tint = BuyWiseTheme.colors.panel,
+            )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 5.dp, end = 5.dp)
+                    .scale(badgeScale)
+                    .size(22.dp)
+                    .background(BuyWiseTheme.colors.accent, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(count.toString(), color = BuyWiseTheme.colors.panel, style = MaterialTheme.typography.labelMedium)
+            }
+        }
+    }
+}
+
+@Composable
 private fun ExpandedBasket(
     state: CompareBasketState,
     onRemoveProduct: (Product) -> Unit,
     onClear: () -> Unit,
     onStartCompare: () -> Unit,
     onContinueShopping: () -> Unit,
+    modifier: Modifier = Modifier,
+    fillMaxWidth: Boolean = true,
 ) {
     val haptic = LocalHapticFeedback.current
     FloatingGlassCard(
+        modifier = modifier,
         tone = FloatingGlassTone.Neutral,
         radius = 8.dp,
         contentPadding = 14.dp,
+        fillMaxWidth = fillMaxWidth,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

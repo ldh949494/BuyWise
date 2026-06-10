@@ -331,6 +331,14 @@ private fun CompareCandidateStrip(products: List<Product>, onProductClick: (Stri
 
 @Composable
 private fun VisionResultCard(state: VisionState, onUseQuery: () -> Unit) {
+    val result = state.result
+    val title = result.title.takeIf { it.isNotBlank() }
+        ?: if (state.isLoading) "正在识别" else "等待识别"
+    val statusLabel = when {
+        result.hasContent -> "可参考"
+        state.isLoading -> "处理中"
+        else -> "未识别"
+    }
     FloatingGlassCard(
         tone = FloatingGlassTone.Neutral,
         radius = 16.dp,
@@ -338,23 +346,25 @@ private fun VisionResultCard(state: VisionState, onUseQuery: () -> Unit) {
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             ProductImagePreview(
-                product = state.result.similarProducts.firstOrNull()
-                    ?: Product("0", state.result.title, null, null, null, null, null, "", emptyList(), emptyList(), emptyList()),
+                product = result.similarProducts.firstOrNull()
+                    ?: Product("0", title, null, null, null, null, null, "", emptyList(), emptyList(), emptyList()),
                 modifier = Modifier.size(width = 92.dp, height = 76.dp),
             )
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text("识别结果", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
-                Text("品类", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
+                Text(if (result.hasContent) "品类与特征" else "状态", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
                 Text(
-                    state.result.title.takeIf { it.isNotBlank() } ?: "机械键盘",
+                    title,
                     color = BuyWiseTheme.colors.ink,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    EvidenceTag("可参考", tone = EvidenceTone.Success)
-                    EvidenceTag("RGB 灯效", tone = EvidenceTone.Info)
+                    EvidenceTag(statusLabel, tone = if (result.hasContent) EvidenceTone.Success else EvidenceTone.Warning)
+                    result.labels.take(2).forEach { label ->
+                        EvidenceTag(label, tone = EvidenceTone.Info)
+                    }
                 }
                 VisionResultActionButton(
                     enabled = !state.recognizedQuery.isNullOrBlank(),

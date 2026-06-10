@@ -6,7 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.buywise.android.data.ShopRepository
-import com.buywise.android.data.UploadRepository
+import com.buywise.android.data.UploadRecognitionRepository
 import com.buywise.android.data.VisionResult
 import com.buywise.android.data.VisionState
 import kotlinx.coroutines.Dispatchers
@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class UploadViewModel(
-    private val repository: UploadRepository,
+    private val repository: UploadRecognitionRepository,
     initialState: VisionState,
 ) : ViewModel() {
     var state by mutableStateOf(initialState)
@@ -24,7 +24,7 @@ class UploadViewModel(
         onRecognized: ((VisionResult) -> Unit)? = null,
         onError: ((String) -> Unit)? = null,
     ) {
-        state = state.copy(isLoading = true, errorMessage = null, selectedImageName = "buywise-demo.png")
+        state = state.startImageRecognition("buywise-demo.png")
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) { repository.runVisionDemo() }
@@ -33,7 +33,7 @@ class UploadViewModel(
                 onRecognized?.invoke(result)
             }.onFailure { throwable ->
                 val message = throwable.userMessage("图片识别失败")
-                state = state.copy(isLoading = false, errorMessage = message)
+                state = state.failRecognition(message)
                 onError?.invoke(message)
             }
         }
@@ -46,7 +46,7 @@ class UploadViewModel(
         onRecognized: ((VisionResult) -> Unit)? = null,
         onError: ((String) -> Unit)? = null,
     ) {
-        state = state.copy(isLoading = true, errorMessage = null, selectedImageName = filename)
+        state = state.startImageRecognition(filename)
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
@@ -57,7 +57,7 @@ class UploadViewModel(
                 onRecognized?.invoke(result)
             }.onFailure { throwable ->
                 val message = throwable.userMessage("图片识别失败")
-                state = state.copy(isLoading = false, errorMessage = message)
+                state = state.failRecognition(message)
                 onError?.invoke(message)
             }
         }
@@ -118,3 +118,22 @@ class UploadViewModel(
             UploadViewModel(shopRepository.uploadRepository, shopRepository.visionState())
     }
 }
+
+fun VisionState.startImageRecognition(filename: String): VisionState =
+    copy(
+        result = VisionResult.Empty,
+        isLoading = true,
+        errorMessage = null,
+        recognizedQuery = null,
+        speechText = null,
+        selectedImageName = filename,
+    )
+
+fun VisionState.failRecognition(message: String): VisionState =
+    copy(
+        result = VisionResult.Empty,
+        isLoading = false,
+        errorMessage = message,
+        recognizedQuery = null,
+        speechText = null,
+    )

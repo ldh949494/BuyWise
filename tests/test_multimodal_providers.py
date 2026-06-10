@@ -1,7 +1,10 @@
 import asyncio
+import sys
+from types import ModuleType
 
 import pytest
 
+from app.core.providers import AppError
 from app.core.config import settings
 from app.integrations.media_url import resolve_public_media_url
 from app.integrations.speech_client import MockSpeechClient, TencentSpeechClient, resolve_tencent_voice_format
@@ -148,6 +151,76 @@ def test_tencent_speech_client_resolves_public_url_before_sdk_call(monkeypatch) 
 
     assert captured["audio_url"] == "https://api.example.com/uploads/demo.wav"
     assert result == "识别文本"
+
+
+def test_tencent_speech_client_wraps_provider_failure(monkeypatch) -> None:
+    previous_secret_id = settings.tencent_secret_id
+    previous_secret_key = settings.tencent_secret_key
+    settings.tencent_secret_id = "sid"
+    settings.tencent_secret_key = "skey"
+
+    class FakeAsrClient:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        def __getattr__(self, name: str):
+            if name == "SentenceRecognition":
+                return self._sentence_recognition
+            raise AttributeError(name)
+
+        def _sentence_recognition(self, request):
+            raise RuntimeError("remote asr failed")
+
+    class FakeSentenceRecognitionRequest:
+        pass
+
+    tencentcloud_module = ModuleType("tencentcloud")
+    tencentcloud_module.__path__ = []
+    asr_module = ModuleType("tencentcloud.asr")
+    asr_module.__path__ = []
+    v20190614_module = ModuleType("tencentcloud.asr.v20190614")
+    v20190614_module.__path__ = []
+    common_module = ModuleType("tencentcloud.common")
+    common_module.__path__ = []
+    profile_module = ModuleType("tencentcloud.common.profile")
+    profile_module.__path__ = []
+    asr_client_module = ModuleType("tencentcloud.asr.v20190614.asr_client")
+    asr_client_module.AsrClient = FakeAsrClient
+    models_module = ModuleType("tencentcloud.asr.v20190614.models")
+    models_module.SentenceRecognitionRequest = FakeSentenceRecognitionRequest
+    credential_module = ModuleType("tencentcloud.common.credential")
+    credential_module.Credential = lambda *args, **kwargs: object()
+    client_profile_module = ModuleType("tencentcloud.common.profile.client_profile")
+    client_profile_module.ClientProfile = lambda: type("ClientProfile", (), {})()
+    http_profile_module = ModuleType("tencentcloud.common.profile.http_profile")
+    http_profile_module.HttpProfile = lambda: type("HttpProfile", (), {})()
+    v20190614_module.asr_client = asr_client_module
+    v20190614_module.models = models_module
+    common_module.credential = credential_module
+    profile_module.client_profile = client_profile_module
+    profile_module.http_profile = http_profile_module
+
+    monkeypatch.setitem(sys.modules, "tencentcloud", tencentcloud_module)
+    monkeypatch.setitem(sys.modules, "tencentcloud.asr", asr_module)
+    monkeypatch.setitem(sys.modules, "tencentcloud.asr.v20190614", v20190614_module)
+    monkeypatch.setitem(sys.modules, "tencentcloud.asr.v20190614.asr_client", asr_client_module)
+    monkeypatch.setitem(sys.modules, "tencentcloud.asr.v20190614.models", models_module)
+    monkeypatch.setitem(sys.modules, "tencentcloud.common", common_module)
+    monkeypatch.setitem(sys.modules, "tencentcloud.common.credential", credential_module)
+    monkeypatch.setitem(sys.modules, "tencentcloud.common.profile", profile_module)
+    monkeypatch.setitem(sys.modules, "tencentcloud.common.profile.client_profile", client_profile_module)
+    monkeypatch.setitem(sys.modules, "tencentcloud.common.profile.http_profile", http_profile_module)
+
+    try:
+        with pytest.raises(AppError) as exc_info:
+            TencentSpeechClient()._transcribe_sync("https://cdn.example.com/demo.wav")
+    finally:
+        settings.tencent_secret_id = previous_secret_id
+        settings.tencent_secret_key = previous_secret_key
+
+    assert exc_info.value.status_code == 503
+    assert exc_info.value.code == "provider_error"
+    assert exc_info.value.extra == {"provider": "tencent_asr"}
 
 
 def test_tencent_voice_format_uses_configured_override() -> None:

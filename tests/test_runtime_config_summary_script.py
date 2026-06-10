@@ -27,3 +27,14 @@ def test_runtime_config_summary_excludes_secret_values(monkeypatch) -> None:
     assert "mysql_password" not in summary
     assert "readiness_token" not in summary
     assert "secret-key" not in str(summary)
+
+
+def test_runtime_config_summary_warns_for_mock_vision(monkeypatch) -> None:
+    settings = print_runtime_config_summary.settings
+    monkeypatch.setattr(settings, "vision_provider", "mock")
+
+    summary = print_runtime_config_summary.runtime_config_summary()
+
+    assert summary["vision_provider_note"] == (
+        "mock vision returns fixed demo recognition; use llm or dashscope for real image recognition."
+    )
