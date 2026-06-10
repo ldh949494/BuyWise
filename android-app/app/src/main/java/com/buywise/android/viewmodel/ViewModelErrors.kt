@@ -21,6 +21,9 @@ private fun String.cleanBackendError(): String {
     if ("provider_circuit_open" in normalized) {
         return "外部识别服务暂时不可用，请稍后重试或改用文字输入"
     }
+    if ("visual_recognition_failed" in normalized) {
+        return "图片识别服务暂时不可用，请稍后重试"
+    }
     if ("media_url_not_public" in normalized) {
         return "音频地址不能被识别服务访问，请检查上传公网地址"
     }

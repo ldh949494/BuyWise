@@ -6,6 +6,7 @@ from typing import Any, Protocol
 
 from sqlalchemy.orm import Session
 
+from app.core.providers import AppError
 from app.ai.rag_pipeline import RAGPipeline
 from app.repositories.product_repo import ProductRepository
 from app.schemas.chat import ProductCard, StructuredNeed
@@ -86,12 +87,18 @@ class VisualSearchService:
         try:
             recognized = VisionRecognition.model_validate(await self.vision_service.extract_image_info(request.image_url))
             return recognized, False
-        except Exception:
+        except Exception as exc:
             logger.error(
                 "Visual recognition failed; falling back to text and catalog search",
                 exc_info=True,
                 extra={"top_k": request.top_k, "has_message": bool(request.message)},
             )
+            if not request.message or not request.message.strip():
+                raise AppError(
+                    "Visual recognition failed.",
+                    status_code=503,
+                    code="visual_recognition_failed",
+                ) from exc
             return self._fallback_recognition(request.message), True
 
     def _fallback_recognition(self, message: str | None) -> VisionRecognition:

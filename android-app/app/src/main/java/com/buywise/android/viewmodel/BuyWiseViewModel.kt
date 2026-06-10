@@ -23,10 +23,15 @@ class BuyWiseViewModel(
     private val repository: ShopRepository = ShopRepository(),
 ) : ViewModel() {
     private val homeViewModel = HomeViewModel.from(repository)
-    private val guideViewModel = GuideViewModel.from(repository)
     private val compareViewModel = CompareViewModel.from(repository)
     private val productDetailViewModel = ProductDetailViewModel.from(repository)
     private val cartViewModel = CartViewModel.from(repository)
+    private val guideViewModel = GuideViewModel(
+        repository.guideRepository,
+        repository.guideState(""),
+        onCartUpdated = { cart, message -> cartViewModel.applyServerCart(cart, message) },
+        onCartRefreshRequested = { cartViewModel.refresh() },
+    )
     private val feedbackViewModel = FeedbackViewModel.from(repository)
     private val uploadViewModel = UploadViewModel.from(repository)
     private val accountViewModel = AccountViewModel(repository.authRepository, repository.guidePreferencesRepository, viewModelScope)

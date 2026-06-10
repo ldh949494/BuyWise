@@ -1,5 +1,7 @@
 """Chat stream event schemas."""
 
+from typing import Any
+
 from pydantic import Field
 
 from app.schemas.chat import BundlePlan, ProductCard, StructuredNeed
@@ -34,6 +36,7 @@ class ChatStreamDoneEventData(BaseSchema):
     degraded_reason: str | None = None
     should_refresh: bool = False
     refresh_reason: str | None = None
+    extra: dict[str, Any] = Field(default_factory=dict)
 
 
 class ChatStreamErrorEventData(BaseSchema):

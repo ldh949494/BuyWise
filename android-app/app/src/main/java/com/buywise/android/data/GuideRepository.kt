@@ -22,6 +22,8 @@ sealed interface ChatStreamEvent {
         val reply: String,
         val shouldRefresh: Boolean = false,
         val refreshReason: String? = null,
+        val action: String? = null,
+        val cart: CartState? = null,
     ) : ChatStreamEvent
     data class Error(val message: String) : ChatStreamEvent
     data object Heartbeat : ChatStreamEvent
@@ -118,6 +120,8 @@ class GuideRepository internal constructor(
                 reply = json.optString("reply"),
                 shouldRefresh = json.optBoolean("should_refresh", false),
                 refreshReason = json.optStringOrNull("refresh_reason"),
+                action = json.optJSONObject("extra")?.optStringOrNull("action"),
+                cart = json.optJSONObject("extra")?.optJSONObject("cart")?.let(::parseCart),
             )
             "error" -> parseErrorEvent(json)
             else -> ChatStreamEvent.Status(type ?: "message")

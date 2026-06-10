@@ -67,7 +67,7 @@ class UploadViewModel(
         onRecognized: ((String) -> Unit)? = null,
         onError: ((String) -> Unit)? = null,
     ) {
-        state = state.copy(isLoading = true, errorMessage = null)
+        state = state.startSpeechRecognition()
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) { repository.runSpeechDemo() }
@@ -76,7 +76,7 @@ class UploadViewModel(
                 onRecognized?.invoke(text)
             }.onFailure { throwable ->
                 val message = throwable.userMessage("语音识别失败")
-                state = state.copy(isLoading = false, errorMessage = message)
+                state = state.failSpeechRecognition(message)
                 onError?.invoke(message)
             }
         }
@@ -89,7 +89,7 @@ class UploadViewModel(
         onRecognized: ((String) -> Unit)? = null,
         onError: ((String) -> Unit)? = null,
     ) {
-        state = state.copy(isLoading = true, errorMessage = null, selectedImageName = filename)
+        state = state.startSpeechRecognition(filename)
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
@@ -100,7 +100,7 @@ class UploadViewModel(
                 onRecognized?.invoke(text)
             }.onFailure { throwable ->
                 val message = throwable.userMessage("语音识别失败")
-                state = state.copy(isLoading = false, errorMessage = message)
+                state = state.failSpeechRecognition(message)
                 onError?.invoke(message)
             }
         }
@@ -132,6 +132,23 @@ fun VisionState.startImageRecognition(filename: String): VisionState =
 fun VisionState.failRecognition(message: String): VisionState =
     copy(
         result = VisionResult.Empty,
+        isLoading = false,
+        errorMessage = message,
+        recognizedQuery = null,
+        speechText = null,
+    )
+
+fun VisionState.startSpeechRecognition(filename: String? = selectedImageName): VisionState =
+    copy(
+        isLoading = true,
+        errorMessage = null,
+        recognizedQuery = null,
+        speechText = null,
+        selectedImageName = filename,
+    )
+
+fun VisionState.failSpeechRecognition(message: String): VisionState =
+    copy(
         isLoading = false,
         errorMessage = message,
         recognizedQuery = null,

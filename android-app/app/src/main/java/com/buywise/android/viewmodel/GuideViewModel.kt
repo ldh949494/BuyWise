@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import com.buywise.android.data.BundlePlan
+import com.buywise.android.data.CartState
 import com.buywise.android.data.CompareChatContext
 import com.buywise.android.data.GuideChatMessage
 import com.buywise.android.data.GuideChatRole
@@ -20,6 +21,8 @@ import okhttp3.sse.EventSource
 class GuideViewModel(
     private val repository: GuideRepository,
     initialState: GuideState,
+    private val onCartUpdated: (CartState, String?) -> Unit = { _, _ -> },
+    private val onCartRefreshRequested: () -> Unit = {},
 ) : ViewModel() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var guideStream: EventSource? = null
@@ -279,8 +282,19 @@ class GuideViewModel(
                 }
             }
         }
+        syncCartAction(event, finalReply)
         activeAssistantMessageId = null
         return withReply
+    }
+
+    private fun syncCartAction(event: ChatStreamEvent.Done, message: String) {
+        if (event.cart != null) {
+            onCartUpdated(event.cart, message.takeIf { it.isNotBlank() })
+            return
+        }
+        if (event.action in setOf("cart.add", "cart.remove", "checkout.confirm")) {
+            onCartRefreshRequested()
+        }
     }
 
     private fun applyError(message: String): GuideState {
