@@ -67,6 +67,28 @@ data class CompareItemDto(
 )
 
 @Serializable
+data class CompareFollowUpProductDto(
+    val id: Int,
+    @SerialName("product_id") val productId: Int,
+    val name: String,
+    val price: Double? = null,
+    val rating: Double? = null,
+    val score: Double? = null,
+    val pros: List<String> = emptyList(),
+    val cons: List<String> = emptyList(),
+)
+
+@Serializable
+data class CompareFollowUpRequestDto(
+    val message: String,
+    val items: List<CompareFollowUpProductDto>,
+    val summary: String? = null,
+    @SerialName("winner_id") val winnerId: Int? = null,
+    @SerialName("user_need") val userNeed: String? = null,
+    @SerialName("session_id") val sessionId: String? = null,
+)
+
+@Serializable
 data class OrderCreateRequestDto(
     @SerialName("product_id") val productId: Int,
     val quantity: Int = 1,

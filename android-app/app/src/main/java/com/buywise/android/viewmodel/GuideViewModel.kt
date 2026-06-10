@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import com.buywise.android.data.BundlePlan
+import com.buywise.android.data.CompareChatContext
 import com.buywise.android.data.GuideChatMessage
 import com.buywise.android.data.GuideChatRole
 import com.buywise.android.data.ChatStreamEvent
@@ -78,9 +79,23 @@ class GuideViewModel(
     }
 
     fun prepareChatDraft() {
+        val nextState = state.copy(compareChatContext = null)
         if (state.chatDraft.isBlank() && state.query.isNotBlank() && state.chatMessages.isEmpty()) {
-            state = state.copy(chatDraft = state.query)
+            state = nextState.copy(chatDraft = nextState.query)
+            return
         }
+        state = nextState
+    }
+
+    fun useCompareChatContext(context: CompareChatContext, draft: String) {
+        state = state.copy(
+            query = draft,
+            chatDraft = draft,
+            chatMessages = emptyList(),
+            partialReply = "",
+            errorMessage = null,
+            compareChatContext = context,
+        )
     }
 
     fun submitQuery() {
@@ -110,6 +125,7 @@ class GuideViewModel(
             isStreaming = true,
             errorMessage = null,
             sessionId = null,
+            compareChatContext = null,
         )
         guideStream = repository.streamGuide(
             query = query,
@@ -124,8 +140,9 @@ class GuideViewModel(
         if (message.isBlank() || state.isStreaming) {
             return
         }
+        val compareContext = state.compareChatContext
         guideStream?.cancel()
-        streamMode = StreamMode.Chat
+        streamMode = if (compareContext == null) StreamMode.Chat else StreamMode.Compare
         val userMessage = GuideChatMessage(
             id = newMessageId(),
             role = GuideChatRole.USER,
@@ -147,12 +164,20 @@ class GuideViewModel(
             isStreaming = true,
             errorMessage = null,
         )
-        guideStream = repository.streamGuideFollowUp(
-            query = message,
-            sessionId = state.sessionId,
-            ignoreSavedPreferences = state.ignoreSavedPreferences,
-            onEvent = { event -> mainHandler.post { applyChatEvent(event) } },
-        )
+        guideStream = if (compareContext == null) {
+            repository.streamGuideFollowUp(
+                query = message,
+                sessionId = state.sessionId,
+                ignoreSavedPreferences = state.ignoreSavedPreferences,
+                onEvent = { event -> mainHandler.post { applyChatEvent(event) } },
+            )
+        } else {
+            repository.streamCompareFollowUp(
+                query = message,
+                context = compareContext,
+                onEvent = { event -> mainHandler.post { applyChatEvent(event) } },
+            )
+        }
     }
 
     fun useQuery(query: String) {
@@ -286,6 +311,7 @@ class GuideViewModel(
     private sealed interface StreamMode {
         data object Workbench : StreamMode
         data object Chat : StreamMode
+        data object Compare : StreamMode
     }
 
     companion object {

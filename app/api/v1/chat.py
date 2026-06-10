@@ -15,11 +15,13 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
 from app.core.database import get_db
-from app.core.dependencies import get_chat_service
+from app.core.dependencies import get_chat_service, get_compare_service
 from app.core.providers import Principal, get_auth_provider
 from app.schemas.chat import ChatRequest, ChatResponse
-from app.schemas.chat_stream import ChatStreamErrorEventData
+from app.schemas.chat_stream import ChatStreamDoneEventData, ChatStreamErrorEventData
+from app.schemas.compare import CompareFollowUpRequest
 from app.services.chat_service import ChatService
+from app.services.compare_service import CompareService
 
 
 router = APIRouter(prefix="/ai")
@@ -83,6 +85,20 @@ async def stream_guide_follow_up(
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
+@router.post("/compare/follow-up/stream")
+async def stream_compare_follow_up(
+    request: CompareFollowUpRequest,
+    service: CompareService = Depends(get_compare_service),
+    app_settings: Settings = Depends(get_settings),
+) -> StreamingResponse:
+    async def event_stream():
+        events = service.generate_follow_up_stream(request)
+        async for event in _stream_with_keepalive(events, request.session_id, app_settings):
+            yield _format_sse(event["event"], event["data"])
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
 async def _stream_with_keepalive(
     events: AsyncIterator[dict[str, Any]],
     session_id: str | None,
@@ -91,6 +107,7 @@ async def _stream_with_keepalive(
     deadline = time.monotonic() + _stream_max_seconds(app_settings)
     iterator = events.__aiter__()
     pending: asyncio.Task | None = None
+    has_products = False
     try:
         while time.monotonic() < deadline:
             pending = pending or asyncio.create_task(iterator.__anext__())
@@ -99,10 +116,11 @@ async def _stream_with_keepalive(
                 yield _heartbeat_event()
                 continue
             pending = None
+            has_products = has_products or _is_product_result_event(event)
             yield event
             if event["event"] in {"done", "error"}:
                 return
-        yield _timeout_event(session_id)
+        yield _partial_done_event() if has_products else _timeout_event(session_id)
     except StopAsyncIteration:
         return
     finally:
@@ -144,6 +162,26 @@ def _timeout_event(session_id: str | None) -> dict[str, Any]:
             session_id=session_id or "unknown",
         ),
     }
+
+
+def _partial_done_event() -> dict[str, Any]:
+    return {
+        "event": "done",
+        "data": ChatStreamDoneEventData(
+            reply="导购总结生成较慢，已先返回商品候选。你可以先查看商品卡片，或继续追问具体差异。",
+            degraded=True,
+            degraded_reason="stream_generation_timeout",
+        ),
+    }
+
+
+def _is_product_result_event(event: dict[str, Any]) -> bool:
+    if event.get("event") != "products":
+        return False
+    data = event.get("data") or {}
+    if hasattr(data, "model_dump"):
+        data = data.model_dump(mode="json")
+    return bool(data.get("items") or data.get("bundle_plans"))
 
 
 def _heartbeat_seconds(app_settings: Settings) -> float:

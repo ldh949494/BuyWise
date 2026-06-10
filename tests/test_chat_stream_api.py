@@ -118,12 +118,33 @@ def test_stream_keepalive_times_out_stalled_stream() -> None:
     assert events[-1]["data"].session_id == "sse-session"
 
 
+def test_stream_keepalive_returns_partial_done_after_product_results_timeout() -> None:
+    events = asyncio.run(_collect_events(_products_then_stalled_stream(), _fast_stream_settings(max_seconds=0.025)))
+
+    assert events[-1]["event"] == "done"
+    assert events[-1]["data"].degraded is True
+    assert events[-1]["data"].degraded_reason == "stream_generation_timeout"
+
+
 async def _delayed_done_stream():
     await asyncio.sleep(0.02)
     yield {"event": "done", "data": {"reply": "ok"}}
 
 
 async def _stalled_stream():
+    await asyncio.sleep(1)
+    yield {"event": "done", "data": {"reply": "late"}}
+
+
+async def _products_then_stalled_stream():
+    yield {
+        "event": "products",
+        "data": {
+            "need_clarify": False,
+            "structured_need": StructuredNeed(intent="商品推荐", category="机械键盘"),
+            "items": [ProductCard(id=1001, name="K87", price=269.0)],
+        },
+    }
     await asyncio.sleep(1)
     yield {"event": "done", "data": {"reply": "late"}}
 

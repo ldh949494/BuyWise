@@ -23,6 +23,9 @@ class FakeLLMClient:
     async def generate_compare_summary(self, user_need, products):
         return f"\u5982\u679c\u4f60\u6700\u5173\u6ce8\u5bbf\u820d\u9759\u97f3\uff0c\u4f18\u5148\u63a8\u8350 {products[0].name}\u3002"
 
+    async def stream_chat(self, messages, **kwargs):
+        yield "\u7ee7\u7eed\u5bf9\u6bd4\uff1a\u4f18\u5148\u770b\u9996\u63a8\u5546\u54c1\u3002"
+
 
 class FailingLLMClient:
     async def generate_compare_summary(self, user_need, products):
@@ -186,3 +189,45 @@ def test_compare_api_route_is_registered() -> None:
     paths = {route.path for route in app.routes}
 
     assert "/api/v1/products/compare" in paths
+
+
+def test_compare_follow_up_stream_does_not_require_guide_snapshot() -> None:
+    app = create_app()
+    app.dependency_overrides[get_compare_service] = lambda: CompareService(llm_client=FakeLLMClient())
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/v1/ai/compare/follow-up/stream",
+        json={
+            "message": "\u54ea\u4e2a\u66f4\u9002\u5408\u5bbf\u820d\uff1f",
+            "summary": f"\u4f18\u5148\u63a8\u8350 {KEYBOARD_NAME}\u3002",
+            "winner_id": 1,
+            "items": [
+                {
+                    "id": 1,
+                    "product_id": 1,
+                    "name": KEYBOARD_NAME,
+                    "price": 269.0,
+                    "rating": 4.8,
+                    "score": 90.0,
+                    "pros": ["\u5b89\u9759", "\u4ef7\u683c\u5408\u9002"],
+                    "cons": ["\u4e0d\u652f\u6301\u65e0\u7ebf"],
+                },
+                {
+                    "id": 2,
+                    "product_id": 2,
+                    "name": "Lite68 \u529e\u516c\u9759\u97f3\u952e\u76d8",
+                    "price": 329.0,
+                    "rating": 4.5,
+                    "score": 70.0,
+                    "pros": ["\u65e0\u7ebf"],
+                    "cons": ["\u8d85\u51fa\u9884\u7b97"],
+                },
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    assert "event: token" in response.text
+    assert "event: done" in response.text
+    assert "missing_recommendation_snapshot" not in response.text

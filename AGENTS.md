@@ -42,6 +42,7 @@ BuyWise is a FastAPI backend plus native Android client for a multimodal e-comme
 ## Product And Reference
 
 - Product specification: `docs/product/buywise-mvp.md`
+- Technical overview: `docs/reference/technical-overview.md`
 - API reference notes: `docs/reference/api.md`
 - Configuration reference: `docs/reference/configuration.md`
 - Script reference: `docs/reference/scripts.md`

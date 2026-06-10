@@ -89,7 +89,7 @@ powershell.exe -ExecutionPolicy Bypass -File .\scripts\start_demo.ps1
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\start_demo.ps1 -AllowMockLlm
 ```
 
-完整演示顺序见 `docs/plans/demo-checklist.md`。
+完整演示顺序见 `docs/plans/demo-checklist.md`。面向技术评委录制 App 业务 demo 时，使用 `docs/plans/app-demo-recording-guide.md` 组织首页、AI 导购、追问、对比、组合方案、识图、购物车和购买反馈链路。
 
 只更新指定商品的向量索引：
 
@@ -119,7 +119,7 @@ powershell.exe -ExecutionPolicy Bypass -File .\scripts\start_demo.ps1 -AllowMock
    http://192.168.x.x:8000
    ```
 
-当前 Android 客户端通过后端 API 加载商品、对比商品，并使用 `/api/v1/ai/chat/stream` 流式展示导购回复。后端不可用时，客户端展示错误和重试入口。
+当前 Android 客户端通过后端 API 加载商品、对比商品，并使用 `/api/v1/ai/guide/stream` 开始或刷新完整导购，使用 `/api/v1/ai/guide/follow-up/stream` 基于当前推荐快照处理追问。后端不可用时，客户端展示错误和重试入口。
 
 ## Docker
 
