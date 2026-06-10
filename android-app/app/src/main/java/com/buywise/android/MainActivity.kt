@@ -84,6 +84,7 @@ private fun BuyWiseRoot(
     val showBottomBar = currentRoute != null &&
         currentRoute != "landing" &&
         currentRoute != "search" &&
+        currentRoute != "guide/chat" &&
         currentRoute.startsWith("detail/") != true
     val showCompareBasket = currentRoute != null &&
         currentRoute != "landing" &&
