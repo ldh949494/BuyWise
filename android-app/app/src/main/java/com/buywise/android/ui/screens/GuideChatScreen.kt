@@ -125,6 +125,7 @@ private fun GuideChatTopBar(onBack: () -> Unit) {
 @Composable
 private fun OpeningAssistantMessage(state: GuideState) {
     val text = when {
+        state.compareChatContext != null -> "已带入当前对比结果。你可以继续问我哪个更适合、主要风险或购买前要确认什么。"
         state.query.isNotBlank() -> "我已看到你的需求：${state.query}。你可以继续问我商品区别、推荐理由或细节。"
         else -> "告诉我预算、用途和偏好，我可以帮你筛选商品。"
     }
@@ -133,6 +134,7 @@ private fun OpeningAssistantMessage(state: GuideState) {
 
 @Composable
 private fun GuideProcessingCard(state: GuideState, onIgnoreSavedPreferencesChange: (Boolean) -> Unit) {
+    val isCompareChat = state.compareChatContext != null
     FloatingGlassCard(
         tone = FloatingGlassTone.Neutral,
         radius = 16.dp,
@@ -141,36 +143,38 @@ private fun GuideProcessingCard(state: GuideState, onIgnoreSavedPreferencesChang
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             StatusChecklistRow(
-                label = "理解需求",
-                status = if (state.query.isNotBlank()) "完成" else "等待中",
-                done = state.query.isNotBlank(),
+                label = if (isCompareChat) "对比上下文" else "理解需求",
+                status = if (isCompareChat) "已带入" else if (state.query.isNotBlank()) "完成" else "等待中",
+                done = isCompareChat || state.query.isNotBlank(),
             )
             StatusChecklistRow(
-                label = "检索商品",
-                status = if (state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty()) "完成" else if (state.isStreaming) "搜索中" else "待开始",
-                done = state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty(),
+                label = if (isCompareChat) "对比商品" else "检索商品",
+                status = if (isCompareChat) "完成" else if (state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty()) "完成" else if (state.isStreaming) "搜索中" else "待开始",
+                done = isCompareChat || state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty(),
             )
             StatusChecklistRow(
                 label = "生成回答",
-                status = if (state.isStreaming) "生成中" else if (state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty()) "完成" else "待开始",
-                done = !state.isStreaming && (state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty()),
+                status = if (state.isStreaming) "生成中" else if (isCompareChat || state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty()) "完成" else "待开始",
+                done = !state.isStreaming && (isCompareChat || state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty()),
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("导购偏好", color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold)
-                    Text(
-                        guidePreferenceSummaryText(state.appliedPreferences, state.ignoreSavedPreferences),
-                        color = BuyWiseTheme.colors.muted,
-                        style = MaterialTheme.typography.labelMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+            if (!isCompareChat) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("导购偏好", color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold)
+                        Text(
+                            guidePreferenceSummaryText(state.appliedPreferences, state.ignoreSavedPreferences),
+                            color = BuyWiseTheme.colors.muted,
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Switch(checked = state.ignoreSavedPreferences, onCheckedChange = onIgnoreSavedPreferencesChange)
                 }
-                Switch(checked = state.ignoreSavedPreferences, onCheckedChange = onIgnoreSavedPreferencesChange)
             }
         }
     }

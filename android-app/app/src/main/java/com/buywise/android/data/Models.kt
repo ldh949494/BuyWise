@@ -173,6 +173,15 @@ data class GuideState(
     val isStreaming: Boolean = false,
     val errorMessage: String? = null,
     val sessionId: String? = null,
+    val compareChatContext: CompareChatContext? = null,
+)
+
+data class CompareChatContext(
+    val products: List<Product>,
+    val summary: String? = null,
+    val winnerId: String? = null,
+    val userNeed: String? = null,
+    val sessionId: String? = null,
 )
 
 enum class GuideChatRole {

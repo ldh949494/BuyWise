@@ -6,6 +6,7 @@ import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.concurrent.TimeUnit
 
 sealed interface ChatStreamEvent {
     data class Meta(val sessionId: String) : ChatStreamEvent
@@ -30,7 +31,12 @@ class GuideRepository internal constructor(
     private val apiClient: BuyWiseApiClient,
     httpClient: OkHttpClient,
 ) {
-    private val eventSourceFactory = EventSources.createFactory(httpClient)
+    private val eventSourceFactory = EventSources.createFactory(
+        httpClient.newBuilder()
+            .readTimeout(0, TimeUnit.MILLISECONDS)
+            .callTimeout(0, TimeUnit.MILLISECONDS)
+            .build()
+    )
 
     fun streamGuide(
         query: String,
@@ -59,6 +65,24 @@ class GuideRepository internal constructor(
                 sessionId = sessionId,
                 message = query,
                 ignoreSavedPreferences = ignoreSavedPreferences,
+            )
+        ),
+        onEvent = onEvent,
+    )
+
+    fun streamCompareFollowUp(
+        query: String,
+        context: CompareChatContext,
+        onEvent: (ChatStreamEvent) -> Unit,
+    ): EventSource = streamGuideRequest(
+        request = apiClient.compareFollowUpStreamRequest(
+            CompareFollowUpRequestDto(
+                message = query,
+                items = context.products.mapNotNull { product -> product.toCompareFollowUpProductDto() },
+                summary = context.summary,
+                winnerId = context.winnerId?.toIntOrNull(),
+                userNeed = context.userNeed,
+                sessionId = context.sessionId,
             )
         ),
         onEvent = onEvent,
@@ -139,4 +163,18 @@ class GuideRepository internal constructor(
 
     private fun JSONObject.optStringOrNull(name: String): String? =
         if (has(name) && !isNull(name)) optString(name).takeIf { it.isNotBlank() } else null
+}
+
+private fun Product.toCompareFollowUpProductDto(): CompareFollowUpProductDto? {
+    val id = id.toIntOrNull() ?: return null
+    return CompareFollowUpProductDto(
+        id = id,
+        productId = id,
+        name = name,
+        price = price,
+        rating = rating,
+        score = recommendationScore,
+        pros = advantages,
+        cons = cautions,
+    )
 }

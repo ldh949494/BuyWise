@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from decimal import Decimal
+from collections.abc import AsyncIterator
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -11,11 +12,13 @@ from sqlalchemy.orm import Session
 from app.ai.llm_client import LLMClient
 from app.ai.model_gateway import AIModelGateway
 from app.core.concurrency import run_blocking_io
+from app.core.config import settings
 from app.core.providers import get_logging_provider
 from app.repositories.price_repo import PriceHistoryRepository
 from app.repositories.product_repo import ProductRepository
 from app.repositories.review_repo import ReviewRepository
-from app.schemas.compare import CompareItem, CompareResponse
+from app.schemas.chat_stream import ChatStreamDoneEventData, ChatStreamStatusEventData, ChatStreamTokenEventData
+from app.schemas.compare import CompareFollowUpRequest, CompareItem, CompareResponse
 from app.services.review_signal_service import ReviewSignalService
 from app.utils.compare_signals import score_price_signal, score_purchase_feedback, score_review_counts
 from app.utils.list_values import coerce_string_list, parse_json_or_none
@@ -36,6 +39,56 @@ class CompareService:
         winner_id = items[0].product_id if items else None
         return CompareResponse(items=items, summary=summary, winner_id=winner_id)
 
+    async def generate_follow_up_stream(
+        self,
+        request: CompareFollowUpRequest,
+    ) -> AsyncIterator[dict[str, Any]]:
+        yield self._stream_event("status", ChatStreamStatusEventData(stage="context", message="compare_context"))
+        if not self._has_follow_up_context(request):
+            yield self._missing_context_event()
+            return
+        async for event in self._stream_follow_up_answer(request):
+            yield event
+
+    def _has_follow_up_context(self, request: CompareFollowUpRequest) -> bool:
+        return bool(request.message.strip()) and len(request.items) >= 2
+
+    async def _stream_follow_up_answer(self, request: CompareFollowUpRequest) -> AsyncIterator[dict[str, Any]]:
+        chunks: list[str] = []
+        try:
+            async for chunk in self.llm_client.stream_chat(
+                self._follow_up_messages(request),
+                max_tokens=settings.chat_stream_fast_reply_max_tokens,
+            ):
+                chunks.append(chunk)
+                yield self._stream_event("token", ChatStreamTokenEventData(text=chunk))
+        except Exception:
+            get_logging_provider().get_logger("app.compare").error(
+                "Compare follow-up generation failed; using fallback reply",
+                exc_info=True,
+                extra={"item_count": len(request.items)},
+            )
+            reply = self._fallback_follow_up_reply(request)
+            yield self._stream_event("token", ChatStreamTokenEventData(text=reply))
+            yield self._stream_event(
+                "done",
+                ChatStreamDoneEventData(reply=reply, degraded=True, degraded_reason="compare_follow_up_fallback"),
+            )
+            return
+
+        reply = "".join(chunks).strip() or self._fallback_follow_up_reply(request)
+        yield self._stream_event("done", ChatStreamDoneEventData(reply=reply))
+
+    def _missing_context_event(self) -> dict[str, Any]:
+        return self._stream_event(
+            "done",
+            ChatStreamDoneEventData(
+                reply="需要先完成一次商品对比，再继续围绕这组商品追问。",
+                should_refresh=True,
+                refresh_reason="missing_compare_context",
+            ),
+        )
+
     async def _generate_summary(self, user_need: str, items: list[CompareItem]) -> str:
         try:
             return await self.llm_client.generate_compare_summary(user_need, items)
@@ -53,6 +106,60 @@ class CompareService:
         winner = items[0]
         signals = winner.pros[:2] or ["综合表现更均衡"]
         return f"优先推荐 {winner.name}，主要依据是{'、'.join(signals)}。"
+
+    def _follow_up_messages(self, request: CompareFollowUpRequest) -> list[dict[str, str]]:
+        return [
+            {
+                "role": "system",
+                "content": (
+                    "你是 BuyWise 的商品对比追问助手。只能基于当前对比上下文回答，"
+                    "不要要求用户先完成导购，不要新增未给出的商品，不要编造优惠、库存或实时价格。"
+                    "回答要简洁，优先给可执行结论，并说明关键依据和风险。"
+                ),
+            },
+            {
+                "role": "user",
+                "content": self._follow_up_prompt(request),
+            },
+        ]
+
+    def _follow_up_prompt(self, request: CompareFollowUpRequest) -> str:
+        lines = [
+            f"用户追问：{request.message.strip()}",
+            f"原始需求：{request.user_need or '未提供'}",
+            f"对比摘要：{request.summary or '未提供'}",
+            f"当前推荐 winner_id：{request.winner_id or '未提供'}",
+            "对比商品：",
+        ]
+        for item in request.items[:4]:
+            lines.append(
+                (
+                    f"- id={item.product_id or item.id}; name={item.name}; price={item.price}; "
+                    f"rating={item.rating}; score={item.score}; pros={item.pros[:3]}; cons={item.cons[:3]}"
+                )
+            )
+        return "\n".join(lines)
+
+    def _fallback_follow_up_reply(self, request: CompareFollowUpRequest) -> str:
+        winner = self._winner_item(request)
+        if winner is None:
+            winner = max(request.items, key=lambda item: item.score or 0)
+        reasons = winner.pros[:2] or ["综合分更高", "当前对比结果更均衡"]
+        cautions = winner.cons[:1]
+        reply = f"基于当前对比，优先看 {winner.name}，主要依据是{'、'.join(reasons)}。"
+        if cautions:
+            reply += f" 购买前重点确认：{cautions[0]}。"
+        return reply
+
+    def _winner_item(self, request: CompareFollowUpRequest) -> CompareItem | None:
+        if request.winner_id is None:
+            return None
+        return next((item for item in request.items if item.product_id == request.winner_id or item.id == request.winner_id), None)
+
+    def _stream_event(self, event: str, data: Any) -> dict[str, Any]:
+        if hasattr(data, "model_dump"):
+            data = data.model_dump(mode="json")
+        return {"event": event, "data": data}
 
     def _build_items(
         self,

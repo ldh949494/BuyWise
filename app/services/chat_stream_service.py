@@ -270,10 +270,11 @@ class ChatStreamRunner:
                 chunks.append(chunk)
                 yield self._event("token", ChatStreamTokenEventData(text=chunk))
         except Exception as exc:
-            if not is_capacity_limited(exc, "llm"):
+            if not self._is_recoverable_llm_failure(exc):
                 raise
-            count_llm_failure("recommendation", "capacity_limited")
-            async for event in self._stream_fallback(context, need, top_products):
+            reason = self._failure_reason(exc)
+            count_llm_failure("recommendation", reason)
+            async for event in self._stream_fallback(context, need, top_products, degraded_reason=reason):
                 yield event
             return
         reply = "".join(chunks)
@@ -312,6 +313,8 @@ class ChatStreamRunner:
         context: dict[str, Any],
         need: Any,
         top_products: list[Any],
+        *,
+        degraded_reason: str = "llm_capacity_limited",
     ) -> AsyncIterator[dict[str, Any]]:
         reply = self.chat_service._fallback_recommendation_reply(top_products)
         self._save_assistant(
@@ -320,12 +323,12 @@ class ChatStreamRunner:
             need,
             top_products,
             need_clarify=False,
-            degraded_reason="llm_capacity_limited",
+            degraded_reason=degraded_reason,
         )
-        yield self._event("status", ChatStreamStatusEventData(stage="fallback", message="llm_capacity_limited"))
+        yield self._event("status", ChatStreamStatusEventData(stage="fallback", message=degraded_reason))
         yield self._event(
             "done",
-            ChatStreamDoneEventData(reply=reply, degraded=True, degraded_reason="llm_capacity_limited"),
+            ChatStreamDoneEventData(reply=reply, degraded=True, degraded_reason=degraded_reason),
         )
 
     async def _rank_products(self, need: Any, db: Session) -> list[Any]:
@@ -439,3 +442,12 @@ class ChatStreamRunner:
         if hasattr(data, "model_dump"):
             data = data.model_dump(mode="json")
         return {"event": event, "data": data}
+
+    def _is_recoverable_llm_failure(self, exc: Exception) -> bool:
+        return is_capacity_limited(exc, "llm") or getattr(exc, "code", None) == "provider_timeout"
+
+    def _failure_reason(self, exc: Exception) -> str:
+        if is_capacity_limited(exc, "llm"):
+            return "llm_capacity_limited"
+        code = str(getattr(exc, "code", "provider_failure"))
+        return f"llm_{code}"
