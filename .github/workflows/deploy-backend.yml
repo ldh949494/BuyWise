@@ -1,0 +1,92 @@
+name: Deploy Backend
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_active_products:
+        description: "Expected active product count for readiness check"
+        required: true
+        default: "50"
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve deployment config
+        env:
+          DEPLOY_HOST_SECRET: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER_SECRET: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY_SECRET: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PATH_SECRET: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          missing=()
+          [ -n "$DEPLOY_HOST_SECRET" ] || missing+=("DEPLOY_HOST")
+          [ -n "$DEPLOY_USER_SECRET" ] || missing+=("DEPLOY_USER")
+          [ -n "$DEPLOY_SSH_KEY_SECRET" ] || missing+=("DEPLOY_SSH_KEY")
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf 'Missing required secrets: %s\n' "${missing[*]}"
+            exit 1
+          fi
+          {
+            echo "DEPLOY_HOST=$DEPLOY_HOST_SECRET"
+            echo "DEPLOY_USER=$DEPLOY_USER_SECRET"
+            echo "DEPLOY_PATH=${DEPLOY_PATH_SECRET:-/home/ubuntu/BuyWise}"
+          } >> "$GITHUB_ENV"
+
+      - name: Configure SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/buywise_deploy_key
+          chmod 600 ~/.ssh/buywise_deploy_key
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+
+      - name: Sync source to server
+        run: |
+          set -euo pipefail
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/buywise_deploy_key" \
+            --exclude ".git/" \
+            --exclude ".env" \
+            --exclude ".venv/" \
+            --exclude "artifacts/" \
+            --exclude "data/" \
+            --exclude "uploads/" \
+            --exclude "vector_store/" \
+            --exclude "android-app/.gradle/" \
+            --exclude "android-app/app/build/" \
+            --exclude "admin-web/node_modules/" \
+            ./ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
+
+      - name: Build, migrate, and restart backend
+        env:
+          EXPECTED_ACTIVE_PRODUCTS: ${{ inputs.expected_active_products }}
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/buywise_deploy_key "$DEPLOY_USER@$DEPLOY_HOST" \
+            "DEPLOY_PATH='$DEPLOY_PATH' EXPECTED_ACTIVE_PRODUCTS='$EXPECTED_ACTIVE_PRODUCTS' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd "$DEPLOY_PATH"
+          mkdir -p artifacts
+          backup_file="artifacts/mysql-before-deploy-$(date -u +%Y%m%d%H%M%S).sql"
+          docker compose -f docker-compose.prod.yml up -d mysql
+          docker compose -f docker-compose.prod.yml exec -T mysql sh -c 'MYSQL_PWD="$MYSQL_PASSWORD" mysqldump --no-tablespaces -u"$MYSQL_USER" "$MYSQL_DATABASE"' > "$backup_file"
+          test -s "$backup_file"
+          docker compose -f docker-compose.prod.yml build backend
+          docker compose -f docker-compose.prod.yml run --rm backend python -m app.scripts.migrate_database
+          docker compose -f docker-compose.prod.yml up -d backend
+          docker compose -f docker-compose.prod.yml exec -T backend python -m alembic current
+          docker compose -f docker-compose.prod.yml exec -T backend python -m app.scripts.readiness_check --expected-active-products "$EXPECTED_ACTIVE_PRODUCTS"
+          REMOTE

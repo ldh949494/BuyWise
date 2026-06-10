@@ -7,6 +7,7 @@ import android.content.Context
 import com.buywise.android.data.CartItem
 import com.buywise.android.data.CartState
 import com.buywise.android.data.CompareBasketState
+import com.buywise.android.data.CompareChatContext
 import com.buywise.android.data.CompareState
 import com.buywise.android.data.FeedbackDraft
 import com.buywise.android.data.FeedbackPrompt
@@ -185,7 +186,16 @@ class BuyWiseViewModel(
                 append(summary)
             }
         }
-        guideViewModel.useChatDraft(draft)
+        guideViewModel.useCompareChatContext(
+            CompareChatContext(
+                products = products,
+                summary = compareState.summary,
+                winnerId = compareState.winnerId,
+                userNeed = compareViewModel.basketState.userNeed,
+                sessionId = guideState.sessionId,
+            ),
+            draft,
+        )
     }
 
     fun submitGuideQuery() {

@@ -106,4 +106,11 @@ class ShopRepository(
         onEvent: (ChatStreamEvent) -> Unit,
     ): EventSource =
         guideRepository.streamGuideFollowUp(query, sessionId, ignoreSavedPreferences, onEvent)
+
+    fun streamCompareFollowUp(
+        query: String,
+        context: CompareChatContext,
+        onEvent: (ChatStreamEvent) -> Unit,
+    ): EventSource =
+        guideRepository.streamCompareFollowUp(query, context, onEvent)
 }

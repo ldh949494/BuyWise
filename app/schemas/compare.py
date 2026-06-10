@@ -30,3 +30,12 @@ class CompareResponse(BaseSchema):
     items: list[CompareItem] = Field(default_factory=list)
     summary: str | None = None
     winner_id: int | None = None
+
+
+class CompareFollowUpRequest(BaseSchema):
+    message: str
+    items: list[CompareItem] = Field(default_factory=list)
+    summary: str | None = None
+    winner_id: int | None = None
+    user_need: str | None = None
+    session_id: str | None = None

@@ -32,10 +32,20 @@ class FakeRAGPipeline:
         return [db.get(Product, 2)]
 
 
+class FailingVisionService:
+    async def extract_image_info(self, image_url: str) -> dict:
+        raise RuntimeError("vision provider rejected image payload")
+
+
 class FakeImageStore:
     def search_by_recognition(self, recognized: VisionRecognition, image_url: str, top_k: int):
         assert recognized.category == "外套"
         return [VisualMatch(product_id=1, image_url="https://cdn.example.test/jacket.jpg", score=0.91, source="test")]
+
+
+class UnexpectedImageStore:
+    def search_by_recognition(self, recognized: VisionRecognition, image_url: str, top_k: int):
+        raise AssertionError("image store should not be called after recognition fallback")
 
 
 @pytest.mark.anyio
@@ -67,3 +77,32 @@ async def test_visual_search_fuses_image_and_text_candidates() -> None:
     assert [product.id for product in response.products] == [1, 2]
     assert response.visual_matches[0].product_id == 1
     assert any("商品图相似度" in reason for reason in response.match_reasons[1])
+
+
+@pytest.mark.anyio
+async def test_visual_search_falls_back_when_vision_provider_fails() -> None:
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    session_factory = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    with session_factory() as db:
+        db.add(Product(id=2, name="宿舍低噪音键盘", category="键盘", price=Decimal("299.00"), tags=["静音"]))
+        db.commit()
+        service = VisualSearchService(
+            vision_service=FailingVisionService(),
+            rag_pipeline=FakeRAGPipeline(),
+            image_store=UnexpectedImageStore(),
+        )
+
+        response = await service.search(
+            VisualSearchRequest(image_url="/uploads/keyboard.png", message="宿舍低噪音键盘"),
+            db,
+        )
+
+    assert response.fallback_used is True
+    assert response.recognized.query == "宿舍低噪音键盘"
+    assert response.visual_matches == []
+    assert [product.id for product in response.products] == [2]
