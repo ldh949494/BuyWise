@@ -33,6 +33,7 @@ class IntentService:
         ],
         "\u53cc\u80a9\u5305": [
             "\u53cc\u80a9\u5305",
+            "\u4e66\u5305",
             "\u80cc\u5305",
             "\u5305",
         ],
@@ -88,6 +89,12 @@ class IntentService:
         "\u79df\u623f",
         "\u505a\u996d",
         "\u53a8\u623f",
+        "卧室",
+        "宠物",
+        "跑步",
+        "健身",
+        "办公室",
+        "小学",
         "\u6d77\u8fb9",
         "\u6237\u5916",
         "\u7a7f\u642d",
@@ -108,6 +115,18 @@ class IntentService:
         "\u9632\u6652",
         "\u9ad8\u989c\u503c",
         "\u4f11\u95f2",
+        "易清洗",
+        "容易清洗",
+        "占地小",
+        "吸猫毛",
+        "续航好",
+        "心率记录",
+        "佩戴舒服",
+        "画面清楚",
+        "自动校正",
+        "不漏水",
+        "内容可控",
+        "家长管理",
     ]
     BUDGET_PATTERNS = [
         re.compile(
@@ -439,7 +458,8 @@ class IntentService:
         return self._recommendation_missing_fields(category, budget_max, scenario, preferences)
 
     def _browse_missing_fields(self, category: str | None) -> list[str]:
-        return ["category"] if category is None else []
+        _ = category
+        return []
 
     def _bundle_missing_fields(self, scenario: str | None) -> list[str]:
         return []
@@ -451,9 +471,7 @@ class IntentService:
         scenario: str | None,
         preferences: list[str],
     ) -> list[str]:
-        _ = budget_max, scenario, preferences
-        if category is None:
-            return ["category"]
+        _ = category, budget_max, scenario, preferences
         return []
 
     def _coerce_list(self, value: Any) -> list[str]:

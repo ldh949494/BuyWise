@@ -245,3 +245,18 @@ async def test_search_products_returns_popular_fallback_when_no_keyword_or_adjac
 
     assert [product.name for product in results] == ["K87 静音红轴机械键盘"]
     assert pipeline.last_diagnostics["fallback_stage"] == "fallback_popular"
+
+
+@pytest.mark.anyio
+async def test_search_products_marks_empty_need_as_popular_fallback() -> None:
+    db = make_session()
+    seed_products(db)
+    store = FakeProductStore([{"metadata": {"product_id": 999}}])
+    pipeline = RAGPipeline(product_store=store)
+    need = StructuredNeed(intent="商品推荐")
+
+    results = await pipeline.search_products(need, db, top_k=1)
+
+    assert [product.name for product in results] == ["K87 静音红轴机械键盘"]
+    assert store.queries == []
+    assert pipeline.last_diagnostics["fallback_stage"] == "fallback_popular"

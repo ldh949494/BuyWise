@@ -241,8 +241,8 @@ class ChatStreamRunner:
     ) -> AsyncIterator[dict[str, Any]]:
         need = self._extract_fast_need(context, request)
         if need.category is None:
-            context["stream_path"] = "clarify"
-            async for event in self._stream_clarify(context, need):
+            self._apply_preferences(context, request, need, db)
+            async for event in self._stream_recommendation(context, need, db):
                 yield event
             return
         self._apply_preferences(context, request, need, db)

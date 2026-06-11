@@ -5,6 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.ai.llm_client import LLMClient
 from app.core.database import Base
 from app.models import Product
 from app.schemas.chat import ChatRequest, ProductCard, StructuredNeed
@@ -253,6 +254,23 @@ async def test_handle_chat_exposes_rag_fallback_metadata() -> None:
     assert response.extra["fallback_used"] is True
     assert response.extra["fallback_stage"] == "fallback_keyword"
     assert response.extra["result_quality"] == "broad"
+
+
+@pytest.mark.anyio
+async def test_handle_chat_explains_when_no_matching_products() -> None:
+    need = StructuredNeed(intent="商品推荐", category="机械键盘")
+    service = ChatService(
+        intent_service=FakeIntentService(need),
+        rag_pipeline=FakeRAGPipeline([]),
+        recommend_service=FakeRecommendService(),
+        llm_client=LLMClient(),
+    )
+
+    response = await service.handle_chat(ChatRequest(message="我需要一个键盘"), db=object())
+
+    assert response.need_clarify is False
+    assert response.products == []
+    assert "没有找到匹配商品" in response.reply
 
 
 @pytest.mark.anyio

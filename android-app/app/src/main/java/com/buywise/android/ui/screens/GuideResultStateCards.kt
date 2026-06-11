@@ -33,13 +33,13 @@ internal fun RecommendationEmptyState(resultStatus: GuideResultStatus) {
             )
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
-                    if (resultStatus == GuideResultStatus.Empty) "没有找到可推荐候选" else "还没有推荐结果",
+                    if (resultStatus == GuideResultStatus.Empty) "没有找到匹配商品" else "还没有推荐结果",
                     style = MaterialTheme.typography.titleMedium,
                     color = BuyWiseTheme.colors.ink,
                 )
                 Text(
                     if (resultStatus == GuideResultStatus.Empty) {
-                        "当前目录没有找到可推荐候选。换个品类或商品名再试。"
+                        "当前目录没有找到匹配商品。换个品类、商品名，或放宽预算和偏好后再试。"
                     } else {
                         "输入品类、商品名或需求后，这里会先展示候选商品，再补齐推荐理由、风险和证据。"
                     },

@@ -59,17 +59,7 @@ class RAGPipeline:
     ) -> list[Product]:
         started_at = time.perf_counter()
         repo = ProductRepository(db)
-        search_results = self._search_vector_store(need, self._candidate_top_k(top_k))
-        candidates = self._build_candidates(repo, need, search_results, top_k)
-        filtered, filter_reasons = self.filter_policy.get_filtered_products(candidates, need)
-        fallback_stage = "strict"
-        if not filtered:
-            filtered, fallback_stage, fallback_reasons = self._fallback_products(repo, need, top_k)
-            filter_reasons.update(fallback_reasons)
-            if fallback_stage != "none":
-                count_rag_fallback("chat", fallback_stage)
-            if not filtered:
-                count_rag_empty_results("chat", "vector")
+        search_results, candidates, filtered, filter_reasons, fallback_stage = self._retrieve_products(repo, need, top_k)
         reranked = self._rerank_products(filtered, need, db)[:top_k]
         self.last_diagnostics = self._build_diagnostics(
             search_results,
@@ -81,6 +71,57 @@ class RAGPipeline:
         )
         self._log_search(top_k)
         return reranked
+
+    def _retrieve_products(
+        self,
+        repo: ProductRepository,
+        need: Any,
+        top_k: int,
+    ) -> tuple[list[dict], list[Product], list[Product], Counter[str], str]:
+        if self._should_use_popular_fallback(need):
+            return self._retrieve_popular_fallback(repo, need, top_k)
+        search_results = self._search_vector_store(need, self._candidate_top_k(top_k))
+        candidates = self._build_candidates(repo, need, search_results, top_k)
+        filtered, filter_reasons = self.filter_policy.get_filtered_products(candidates, need)
+        fallback_stage = "strict"
+        if not filtered:
+            filtered, fallback_stage, fallback_reasons = self._fallback_products(repo, need, top_k)
+            filter_reasons.update(fallback_reasons)
+            if fallback_stage != "none":
+                count_rag_fallback("chat", fallback_stage)
+            if not filtered:
+                count_rag_empty_results("chat", "vector")
+        return search_results, candidates, filtered, filter_reasons, fallback_stage
+
+    def _retrieve_popular_fallback(
+        self,
+        repo: ProductRepository,
+        need: Any,
+        top_k: int,
+    ) -> tuple[list[dict], list[Product], list[Product], Counter[str], str]:
+        stage = "fallback_popular"
+        candidates = self._fallback_candidates_for_stage(repo, need, stage, top_k)
+        filtered, reasons = self.filter_policy.get_filtered_products(candidates, need, stage=stage)
+        count_rag_fallback("chat", stage)
+        if not filtered:
+            count_rag_empty_results("chat", "database")
+        return [], candidates, filtered, reasons, stage
+
+    def _should_use_popular_fallback(self, need: Any) -> bool:
+        intent = self._get_need_value(need, "intent")
+        if intent not in {None, "商品推荐", "recommend"}:
+            return False
+        keys = ["category", "budget_max", "scenario", "preferences", "avoid", "style_preferences"]
+        return not any(self._has_need_value(self._get_need_value(need, key)) for key in keys)
+
+    def _has_need_value(self, value: Any) -> bool:
+        if value is None:
+            return False
+        if isinstance(value, str):
+            return bool(value.strip())
+        if isinstance(value, list | tuple | set):
+            return bool(value)
+        return True
 
     def _search_vector_store(self, need: Any, top_k: int) -> list[dict]:
         query = build_query_from_need(need)

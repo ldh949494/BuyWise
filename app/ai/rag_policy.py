@@ -9,11 +9,12 @@ from typing import Any
 
 DEFAULT_ADJACENT_CATEGORIES = {
     "学习用品": ["台灯", "机械键盘"],
-    "机械键盘": ["台灯", "蓝牙耳机"],
+    "机械键盘": ["鼠标", "台灯", "蓝牙耳机"],
     "蓝牙耳机": ["充电宝", "双肩包"],
     "台灯": ["机械键盘", "双肩包"],
     "充电宝": ["蓝牙耳机", "双肩包"],
     "双肩包": ["充电宝", "蓝牙耳机"],
+    "鼠标": ["机械键盘", "蓝牙耳机"],
 }
 DEFAULT_FALLBACK_BUDGET_MULTIPLIER = Decimal("1.15")
 DEFAULT_FALLBACK_BUDGET_DELTA = Decimal("50")

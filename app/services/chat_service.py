@@ -385,7 +385,7 @@ class ChatService:
 
     def _fallback_recommendation_reply(self, products: list[Any]) -> str:
         if not products:
-            return "当前商品目录里还没有找到可推荐的候选。可以换个品类或商品名再试。"
+            return "没有找到匹配商品。可以换个品类、商品名，或放宽预算和偏好后再试。"
         names = "、".join(str(getattr(product, "name", "")) for product in products[:3] if getattr(product, "name", None))
         if names:
             return f"当前 AI 总结暂时繁忙，先为你返回基础推荐：{names}。你可以先查看商品卡片。"
