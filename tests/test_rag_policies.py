@@ -17,7 +17,13 @@ def test_fallback_policy_relaxes_budget_and_lists_adjacent_categories() -> None:
         adjacent_categories={"学习用品": ["台灯", "机械键盘"]},
     )
 
-    assert policy.list_stages() == ["fallback_budget", "fallback_relaxed", "fallback_adjacent"]
+    assert policy.list_stages() == [
+        "fallback_budget",
+        "fallback_relaxed",
+        "fallback_keyword",
+        "fallback_adjacent",
+        "fallback_popular",
+    ]
     assert policy.get_page_size(20) == 60
     assert policy.get_relaxed_budget(400) == Decimal("460.00")
     assert policy.list_adjacent_categories("学习用品") == ["台灯", "机械键盘"]
@@ -35,14 +41,20 @@ def test_filter_policy_keeps_diagnostics_reasons_by_stage() -> None:
 
     strict, strict_reasons = policy.get_filtered_products(products, need)
     relaxed, relaxed_reasons = policy.get_filtered_products([products[2]], need, stage="fallback_relaxed")
+    keyword, keyword_reasons = policy.get_filtered_products([products[1]], need, stage="fallback_keyword")
     adjacent, adjacent_reasons = policy.get_filtered_products([products[1]], need, stage="fallback_adjacent")
+    popular, popular_reasons = policy.get_filtered_products([products[1]], need, stage="fallback_popular")
 
     assert [item.id for item in strict] == [1]
     assert dict(strict_reasons) == {"category_mismatch": 1, "over_budget": 1, "out_of_stock": 1}
     assert [item.id for item in relaxed] == [3]
     assert dict(relaxed_reasons) == {}
+    assert [item.id for item in keyword] == [2]
+    assert dict(keyword_reasons) == {}
     assert [item.id for item in adjacent] == [2]
     assert dict(adjacent_reasons) == {}
+    assert [item.id for item in popular] == [2]
+    assert dict(popular_reasons) == {}
 
 
 def test_rerank_policy_maps_ranked_cards_back_to_products() -> None:

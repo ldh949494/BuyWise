@@ -4,9 +4,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base
 from app.models import Product
-from app.scripts.demo_desktop_products import DEMO_DESKTOP_PRODUCTS
-from app.scripts.demo_products import DEMO_SHOWCASE_PRODUCTS
-from app.scripts.seed_products import ANDROID_CONTRACT_PRODUCTS, seed_products
+from app.scripts.seed_products import ANDROID_CONTRACT_PRODUCTS, DEMO_PROFILE_PRODUCTS, seed_products
 
 COS_PREFIX = "https://buywise-1392410096.cos.ap-guangzhou.myqcloud.com/product-images/"
 
@@ -42,7 +40,7 @@ def test_seed_products_demo_profile_upserts_showcase_products() -> None:
     with session_factory() as db:
         products = db.query(Product).order_by(Product.id).all()
 
-    expected_count = len(ANDROID_CONTRACT_PRODUCTS) + len(DEMO_SHOWCASE_PRODUCTS) + len(DEMO_DESKTOP_PRODUCTS)
+    expected_count = len(DEMO_PROFILE_PRODUCTS)
     assert first_result == {"inserted": expected_count, "updated": 0}
     assert second_result == {"inserted": 0, "updated": expected_count}
     assert len(products) == expected_count
@@ -51,10 +49,13 @@ def test_seed_products_demo_profile_upserts_showcase_products() -> None:
     assert product_by_id[1201].category == "电脑"
     assert product_by_id[1204].category == "显示器"
     assert product_by_id[1207].category == "鼠标"
+    assert product_by_id[1301].category == "空气炸锅"
+    assert product_by_id[1303].category == "吸尘器"
+    assert product_by_id[1305].category == "投影仪"
 
 
 def test_seed_product_profiles_use_real_cos_images() -> None:
-    products = [*ANDROID_CONTRACT_PRODUCTS, *DEMO_SHOWCASE_PRODUCTS, *DEMO_DESKTOP_PRODUCTS]
+    products = DEMO_PROFILE_PRODUCTS
 
     for product in products:
         assert product["product_url"].startswith("https://")

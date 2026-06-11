@@ -20,7 +20,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -52,10 +51,7 @@ import com.buywise.android.ui.components.ChatBundleSummary
 import com.buywise.android.ui.components.ChatRecommendationCard
 import com.buywise.android.ui.components.EvidenceTag
 import com.buywise.android.ui.components.EvidenceTone
-import com.buywise.android.ui.components.FloatingGlassCard
-import com.buywise.android.ui.components.FloatingGlassTone
 import com.buywise.android.ui.components.ShowcaseTopBar
-import com.buywise.android.ui.components.StatusChecklistRow
 import com.buywise.android.ui.components.TactileIconTile
 import com.buywise.android.ui.components.TactileIconTone
 
@@ -130,54 +126,6 @@ private fun OpeningAssistantMessage(state: GuideState) {
         else -> "告诉我品类、商品名或需求，我可以先筛选商品；预算、用途和偏好可以之后补充。"
     }
     AssistantBubble(text = text, recommendations = emptyList(), bundlePlans = emptyList(), appliedPreferences = AppliedPreferences(), onProductClick = {})
-}
-
-@Composable
-private fun GuideProcessingCard(state: GuideState, onIgnoreSavedPreferencesChange: (Boolean) -> Unit) {
-    val isCompareChat = state.compareChatContext != null
-    FloatingGlassCard(
-        tone = FloatingGlassTone.Neutral,
-        radius = 16.dp,
-        contentPadding = 14.dp,
-        elevated = false,
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            StatusChecklistRow(
-                label = if (isCompareChat) "对比上下文" else "理解需求",
-                status = if (isCompareChat) "已带入" else if (state.query.isNotBlank()) "完成" else "等待中",
-                done = isCompareChat || state.query.isNotBlank(),
-            )
-            StatusChecklistRow(
-                label = if (isCompareChat) "对比商品" else "检索商品",
-                status = if (isCompareChat) "完成" else if (state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty()) "完成" else if (state.isStreaming) "搜索中" else "待开始",
-                done = isCompareChat || state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty(),
-            )
-            StatusChecklistRow(
-                label = "生成回答",
-                status = if (state.isStreaming) "生成中" else if (isCompareChat || state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty()) "完成" else "待开始",
-                done = !state.isStreaming && (isCompareChat || state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty()),
-            )
-            if (!isCompareChat) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text("导购偏好", color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold)
-                        Text(
-                            guidePreferenceSummaryText(state.appliedPreferences, state.ignoreSavedPreferences),
-                            color = BuyWiseTheme.colors.muted,
-                            style = MaterialTheme.typography.labelMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    Switch(checked = state.ignoreSavedPreferences, onCheckedChange = onIgnoreSavedPreferencesChange)
-                }
-            }
-        }
-    }
 }
 
 @Composable
@@ -481,7 +429,7 @@ private fun GuideChatInputBar(
                 value = draft,
                 onValueChange = onDraftChange,
                 modifier = Modifier.weight(1f),
-                placeholder = { Text(if (isRecordingAudio) "正在录音，点麦克风结束..." else "继续追问商品细节...") },
+                placeholder = { Text(if (isRecordingAudio) "正在录音，点麦克风结束..." else "继续补充或追问...") },
                 singleLine = true,
             )
             TactileIconTile(

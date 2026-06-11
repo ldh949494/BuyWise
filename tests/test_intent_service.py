@@ -101,15 +101,15 @@ async def test_extract_casual_browse_uses_explore_strategy_without_budget_clarif
 
 
 @pytest.mark.anyio
-async def test_extract_casual_browse_still_asks_for_missing_category() -> None:
+async def test_extract_casual_browse_without_category_can_start_broad_results() -> None:
     service = IntentService()
 
     need = await service.extract("我随便看看")
 
     assert need.purchase_stage == "browse"
     assert need.retrieval_strategy == "explore"
-    assert need.need_clarify is True
-    assert need.missing_fields == ["category"]
+    assert need.need_clarify is False
+    assert need.missing_fields == []
 
 
 @pytest.mark.anyio
@@ -127,15 +127,78 @@ async def test_extract_allows_category_only_recommendation() -> None:
 
 
 @pytest.mark.anyio
-async def test_extract_still_asks_when_recommendation_category_is_missing() -> None:
+@pytest.mark.parametrize(
+    ("message", "category"),
+    [
+        ("我需要一个键盘", "机械键盘"),
+        ("我需要一个耳机", "蓝牙耳机"),
+        ("我需要一个充电宝", "充电宝"),
+        ("我需要一个书包", "双肩包"),
+        ("我需要一个台灯", "台灯"),
+        ("我需要一个鼠标", "鼠标"),
+    ],
+)
+async def test_extract_category_only_need_starts_recommendation_without_optional_fields(
+    message: str,
+    category: str,
+) -> None:
+    service = IntentService()
+
+    need = await service.extract(message)
+
+    assert need.intent == "商品推荐"
+    assert need.category == category
+    assert need.budget_max is None
+    assert need.scenario is None
+    assert need.need_clarify is False
+    assert need.missing_fields == []
+
+
+@pytest.mark.anyio
+async def test_extract_allows_explicit_shopping_target_without_optional_fields() -> None:
+    service = IntentService()
+
+    need = await service.extract("租房做饭用的空气炸锅")
+
+    assert need.intent == "商品推荐"
+    assert need.category == "空气炸锅"
+    assert need.scenario == "租房"
+    assert need.need_clarify is False
+    assert need.missing_fields == []
+
+
+@pytest.mark.anyio
+async def test_extract_prefers_rule_target_when_llm_only_asks_for_category() -> None:
+    llm = FakeLLMClient(
+        """
+        {
+          "intent": "商品推荐",
+          "category": null,
+          "need_clarify": true,
+          "missing_fields": ["category"]
+        }
+        """
+    )
+    service = IntentService(llm_client=llm)
+
+    need = await service.extract("想买一个租房做饭用的空气炸锅")
+
+    assert need.intent == "商品推荐"
+    assert need.category == "空气炸锅"
+    assert need.need_clarify is False
+    assert need.missing_fields == []
+
+
+@pytest.mark.anyio
+async def test_extract_allows_broad_recommendation_without_category() -> None:
     service = IntentService()
 
     need = await service.extract("推荐一下")
 
     assert need.intent == "商品推荐"
     assert need.category is None
-    assert need.need_clarify is True
-    assert need.missing_fields == ["category"]
+    assert need.need_clarify is False
+    assert need.missing_fields == []
 
 
 @pytest.mark.anyio

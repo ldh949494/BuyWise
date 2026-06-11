@@ -12,6 +12,7 @@ from urllib.parse import unquote, urlparse
 
 from app.core.config import settings
 from app.integrations.cos_storage_client import TencentCosStorageClient
+from app.scripts.demo_broad_products import DEMO_BROAD_PRODUCTS
 from app.scripts.demo_desktop_products import DEMO_DESKTOP_PRODUCTS
 from app.scripts.demo_products import DEMO_SHOWCASE_PRODUCTS
 from app.scripts.job_artifacts import run_job_with_artifact
@@ -74,7 +75,8 @@ def _collect_urls(csv_paths: list[str | Path], *, include_seed_profiles: bool) -
     for csv_path in csv_paths:
         urls.update(_catalog_urls(Path(csv_path)))
     if include_seed_profiles:
-        for product in [*ANDROID_CONTRACT_PRODUCTS, *DEMO_SHOWCASE_PRODUCTS, *DEMO_DESKTOP_PRODUCTS]:
+        products = [*ANDROID_CONTRACT_PRODUCTS, *DEMO_SHOWCASE_PRODUCTS, *DEMO_DESKTOP_PRODUCTS, *DEMO_BROAD_PRODUCTS]
+        for product in products:
             urls.update(_product_urls(product))
     return urls
 

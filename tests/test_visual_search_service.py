@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base
+from app.core.providers import AppError
 from app.models import Product
 from app.schemas.visual_search import VisionRecognition, VisualMatch, VisualSearchRequest
 from app.services.visual_search_service import VisualSearchService
@@ -106,3 +107,25 @@ async def test_visual_search_falls_back_when_vision_provider_fails() -> None:
     assert response.recognized.query == "宿舍低噪音键盘"
     assert response.visual_matches == []
     assert [product.id for product in response.products] == [2]
+
+
+@pytest.mark.anyio
+async def test_visual_search_reports_failure_without_text_fallback() -> None:
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    session_factory = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    with session_factory() as db:
+        service = VisualSearchService(
+            vision_service=FailingVisionService(),
+            rag_pipeline=FakeRAGPipeline(),
+            image_store=UnexpectedImageStore(),
+        )
+
+        with pytest.raises(AppError) as exc_info:
+            await service.search(VisualSearchRequest(image_url="/uploads/keyboard.png"), db)
+
+    assert exc_info.value.code == "visual_recognition_failed"

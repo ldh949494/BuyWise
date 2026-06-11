@@ -88,16 +88,17 @@ class GuideFollowUpStreamService:
 
     async def _stream_action_result(self, context: dict[str, Any], action_result: Any) -> AsyncIterator[dict[str, Any]]:
         context["stream_path"] = "follow_up_action"
+        structured_data = {"action": action_result.action, **action_result.data}
         context["chat_repo"].create_message(
             context["session_id"],
             "assistant",
             action_result.reply,
-            structured_data={"action": action_result.action, **action_result.data},
+            structured_data=structured_data,
         )
         self.chat_service._commit(context["chat_repo"])
         yield self._event("status", ChatStreamStatusEventData(stage="action", message=action_result.action))
         yield self._event("token", ChatStreamTokenEventData(text=action_result.reply))
-        yield self._event("done", ChatStreamDoneEventData(reply=action_result.reply))
+        yield self._event("done", ChatStreamDoneEventData(reply=action_result.reply, extra=structured_data))
 
     async def _stream_refresh_signal(
         self,

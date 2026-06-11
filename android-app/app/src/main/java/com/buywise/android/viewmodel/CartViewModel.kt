@@ -103,6 +103,10 @@ class CartViewModel(
         }
     }
 
+    fun applyServerCart(cart: CartState, message: String? = null) {
+        state = cart.copy(isLoading = false, message = message, errorMessage = null)
+    }
+
     fun clearMessage() {
         state = state.copy(message = null, errorMessage = null)
     }

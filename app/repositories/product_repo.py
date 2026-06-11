@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import String, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.product import Product
@@ -65,19 +65,26 @@ class ProductRepository:
         if category:
             filters.append(Product.category == category)
         if keyword:
-            pattern = f"%{keyword}%"
-            filters.append(
-                or_(
-                    Product.name.ilike(pattern),
-                    Product.description.ilike(pattern),
-                    Product.brand.ilike(pattern),
-                )
-            )
+            filters.append(self._keyword_filter(keyword))
         if price_min is not None:
             filters.append(Product.price >= price_min)
         if price_max is not None:
             filters.append(Product.price <= price_max)
         return filters
+
+    def _keyword_filter(self, keyword: str):
+        pattern = f"%{keyword}%"
+        return or_(
+            Product.name.ilike(pattern),
+            Product.category.ilike(pattern),
+            Product.description.ilike(pattern),
+            Product.brand.ilike(pattern),
+            Product.sku.ilike(pattern),
+            Product.review_summary.ilike(pattern),
+            Product.tags.cast(String).ilike(pattern),
+            Product.suitable_scene.cast(String).ilike(pattern),
+            Product.specs.cast(String).ilike(pattern),
+        )
 
     def _apply_filters(self, statement, count_statement, filters: list):
         if filters:

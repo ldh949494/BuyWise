@@ -52,6 +52,48 @@ class UploadViewModelStateTest {
         assertEquals("camera-photo-123.png", next.selectedImageName)
     }
 
+    @Test
+    fun startSpeechRecognitionClearsPreviousTranscript() {
+        val previous = VisionState(
+            result = previousResult(),
+            isLoading = false,
+            errorMessage = "上一轮错误",
+            recognizedQuery = "旧语音",
+            speechText = "旧语音",
+            selectedImageName = "old.m4a",
+        )
+
+        val next = previous.startSpeechRecognition("voice-123.m4a")
+
+        assertEquals(previous.result, next.result)
+        assertTrue(next.isLoading)
+        assertNull(next.errorMessage)
+        assertNull(next.recognizedQuery)
+        assertNull(next.speechText)
+        assertEquals("voice-123.m4a", next.selectedImageName)
+    }
+
+    @Test
+    fun failSpeechRecognitionClearsPreviousTranscript() {
+        val previous = VisionState(
+            result = previousResult(),
+            isLoading = true,
+            errorMessage = null,
+            recognizedQuery = "旧语音",
+            speechText = "旧语音",
+            selectedImageName = "voice-123.m4a",
+        )
+
+        val next = previous.failSpeechRecognition("语音识别失败")
+
+        assertEquals(previous.result, next.result)
+        assertFalse(next.isLoading)
+        assertEquals("语音识别失败", next.errorMessage)
+        assertNull(next.recognizedQuery)
+        assertNull(next.speechText)
+        assertEquals("voice-123.m4a", next.selectedImageName)
+    }
+
     private fun previousResult(): VisionResult =
         VisionResult(
             title = "旧键盘",

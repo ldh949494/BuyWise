@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
+from app.scripts.demo_broad_products import DEMO_BROAD_PRODUCTS
 from app.models.product import Product
 from app.scripts.demo_desktop_products import DEMO_DESKTOP_PRODUCTS
 from app.scripts.demo_products import DEMO_SHOWCASE_PRODUCTS
@@ -127,6 +128,12 @@ ANDROID_CONTRACT_PRODUCTS: list[dict[str, Any]] = [
         "review_summary": "容量充足，适合短途旅行。",
     },
 ]
+DEMO_PROFILE_PRODUCTS: list[dict[str, Any]] = [
+    *ANDROID_CONTRACT_PRODUCTS,
+    *DEMO_SHOWCASE_PRODUCTS,
+    *DEMO_DESKTOP_PRODUCTS,
+    *DEMO_BROAD_PRODUCTS,
+]
 
 
 def seed_android_contract_products(db: Session) -> list[Product]:
@@ -138,7 +145,7 @@ def seed_android_contract_products(db: Session) -> list[Product]:
 def seed_demo_products(db: Session) -> list[Product]:
     """Insert or update products curated for live demo conversations."""
 
-    return upsert_products(db, [*ANDROID_CONTRACT_PRODUCTS, *DEMO_SHOWCASE_PRODUCTS, *DEMO_DESKTOP_PRODUCTS])
+    return upsert_products(db, DEMO_PROFILE_PRODUCTS)
 
 
 def upsert_products(db: Session, products_data: list[dict[str, Any]]) -> list[Product]:

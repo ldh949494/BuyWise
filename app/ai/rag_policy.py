@@ -9,11 +9,12 @@ from typing import Any
 
 DEFAULT_ADJACENT_CATEGORIES = {
     "学习用品": ["台灯", "机械键盘"],
-    "机械键盘": ["台灯", "蓝牙耳机"],
+    "机械键盘": ["鼠标", "台灯", "蓝牙耳机"],
     "蓝牙耳机": ["充电宝", "双肩包"],
     "台灯": ["机械键盘", "双肩包"],
     "充电宝": ["蓝牙耳机", "双肩包"],
     "双肩包": ["充电宝", "蓝牙耳机"],
+    "鼠标": ["机械键盘", "蓝牙耳机"],
 }
 DEFAULT_FALLBACK_BUDGET_MULTIPLIER = Decimal("1.15")
 DEFAULT_FALLBACK_BUDGET_DELTA = Decimal("50")
@@ -32,7 +33,7 @@ class RagFallbackPolicy:
         self._adjacent_categories = adjacent_categories or DEFAULT_ADJACENT_CATEGORIES
 
     def list_stages(self) -> list[str]:
-        return ["fallback_budget", "fallback_relaxed", "fallback_adjacent"]
+        return ["fallback_budget", "fallback_relaxed", "fallback_keyword", "fallback_adjacent", "fallback_popular"]
 
     def get_page_size(self, top_k: int) -> int:
         return max(top_k * 3, top_k)
@@ -64,7 +65,7 @@ class RagFilterPolicy:
         filtered = []
         reasons: Counter[str] = Counter()
         for product in products:
-            if stage != "fallback_adjacent" and category and product.category != category:
+            if self._requires_exact_category(stage) and category and product.category != category:
                 reasons["category_mismatch"] += 1
                 continue
             if self._exceeds_budget(product, budget_max, stage=stage):
@@ -79,7 +80,7 @@ class RagFilterPolicy:
     def _exceeds_budget(self, product: Any, budget_max: Any, *, stage: str) -> bool:
         if budget_max is None or product.price is None:
             return False
-        if stage == "fallback_relaxed" or stage == "fallback_adjacent":
+        if stage in {"fallback_relaxed", "fallback_keyword", "fallback_adjacent", "fallback_popular"}:
             return False
         max_price = (
             self.fallback_policy.get_relaxed_budget(budget_max)
@@ -87,6 +88,9 @@ class RagFilterPolicy:
             else Decimal(str(budget_max))
         )
         return Decimal(str(product.price)) > max_price
+
+    def _requires_exact_category(self, stage: str) -> bool:
+        return stage in {"strict", "fallback_budget", "fallback_relaxed"}
 
     def _get_need_value(self, need: Any, key: str) -> Any:
         if isinstance(need, dict):

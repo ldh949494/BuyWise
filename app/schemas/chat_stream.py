@@ -1,5 +1,7 @@
 """Chat stream event schemas."""
 
+from typing import Any
+
 from pydantic import Field
 
 from app.schemas.chat import BundlePlan, ProductCard, StructuredNeed
@@ -26,6 +28,9 @@ class ChatStreamProductsEventData(BaseSchema):
     items: list[ProductCard] = Field(default_factory=list)
     bundle_plans: list[BundlePlan] = Field(default_factory=list)
     applied_preferences: AppliedPreferences = Field(default_factory=AppliedPreferences)
+    fallback_used: bool = False
+    fallback_stage: str | None = None
+    result_quality: str = "exact"
 
 
 class ChatStreamDoneEventData(BaseSchema):
@@ -34,6 +39,7 @@ class ChatStreamDoneEventData(BaseSchema):
     degraded_reason: str | None = None
     should_refresh: bool = False
     refresh_reason: str | None = None
+    extra: dict[str, Any] = Field(default_factory=dict)
 
 
 class ChatStreamErrorEventData(BaseSchema):

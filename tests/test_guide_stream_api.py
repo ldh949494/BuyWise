@@ -6,6 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.core.dependencies import AppContainerBuilder
 from app.core.database import Base, get_db
 from app.main import create_app
 from app.models import Product
@@ -18,6 +19,25 @@ QUIET_TAG = "低噪音"
 DORM_SCENE = "宿舍"
 KEYBOARD_NAME = "K87 静音红轴机械键盘"
 API_MESSAGE = "推荐一个宿舍用的机械键盘，预算300以内，声音小一点"
+CATEGORY_ONLY_GUIDE_CASES = [
+    ("guide-category-keyboard", "我需要一个键盘", "机械键盘", "K87 静音红轴机械键盘"),
+    ("guide-category-earbuds", "我需要一个耳机", "蓝牙耳机", "AirBuds Lite 蓝牙耳机"),
+    ("guide-category-powerbank", "我需要一个充电宝", "充电宝", "PowerMax 轻薄快充充电宝"),
+    ("guide-category-backpack", "我需要一个书包", "双肩包", "CityPack 通勤双肩包"),
+    ("guide-category-lamp", "我需要一个台灯", "台灯", "StudyLamp Pro 护眼台灯"),
+    ("guide-category-mouse", "我需要一个鼠标", "鼠标", "QuietMouse M1 静音鼠标"),
+]
+
+
+class EmptyProductStore:
+    def search(self, query: str, top_k: int = 10) -> list[dict]:
+        return []
+
+    def count(self) -> int:
+        return 0
+
+    def indexed_product_ids(self) -> list[int]:
+        return []
 
 
 class FakeIntentService:
@@ -64,8 +84,14 @@ class FakeLLMClient:
         yield "追问回答：基于当前推荐，优先看首推商品。"
 
 
-def make_product(name=KEYBOARD_NAME):
-    return Product(id=1, name=name, category=KEYBOARD_CATEGORY, price=Decimal("299.00"), stock=10)
+def make_product(
+    name=KEYBOARD_NAME,
+    *,
+    product_id: int = 1,
+    category: str = KEYBOARD_CATEGORY,
+    price: Decimal = Decimal("299.00"),
+):
+    return Product(id=product_id, name=name, category=category, price=price, stock=10)
 
 
 @pytest.mark.anyio
@@ -158,6 +184,45 @@ async def test_generate_follow_up_stream_returns_refresh_signal_without_snapshot
     assert events[-1]["data"]["refresh_reason"] == "missing_recommendation_snapshot"
 
 
+@pytest.mark.anyio
+async def test_generate_follow_up_stream_returns_cart_action_payload() -> None:
+    need = StructuredNeed(intent="商品推荐", category=KEYBOARD_CATEGORY, budget_max=300)
+    service = ChatService(
+        intent_service=FakeIntentService(need),
+        rag_pipeline=FakeRAGPipeline([]),
+        recommend_service=FakeRecommendService(),
+        llm_client=FakeLLMClient(),
+    )
+    db = _sqlite_session_with_products([make_product()])
+    snapshot = {
+        "need": need.model_dump(mode="json"),
+        "products": [
+            ProductCard(id=1, name=KEYBOARD_NAME, price=299, score=90, reason="价格符合预算").model_dump(mode="json")
+        ],
+        "applied_preferences": {},
+    }
+
+    try:
+        chat_repo = service._chat_repo(ChatRequest(session_id="cart-action-follow-up"), db)
+        chat_repo.get_or_create_session("cart-action-follow-up")
+        chat_repo.create_message("cart-action-follow-up", "assistant", "推荐：" + KEYBOARD_NAME, structured_data=snapshot)
+        service._commit(chat_repo)
+        events = [
+            event
+            async for event in service.generate_follow_up_stream(
+                ChatRequest(session_id="cart-action-follow-up", message="把刚才那款加到购物车"),
+                db=db,
+            )
+        ]
+    finally:
+        db.close()
+
+    assert events[-1]["event"] == "done"
+    assert events[-1]["data"]["extra"]["action"] == "cart.add"
+    assert events[-1]["data"]["extra"]["cart"]["items"][0]["product_id"] == 1
+    assert "已加入购物车" in events[-1]["data"]["reply"]
+
+
 def test_guide_stream_route_is_registered_and_streams_sse() -> None:
     client = _chat_route_client()
 
@@ -167,6 +232,51 @@ def test_guide_stream_route_is_registered_and_streams_sse() -> None:
     assert "event: meta" in response.text
     assert "event: products" in response.text
     assert KEYBOARD_NAME in response.text
+
+
+def test_guide_stream_route_returns_products_for_category_only_requests() -> None:
+    client = _chat_route_client(_category_only_products())
+
+    for session_id, message, category, product_name in CATEGORY_ONLY_GUIDE_CASES:
+        response = client.post("/api/v1/ai/guide/stream", json={"session_id": session_id, "message": message})
+
+        assert response.status_code == 200
+        assert '"need_clarify":false' in response.text
+        assert f'"category":"{category}"' in response.text
+        assert product_name in response.text
+
+
+def test_guide_follow_up_route_uses_snapshot_after_category_only_start() -> None:
+    client = _chat_route_client(_category_only_products())
+
+    start_response = client.post(
+        "/api/v1/ai/guide/stream",
+        json={"session_id": "category-follow-up", "message": "我需要一个键盘"},
+    )
+    follow_up_response = client.post(
+        "/api/v1/ai/guide/follow-up/stream",
+        json={"session_id": "category-follow-up", "message": "为什么推荐它？"},
+    )
+
+    assert start_response.status_code == 200
+    assert KEYBOARD_NAME in start_response.text
+    assert follow_up_response.status_code == 200
+    assert '"should_refresh":false' in follow_up_response.text
+    assert KEYBOARD_NAME in follow_up_response.text
+
+
+def test_guide_stream_route_explains_when_no_matching_products() -> None:
+    client = _chat_route_client([])
+
+    response = client.post(
+        "/api/v1/ai/guide/stream",
+        json={"session_id": "guide-empty-products", "message": "我需要一个键盘"},
+    )
+
+    assert response.status_code == 200
+    assert "event: products" in response.text
+    assert '"items":[]' in response.text
+    assert "没有找到匹配商品" in response.text
 
 
 def test_guide_follow_up_route_returns_refresh_signal_without_snapshot() -> None:
@@ -183,26 +293,15 @@ def test_guide_follow_up_route_returns_refresh_signal_without_snapshot() -> None
     assert '"refresh_reason":"missing_recommendation_snapshot"' in response.text
 
 
-def _chat_route_client() -> TestClient:
+def _chat_route_client(products: list[Product] | None = None) -> TestClient:
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     Base.metadata.create_all(bind=engine)
     session_factory = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     with session_factory() as db:
-        db.add(
-            Product(
-                name=KEYBOARD_NAME,
-                category=KEYBOARD_CATEGORY,
-                price=Decimal("299.00"),
-                rating=Decimal("4.8"),
-                sales=1800,
-                tags=[QUIET_TAG],
-                suitable_scene=[DORM_SCENE],
-                stock=10,
-            )
-        )
+        db.add_all(products if products is not None else [_route_keyboard_product()])
         db.commit()
 
-    app = create_app()
+    app = create_app(AppContainerBuilder().with_product_store(EmptyProductStore()))
 
     def override_get_db():
         db = session_factory()
@@ -213,6 +312,30 @@ def _chat_route_client() -> TestClient:
 
     app.dependency_overrides[get_db] = override_get_db
     return TestClient(app)
+
+
+def _route_keyboard_product() -> Product:
+    return Product(
+        name=KEYBOARD_NAME,
+        category=KEYBOARD_CATEGORY,
+        price=Decimal("299.00"),
+        rating=Decimal("4.8"),
+        sales=1800,
+        tags=[QUIET_TAG],
+        suitable_scene=[DORM_SCENE],
+        stock=10,
+    )
+
+
+def _category_only_products() -> list[Product]:
+    return [
+        _route_keyboard_product(),
+        make_product("AirBuds Lite 蓝牙耳机", product_id=2, category="蓝牙耳机", price=Decimal("199.00")),
+        make_product("PowerMax 轻薄快充充电宝", product_id=3, category="充电宝", price=Decimal("139.00")),
+        make_product("CityPack 通勤双肩包", product_id=4, category="双肩包", price=Decimal("259.00")),
+        make_product("StudyLamp Pro 护眼台灯", product_id=5, category="台灯", price=Decimal("229.00")),
+        make_product("QuietMouse M1 静音鼠标", product_id=6, category="鼠标", price=Decimal("89.00")),
+    ]
 
 
 def _sqlite_session_with_products(products: list[Product]):

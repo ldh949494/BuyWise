@@ -11,6 +11,7 @@ from typing import Any
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
+from app.scripts.demo_broad_products import DEMO_BROAD_PRODUCTS
 from app.scripts.demo_desktop_products import DEMO_DESKTOP_PRODUCTS
 from app.scripts.demo_products import DEMO_SHOWCASE_PRODUCTS
 from app.scripts.seed_products import ANDROID_CONTRACT_PRODUCTS
@@ -57,6 +58,7 @@ def _collect_records(csv_paths: list[str | Path], *, include_seed_profiles: bool
         records.extend(_seed_records("android-contract", ANDROID_CONTRACT_PRODUCTS))
         records.extend(_seed_records("demo-showcase", DEMO_SHOWCASE_PRODUCTS))
         records.extend(_seed_records("demo-desktop", DEMO_DESKTOP_PRODUCTS))
+        records.extend(_seed_records("demo-broad", DEMO_BROAD_PRODUCTS))
     return records
 
 
