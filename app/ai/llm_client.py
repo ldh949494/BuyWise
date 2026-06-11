@@ -164,7 +164,7 @@ class LLMClient:
 
     async def generate_recommendation(self, need: Any, products: list[Any], *, concise: bool = False, max_tokens: int | None = None) -> str:
         if not products:
-            return "暂时没有找到完全匹配的商品，可以放宽预算或调整条件。"
+            return "没有找到匹配商品。可以换个品类、商品名，或放宽预算和偏好后再试。"
         reply = await self.chat(self.recommendation_messages(need, products, concise=concise), max_tokens=max_tokens)
         return self._guard_recommendation_reply(reply, products)
 
@@ -177,7 +177,7 @@ class LLMClient:
         max_tokens: int | None = None,
     ) -> AsyncIterator[str]:
         if not products:
-            yield "暂时没有找到完全匹配的商品，可以放宽预算或调整条件。"
+            yield "没有找到匹配商品。可以换个品类、商品名，或放宽预算和偏好后再试。"
             return
         async for chunk in self.stream_chat(
             self.recommendation_messages(need, products, concise=concise),
@@ -324,7 +324,7 @@ class LLMClient:
             else:
                 product_lines.append(str(name))
         if not product_lines:
-            return "暂时没有找到完全匹配的商品，可以放宽预算或调整条件。"
+            return "没有找到匹配商品。可以换个品类、商品名，或放宽预算和偏好后再试。"
         return "基于当前商品卡片，建议优先看：" + "；".join(product_lines) + "。" + UNSUPPORTED_CLAIM_FALLBACK
 
     def _coerce_list(self, value: Any) -> list[str]:

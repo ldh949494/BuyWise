@@ -28,6 +28,9 @@ class ChatStreamProductsEventData(BaseSchema):
     items: list[ProductCard] = Field(default_factory=list)
     bundle_plans: list[BundlePlan] = Field(default_factory=list)
     applied_preferences: AppliedPreferences = Field(default_factory=AppliedPreferences)
+    fallback_used: bool = False
+    fallback_stage: str | None = None
+    result_quality: str = "exact"
 
 
 class ChatStreamDoneEventData(BaseSchema):

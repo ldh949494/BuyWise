@@ -27,6 +27,7 @@ from app.services.intent_service import IntentService
 from app.services.noop_chat_repo import NoopChatRepository
 from app.services.order_service import get_current_user_ref
 from app.services.recommend_service import RecommendService
+from app.services.recommendation_fallbacks import build_rag_fallback_meta, rank_with_fallback
 from app.services.speech_service import SpeechService
 from app.services.visual_search_service import VisualSearchService
 from app.services.vision_service import VisionService
@@ -268,7 +269,9 @@ class ChatService:
         applied_preferences: AppliedPreferences,
     ) -> ChatResponse:
         top_products, bundle_plans = await self._recommendation_results(need, db)
+        fallback_meta = self._rag_fallback_meta()
         reply, extra = await self._recommendation_reply(session_id, need, top_products, bundle_plans)
+        extra.update(fallback_meta)
         chat_repo.create_message(
             session_id,
             "assistant",
@@ -322,6 +325,9 @@ class ChatService:
         }
         if bundle_plans:
             structured_data["bundle_plans"] = [self._dump(plan) for plan in bundle_plans]
+        for key in ["fallback_used", "fallback_stage", "result_quality"]:
+            if key in extra:
+                structured_data[key] = extra[key]
         if extra.get("degraded"):
             structured_data["degraded"] = True
             structured_data["degraded_reason"] = extra["degraded_reason"]
@@ -379,7 +385,7 @@ class ChatService:
 
     def _fallback_recommendation_reply(self, products: list[Any]) -> str:
         if not products:
-            return "暂时没有找到完全匹配的商品，可以放宽预算或调整条件。"
+            return "没有找到匹配商品。可以换个品类、商品名，或放宽预算和偏好后再试。"
         names = "、".join(str(getattr(product, "name", "")) for product in products[:3] if getattr(product, "name", None))
         if names:
             return f"当前 AI 总结暂时繁忙，先为你返回基础推荐：{names}。你可以先查看商品卡片。"
@@ -403,7 +409,13 @@ class ChatService:
         strategy = self._get_need_value(need, "retrieval_strategy") or "balanced"
         products = await self.rag_pipeline.search_products(need, db, top_k=self._retrieval_top_k(strategy))
         self._attach_quality_signals(products, db)
-        return self.recommend_service.rank(products, need)[: self._result_limit(strategy)]
+        return rank_with_fallback(
+            products,
+            need,
+            self.recommend_service,
+            get_value=self._get_need_value,
+            logger=logger,
+        )[: self._result_limit(strategy)]
 
     async def _recommendation_results(self, need: Any, db: Session) -> tuple[list[Any], list[BundlePlan]]:
         if not self._is_bundle_intent(need):
@@ -440,6 +452,9 @@ class ChatService:
         if isinstance(need, dict):
             return need.get(key)
         return getattr(need, key, None)
+
+    def _rag_fallback_meta(self) -> dict[str, Any]:
+        return build_rag_fallback_meta(self.rag_pipeline)
 
     def _retrieval_top_k(self, strategy: str) -> int:
         if strategy == "explore":

@@ -23,6 +23,16 @@ data class Recommendation(
     val reason: String,
 )
 
+enum class GuideResultStatus {
+    Idle,
+    Clarifying,
+    Exact,
+    Relaxed,
+    Broad,
+    LowConfidence,
+    Empty,
+}
+
 data class BundlePlan(
     val id: String,
     val title: String,
@@ -177,6 +187,9 @@ data class GuideState(
     val intentSummary: String,
     val recommendations: List<Recommendation>,
     val bundlePlans: List<BundlePlan> = emptyList(),
+    val resultStatus: GuideResultStatus = GuideResultStatus.Idle,
+    val clarificationMessage: String? = null,
+    val fallbackMessage: String? = null,
     val partialReply: String = "",
     val chatDraft: String = "",
     val chatMessages: List<GuideChatMessage> = emptyList(),
