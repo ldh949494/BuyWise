@@ -7,127 +7,23 @@ from typing import Any
 
 from app.schemas.chat import StructuredNeed
 from app.services.intent_llm import LlmIntentExtractor
+from app.services.intent_taxonomy import (
+    BROWSE_KEYWORDS,
+    BUY_READY_KEYWORDS,
+    CATEGORY_KEYWORDS,
+    PREFERENCE_KEYWORDS,
+    RULE_PREFERENCE_ALIASES,
+    SCENARIO_KEYWORDS,
+    SHOPPING_TARGET_KEYWORDS,
+)
 from app.utils.intent_strategy import retrieval_strategy_for
 from app.utils.list_values import dedupe_strings
 
 
 class IntentService:
-    CATEGORY_KEYWORDS = {
-        "\u673a\u68b0\u952e\u76d8": [
-            "\u673a\u68b0\u952e\u76d8",
-            "\u952e\u76d8",
-        ],
-        "\u84dd\u7259\u8033\u673a": [
-            "\u84dd\u7259\u8033\u673a",
-            "\u8033\u673a",
-            "\u8033\u9ea6",
-        ],
-        "\u53f0\u706f": [
-            "\u53f0\u706f",
-            "\u62a4\u773c\u706f",
-            "\u706f",
-        ],
-        "\u5145\u7535\u5b9d": [
-            "\u5145\u7535\u5b9d",
-            "\u79fb\u52a8\u7535\u6e90",
-        ],
-        "\u53cc\u80a9\u5305": [
-            "\u53cc\u80a9\u5305",
-            "\u4e66\u5305",
-            "\u80cc\u5305",
-            "\u5305",
-        ],
-        "\u7535\u8111": [
-            "\u7535\u8111",
-            "\u4e3b\u673a",
-            "\u7b14\u8bb0\u672c",
-            "\u8ff7\u4f60\u4e3b\u673a",
-        ],
-        "\u663e\u793a\u5668": [
-            "\u663e\u793a\u5668",
-            "\u5c4f\u5e55",
-            "\u663e\u793a\u5c4f",
-        ],
-        "\u9f20\u6807": [
-            "\u9f20\u6807",
-        ],
-        "\u652f\u67b6": [
-            "\u652f\u67b6",
-            "\u663e\u793a\u5668\u652f\u67b6",
-        ],
-        "\u62d3\u5c55\u575e": [
-            "\u62d3\u5c55\u575e",
-            "\u6269\u5c55\u575e",
-            "\u6269\u5c55\u575e",
-        ],
-        "\u63d2\u6392": [
-            "\u63d2\u6392",
-            "\u6392\u63d2",
-            "\u63d2\u7ebf\u677f",
-        ],
-        "\u9632\u6652": ["\u9632\u6652", "\u9632\u6652\u971c", "\u9632\u6652\u55b7\u96fe"],
-        "\u5916\u5957": ["\u5916\u5957", "\u5939\u514b", "\u51b2\u950b\u8863"],
-        "\u4e0a\u8863": ["\u4e0a\u8863", "T\u6064", "\u886c\u886b", "\u77ed\u8896"],
-        "\u88e4\u88c5": ["\u88e4\u88c5", "\u88e4\u5b50", "\u77ed\u88e4", "\u957f\u88e4"],
-        "\u978b\u5c65": ["\u978b", "\u978b\u5c65", "\u51c9\u978b", "\u62d6\u978b", "\u8fd0\u52a8\u978b"],
-        "\u58a8\u955c": ["\u58a8\u955c", "\u592a\u9633\u955c"],
-        "\u5e3d\u5b50": ["\u5e3d\u5b50", "\u906e\u9633\u5e3d"],
-    }
-    SCENARIO_KEYWORDS = [
-        "\u5bbf\u820d",
-        "\u529e\u516c",
-        "\u901a\u52e4",
-        "\u8fd0\u52a8",
-        "\u5b66\u4e60",
-        "\u5199\u4ee3\u7801",
-        "\u65c5\u884c",
-        "\u5ea6\u5047",
-        "\u9605\u8bfb",
-        "\u5e94\u6025",
-        "\u684c\u9762",
-        "\u7535\u8111\u5916\u8bbe",
-        "\u79df\u623f",
-        "\u505a\u996d",
-        "\u53a8\u623f",
-        "卧室",
-        "宠物",
-        "跑步",
-        "健身",
-        "办公室",
-        "小学",
-        "\u6d77\u8fb9",
-        "\u6237\u5916",
-        "\u7a7f\u642d",
-    ]
-    PREFERENCE_KEYWORDS = [
-        "\u4f4e\u566a\u97f3",
-        "\u65e0\u7ebf",
-        "\u964d\u566a",
-        "\u62a4\u773c",
-        "\u8f7b\u4fbf",
-        "\u5927\u5bb9\u91cf",
-        "\u6027\u4ef7\u6bd4",
-        "\u5feb\u5145",
-        "\u9632\u6cfc\u6c34",
-        "\u5c0f\u5de7",
-        "\u900f\u6c14",
-        "\u901f\u5e72",
-        "\u9632\u6652",
-        "\u9ad8\u989c\u503c",
-        "\u4f11\u95f2",
-        "易清洗",
-        "容易清洗",
-        "占地小",
-        "吸猫毛",
-        "续航好",
-        "心率记录",
-        "佩戴舒服",
-        "画面清楚",
-        "自动校正",
-        "不漏水",
-        "内容可控",
-        "家长管理",
-    ]
+    CATEGORY_KEYWORDS = CATEGORY_KEYWORDS
+    SCENARIO_KEYWORDS = SCENARIO_KEYWORDS
+    PREFERENCE_KEYWORDS = PREFERENCE_KEYWORDS
     BUDGET_PATTERNS = [
         re.compile(
             r"(?:\u9884\u7b97|\u4e0d\u8d85\u8fc7|\u4e0d\u8d85|"
@@ -139,24 +35,9 @@ class IntentService:
             r"(?:\u4ee5\u5185|\u4ee5\u4e0b|\u4e4b\u5185)"
         ),
     ]
-    BROWSE_KEYWORDS = ["随便看看", "先看看", "看看", "逛逛", "了解一下", "有什么", "推荐几类"]
-    BUY_READY_KEYWORDS = ["想买", "准备买", "马上买", "下单", "入手", "就买", "要买"]
-    SHOPPING_TARGET_KEYWORDS = [
-        "空气炸锅",
-        "电煮锅",
-        "吸尘器",
-        "清洁机",
-        "智能手表",
-        "手表",
-        "投影仪",
-        "咖啡杯",
-        "保温杯",
-        "学习平板",
-        "平板",
-        "电脑包",
-        "数码配件",
-        "小家电",
-    ]
+    BROWSE_KEYWORDS = BROWSE_KEYWORDS
+    BUY_READY_KEYWORDS = BUY_READY_KEYWORDS
+    SHOPPING_TARGET_KEYWORDS = SHOPPING_TARGET_KEYWORDS
 
     def __init__(self, llm_client: Any | None = None) -> None:
         self.llm_client = llm_client
@@ -410,15 +291,9 @@ class IntentService:
             if preference in text:
                 preferences.append(preference)
 
-        quiet_preference = "\u4f4e\u566a\u97f3"
-        quiet_keywords = [
-            "\u9759\u97f3",
-            "\u58f0\u97f3\u5c0f",
-            "\u5b89\u9759",
-        ]
-        if any(keyword in text for keyword in quiet_keywords):
-            if quiet_preference not in preferences:
-                preferences.append(quiet_preference)
+        for keyword, preference in RULE_PREFERENCE_ALIASES.items():
+            if keyword in text and preference not in preferences:
+                preferences.append(preference)
         return preferences
 
     def _extract_style_preferences(self, text: str) -> list[str]:

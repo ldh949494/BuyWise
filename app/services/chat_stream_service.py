@@ -16,7 +16,6 @@ from app.core.metrics import (
     observe_chat_stream_first_products_latency,
 )
 from app.core.traffic import is_capacity_limited
-from app.repositories.product_repo import ProductRepository
 from app.schemas.chat import BundlePlan, ChatRequest, ProductCard, StructuredNeed
 from app.schemas.guide_preferences import AppliedPreferences
 from app.schemas.chat_stream import (
@@ -27,6 +26,7 @@ from app.schemas.chat_stream import (
     ChatStreamStatusEventData,
     ChatStreamTokenEventData,
 )
+from app.services.chat_stream_fast_path import ChatStreamFastPathMixin
 from app.services.guide_follow_up_stream_service import GuideFollowUpStreamService
 from app.utils.logging import get_logger
 
@@ -34,7 +34,7 @@ from app.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
-class ChatStreamRunner:
+class ChatStreamRunner(ChatStreamFastPathMixin):
     def __init__(self, chat_service: Any) -> None:
         self.chat_service = chat_service
 
@@ -154,6 +154,11 @@ class ChatStreamRunner:
     ) -> AsyncIterator[dict[str, Any]]:
         yield self._event("meta", ChatStreamMetaEventData(session_id=context["session_id"]))
         yield self._event("status", ChatStreamStatusEventData(stage="intent", message="intent"))
+        if self._can_use_fast_products(request, db):
+            async for event in self._stream_guide_fast_first(context, request, db):
+                yield event
+            return
+
         need = await self._extract_need(context, request)
         if need.need_clarify:
             context["stream_path"] = "guide_clarify"
@@ -180,7 +185,7 @@ class ChatStreamRunner:
         text = await self.chat_service._build_user_text(request)
         image_info = await self.chat_service._build_image_info(request)
         history_context = self.chat_service._load_history_context(chat_repo, session_id)
-        self.chat_service._save_user_message(chat_repo, session_id, request, text, image_info)
+        self._save_user_message_once(context, request, text, image_info)
         return await self.chat_service.intent_service.extract(
             text,
             image_info=image_info,
@@ -212,6 +217,8 @@ class ChatStreamRunner:
         yield self._event("status", ChatStreamStatusEventData(stage="retrieval", message="retrieval"))
         top_products, bundle_plans = await self._recommendation_products(need, db)
         fallback_meta = self._record_fallback_meta(context, "full_rag")
+        if not top_products and not bundle_plans:
+            top_products, fallback_meta = self._final_empty_products_fallback(context, fallback_meta)
         payload_products = self._bundle_products(bundle_plans) if bundle_plans else top_products
         yield self._event(
             "products",
@@ -222,6 +229,7 @@ class ChatStreamRunner:
                 need_clarify=False,
                 bundle_plans=bundle_plans,
                 fallback_meta=fallback_meta,
+                source=self._products_source(fallback_meta),
             ),
         )
         yield self._event("status", ChatStreamStatusEventData(stage="generation", message="generation"))
@@ -232,39 +240,6 @@ class ChatStreamRunner:
         if self.chat_service._is_bundle_intent(need):
             return await self.chat_service._recommendation_results(need, db)
         return await self._rank_products(need, db), []
-
-    async def _stream_fast_products(
-        self,
-        context: dict[str, Any],
-        request: ChatRequest,
-        db: Session,
-    ) -> AsyncIterator[dict[str, Any]]:
-        need = self._extract_fast_need(context, request)
-        if need.category is None:
-            self._apply_preferences(context, request, need, db)
-            async for event in self._stream_recommendation(context, need, db):
-                yield event
-            return
-        self._apply_preferences(context, request, need, db)
-
-        yield self._event("status", ChatStreamStatusEventData(stage="retrieval", message="fast_products"))
-        top_products, fallback_meta = await self._fast_product_results(context, need, db)
-        yield self._event(
-            "products",
-            self._products_payload(context, need, top_products, need_clarify=False, fallback_meta=fallback_meta),
-        )
-        yield self._event("status", ChatStreamStatusEventData(stage="generation", message="generation"))
-        async for event in self._stream_generation(context, need, top_products, concise=True):
-            yield event
-
-    async def _fast_product_results(self, context: dict[str, Any], need: Any, db: Session) -> tuple[list[Any], dict[str, Any]]:
-        top_products = self._rank_fast_products(need, db)
-        if top_products:
-            fallback_meta = {"fallback_used": False, "fallback_stage": "fast_db", "result_quality": "exact"}
-            return top_products, self._record_fallback_meta(context, "fast_db", fallback_meta)
-        top_products = await self._rank_products(need, db)
-        fallback_meta = self.chat_service._rag_fallback_meta()
-        return top_products, self._record_fallback_meta(context, "fast_db_empty_fallback", fallback_meta)
 
     def _record_fallback_meta(
         self,
@@ -357,50 +332,23 @@ class ChatStreamRunner:
     async def _rank_products(self, need: Any, db: Session) -> list[Any]:
         return await self.chat_service._rank_recommendations(need, db)
 
-    def _rank_fast_products(self, need: Any, db: Session) -> list[Any]:
-        if not hasattr(db, "scalars"):
-            return []
-        products, _ = ProductRepository(db).list_products(
-            category=need.category,
-            price_max=need.budget_max,
-            page=1,
-            page_size=max(settings.chat_stream_fast_products_limit, 1),
-        )
-        return self.chat_service.recommend_service.rank(products, need)[: max(settings.chat_stream_fast_products_limit, 1)]
-
-    def _extract_fast_need(self, context: dict[str, Any], request: ChatRequest) -> StructuredNeed:
-        chat_repo = context["chat_repo"]
-        session_id = context["session_id"]
-        text = request.message or ""
-        history_context = self.chat_service._load_history_context(chat_repo, session_id)
-        self.chat_service._save_user_message(chat_repo, session_id, request, text, None)
-        need = self.chat_service.intent_service.extract_by_rules(text, image_info=None, history_context=history_context)
-        if need.category is not None:
-            need.need_clarify = False
-        return need
-
-    def _can_use_fast_products(self, request: ChatRequest, db: Session) -> bool:
-        return (
-            settings.chat_stream_fast_products_enabled
-            and bool((request.message or "").strip())
-            and not request.image_url
-            and not request.audio_url
-            and hasattr(self.chat_service.intent_service, "extract_by_rules")
-            and hasattr(db, "scalars")
-            and self._has_no_prior_messages(request, db)
-        )
-
-    def _has_no_prior_messages(self, request: ChatRequest, db: Session) -> bool:
-        if not request.session_id:
-            return True
-        chat_repo = self.chat_service._chat_repo(request, db)
-        return not chat_repo.list_messages(request.session_id, limit=1)
-
     def _observe_first_products(self, context: dict[str, Any], path: str) -> None:
         if context.get("first_products_observed"):
             return
         context["first_products_observed"] = True
         observe_chat_stream_first_products_latency(path, time.perf_counter() - context["started_at"])
+
+    def _save_user_message_once(
+        self,
+        context: dict[str, Any],
+        request: ChatRequest,
+        text: str,
+        image_info: dict | None,
+    ) -> None:
+        if context.get("user_message_saved"):
+            return
+        self.chat_service._save_user_message(context["chat_repo"], context["session_id"], request, text, image_info)
+        context["user_message_saved"] = True
 
     def _save_assistant(
         self,
@@ -442,6 +390,8 @@ class ChatStreamRunner:
         need_clarify: bool,
         bundle_plans: list[BundlePlan] | None = None,
         fallback_meta: dict[str, Any] | None = None,
+        provisional: bool = False,
+        source: str | None = None,
     ) -> dict[str, Any]:
         fallback_meta = fallback_meta or {"fallback_used": False, "fallback_stage": None, "result_quality": "exact"}
         return ChatStreamProductsEventData(
@@ -450,6 +400,8 @@ class ChatStreamRunner:
             items=[ProductCard.model_validate(self.chat_service._dump(product)) for product in products],
             bundle_plans=bundle_plans or [],
             applied_preferences=context.get("applied_preferences") or AppliedPreferences(),
+            provisional=provisional,
+            source=source,
             fallback_used=bool(fallback_meta.get("fallback_used")),
             fallback_stage=fallback_meta.get("fallback_stage"),
             result_quality=str(fallback_meta.get("result_quality") or "exact"),
@@ -471,6 +423,9 @@ class ChatStreamRunner:
 
     def _bundle_products(self, bundle_plans: list[BundlePlan]) -> list[Any]:
         return self.chat_service._flatten_bundle_plan_products(bundle_plans)
+
+    def _products_source(self, fallback_meta: dict[str, Any]) -> str:
+        return "fallback" if fallback_meta.get("fallback_used") else "rag"
 
     def _event(self, event: str, data: Any) -> dict[str, Any]:
         if hasattr(data, "model_dump"):

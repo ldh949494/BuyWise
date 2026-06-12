@@ -21,6 +21,8 @@ sealed interface ChatStreamEvent {
         val missingFields: List<String> = emptyList(),
         val resultStatus: GuideResultStatus = GuideResultStatus.Exact,
         val fallbackMessage: String? = null,
+        val provisional: Boolean = false,
+        val source: String? = null,
     ) : ChatStreamEvent
     data class Done(
         val reply: String,
@@ -182,6 +184,8 @@ class GuideRepository internal constructor(
             missingFields = missingFields,
             resultStatus = resultStatus,
             fallbackMessage = fallbackMessageFor(resultStatus),
+            provisional = json.optBoolean("provisional", false),
+            source = json.optStringOrNull("source"),
         )
     }
 

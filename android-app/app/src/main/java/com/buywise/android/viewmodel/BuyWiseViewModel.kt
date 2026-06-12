@@ -211,6 +211,10 @@ class BuyWiseViewModel(
         guideViewModel.sendChatMessage()
     }
 
+    fun runPendingGuideRefresh() {
+        guideViewModel.runPendingRefresh()
+    }
+
     fun setGuideIgnoreSavedPreferences(value: Boolean) {
         guideViewModel.setIgnoreSavedPreferences(value)
     }

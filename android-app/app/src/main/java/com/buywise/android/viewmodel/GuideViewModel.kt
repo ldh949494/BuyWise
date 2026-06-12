@@ -30,6 +30,7 @@ class GuideViewModel(
     private var guideStream: EventSource? = null
     private var streamMode: StreamMode = StreamMode.Workbench
     private var activeAssistantMessageId: String? = null
+    private var activeUserMessageText: String? = null
     private var nextMessageId = 1
 
     var state by mutableStateOf(initialState)
@@ -118,6 +119,7 @@ class GuideViewModel(
             text = "",
         )
         activeAssistantMessageId = assistantMessage.id
+        activeUserMessageText = query
         state = state.copy(
             query = query,
             chatDraft = "",
@@ -128,6 +130,8 @@ class GuideViewModel(
             resultStatus = GuideResultStatus.Idle,
             clarificationMessage = null,
             fallbackMessage = null,
+            hasProvisionalResults = false,
+            pendingRefreshMessage = null,
             appliedPreferences = AppliedPreferences(),
             partialReply = "",
             isStreaming = true,
@@ -168,6 +172,7 @@ class GuideViewModel(
             text = "",
         )
         activeAssistantMessageId = assistantMessage.id
+        activeUserMessageText = message
         val keepExistingResults = !shouldRunFullGuide
         state = state.copy(
             query = message,
@@ -178,6 +183,8 @@ class GuideViewModel(
             resultStatus = GuideResultStatus.Idle,
             clarificationMessage = null,
             fallbackMessage = null,
+            hasProvisionalResults = false,
+            pendingRefreshMessage = null,
             appliedPreferences = if (keepExistingResults) state.appliedPreferences else AppliedPreferences(),
             partialReply = "",
             isStreaming = true,
@@ -213,6 +220,15 @@ class GuideViewModel(
         }
     }
 
+    fun runPendingRefresh() {
+        val message = state.pendingRefreshMessage?.trim().orEmpty()
+        if (message.isBlank() || state.isStreaming) {
+            return
+        }
+        state = state.copy(query = message, chatDraft = "")
+        submitQuery()
+    }
+
     fun clearStream() {
         guideStream?.cancel()
     }
@@ -239,6 +255,7 @@ class GuideViewModel(
                 event.needClarify,
                 event.resultStatus,
                 event.fallbackMessage,
+                event.provisional,
             )
             is ChatStreamEvent.Done -> applyDone(event)
             is ChatStreamEvent.Error -> applyError(event.message)
@@ -264,6 +281,7 @@ class GuideViewModel(
         needClarify: Boolean,
         resultStatus: GuideResultStatus,
         fallbackMessage: String?,
+        provisional: Boolean,
     ): GuideState {
         if (needClarify) {
             val message = activeAssistantText().ifBlank { "想看哪类商品或商品名？" }
@@ -274,6 +292,7 @@ class GuideViewModel(
                 resultStatus = GuideResultStatus.Clarifying,
                 clarificationMessage = message,
                 fallbackMessage = null,
+                hasProvisionalResults = false,
                 appliedPreferences = appliedPreferences,
             )
             return updateAssistantMessage(synced) { assistant ->
@@ -288,6 +307,7 @@ class GuideViewModel(
             resultStatus = nextStatus,
             clarificationMessage = null,
             fallbackMessage = fallbackMessage,
+            hasProvisionalResults = provisional,
             appliedPreferences = appliedPreferences,
         )
         if (recommendations.isEmpty() && bundlePlans.isEmpty()) {
@@ -306,17 +326,27 @@ class GuideViewModel(
         if (event.shouldRefresh) {
             val reply = event.reply.ifBlank { "这个问题需要刷新导购结果。" }
             val withReply = updateAssistantMessage { message -> message.copy(text = reply) }
+            val refreshMessage = activeUserMessageText?.takeIf { it.isNotBlank() } ?: state.query.takeIf { it.isNotBlank() }
             activeAssistantMessageId = null
+            activeUserMessageText = null
             return withReply.copy(
-                chatDraft = state.query,
+                pendingRefreshMessage = refreshMessage,
+                chatDraft = "",
                 isStreaming = false,
             )
         }
         val reply = event.reply
         val finalReply = reply.ifBlank { if (streamMode == StreamMode.Workbench) state.partialReply else "" }
             .ifBlank { fallbackAssistantReply() }
+        val keptProvisionalResults = state.hasProvisionalResults && (state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty())
         val baseState = state.copy(
             partialReply = if (streamMode == StreamMode.Workbench) finalReply else state.partialReply,
+            hasProvisionalResults = false,
+            fallbackMessage = if (keptProvisionalResults && state.fallbackMessage == null) {
+                "已先保留可参考候选，完整复核稍后可重试。"
+            } else {
+                state.fallbackMessage
+            },
             isStreaming = false,
             clarificationMessage = if (state.resultStatus == GuideResultStatus.Clarifying) {
                 state.clarificationMessage ?: finalReply.takeIf { it.isNotBlank() }
@@ -337,6 +367,7 @@ class GuideViewModel(
         }
         syncCartAction(event, finalReply)
         activeAssistantMessageId = null
+        activeUserMessageText = null
         return withReply
     }
 
@@ -352,7 +383,18 @@ class GuideViewModel(
 
     private fun applyError(message: String): GuideState {
         activeAssistantMessageId = null
-        return state.copy(errorMessage = message, isStreaming = false)
+        activeUserMessageText = null
+        val keptProvisionalResults = state.hasProvisionalResults && (state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty())
+        return state.copy(
+            errorMessage = message,
+            hasProvisionalResults = false,
+            fallbackMessage = if (keptProvisionalResults && state.fallbackMessage == null) {
+                "已先保留可参考候选，完整复核稍后可重试。"
+            } else {
+                state.fallbackMessage
+            },
+            isStreaming = false,
+        )
     }
 
     private fun updateAssistantMessage(

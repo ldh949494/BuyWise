@@ -66,6 +66,7 @@ fun GuideChatScreen(
     onTakePhoto: () -> Unit,
     onRunVisionDemo: () -> Unit,
     onRunSpeechDemo: () -> Unit,
+    onRunPendingRefresh: () -> Unit,
     onProductClick: (String) -> Unit,
     onIgnoreSavedPreferencesChange: (Boolean) -> Unit,
 ) {
@@ -92,6 +93,9 @@ fun GuideChatScreen(
             if (state.errorMessage != null) {
                 item { ErrorPanel(message = state.errorMessage) }
             }
+            if (state.pendingRefreshMessage != null) {
+                item { RefreshGuideActionPanel(onRunPendingRefresh = onRunPendingRefresh) }
+            }
         }
         GuideChatInputBar(
             draft = state.chatDraft,
@@ -104,6 +108,32 @@ fun GuideChatScreen(
             onRunVisionDemo = onRunVisionDemo,
             onRunSpeechDemo = onRunSpeechDemo,
         )
+    }
+}
+
+@Composable
+private fun RefreshGuideActionPanel(onRunPendingRefresh: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = BuyWiseTheme.colors.primarySoft,
+        shape = RoundedCornerShape(14.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(BuyWiseIcons.Guide, contentDescription = null, tint = BuyWiseTheme.colors.primary)
+            Text(
+                "这句更像新的导购需求。",
+                modifier = Modifier.weight(1f),
+                color = BuyWiseTheme.colors.ink,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            TextButton(onClick = onRunPendingRefresh) {
+                Text("按这句话重新导购")
+            }
+        }
     }
 }
 

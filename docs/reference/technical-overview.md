@@ -202,7 +202,7 @@ SSE 流式聊天超时和首屏体验：
 
 - `/api/v1/ai/chat/stream` 使用 heartbeat 保持连接活性。
 - `CHAT_STREAM_MAX_SECONDS` 限制单次流式响应最长持续时间，超时后返回 `chat_stream_timeout`。
-- 文本导购可启用 fast products 路径，在简单品类需求下先返回候选商品，再生成短回复。
+- 文本导购可启用 fast products 路径。兼容聊天流式入口会在简单品类需求下直接返回数据库候选并生成短回复；Android 主链路 `/api/v1/ai/guide/stream` 会先发送 `provisional=true, source=fast_db` 的首屏候选，再继续完整 RAG 并用非 provisional 终局结果替换。若 RAG 终局为空但 fast DB 已有候选，会把这些候选升级为 `source=fallback` 终局结果，避免宽泛条件下空白。
 
 后台维护任务重复执行：
 
