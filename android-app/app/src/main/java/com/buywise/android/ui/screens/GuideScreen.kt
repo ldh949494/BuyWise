@@ -115,6 +115,9 @@ fun GuideScreen(
             if (!state.isStreaming && !hasResults) {
                 item { RecommendationEmptyState(resultStatus = state.resultStatus) }
             }
+            if (state.hasProvisionalResults && hasResults) {
+                item { ResultQualityNotice(message = "先返回候选，正在复核商品证据。") }
+            }
             if (state.fallbackMessage != null && hasResults) {
                 item { ResultQualityNotice(message = state.fallbackMessage) }
             }

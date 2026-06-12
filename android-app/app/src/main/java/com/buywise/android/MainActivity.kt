@@ -280,6 +280,7 @@ private fun BuyWiseRoot(
                         },
                         onRunVisionDemo = viewModel::runVisionDemoForGuideChat,
                         onRunSpeechDemo = { audioInputController.handle(MultimodalTarget.GuideChat) },
+                        onRunPendingRefresh = viewModel::runPendingGuideRefresh,
                         onProductClick = { navController.navigate("detail/$it") },
                         onIgnoreSavedPreferencesChange = viewModel::setGuideIgnoreSavedPreferences,
                     )
