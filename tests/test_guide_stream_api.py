@@ -95,7 +95,7 @@ def make_product(
 
 
 @pytest.mark.anyio
-async def test_generate_guide_stream_uses_full_recommendation_path_when_fast_products_available() -> None:
+async def test_generate_guide_stream_emits_fast_products_before_full_recommendation() -> None:
     need = StructuredNeed(intent="商品推荐", category=KEYBOARD_CATEGORY, budget_max=300)
     rag_pipeline = FakeRAGPipeline([make_product("RAG 慢导购键盘")])
     service = ChatService(
@@ -118,8 +118,74 @@ async def test_generate_guide_stream_uses_full_recommendation_path_when_fast_pro
         db.close()
 
     product_events = [event for event in events if event["event"] == "products"]
-    assert product_events[0]["data"]["items"][0]["name"] == "RAG 慢导购键盘"
+    assert product_events[0]["data"]["items"][0]["name"] == "DB 快速键盘"
+    assert product_events[0]["data"]["provisional"] is True
+    assert product_events[0]["data"]["source"] == "fast_db"
+    assert product_events[-1]["data"]["items"][0]["name"] == "RAG 慢导购键盘"
+    assert product_events[-1]["data"]["provisional"] is False
+    assert product_events[-1]["data"]["source"] == "rag"
     assert rag_pipeline.calls
+
+
+@pytest.mark.anyio
+async def test_generate_guide_stream_skips_empty_fast_products_event_when_db_has_no_match() -> None:
+    need = StructuredNeed(intent="商品推荐", category=KEYBOARD_CATEGORY, budget_max=300)
+    rag_pipeline = FakeRAGPipeline([make_product("RAG 兜底键盘")])
+    service = ChatService(
+        intent_service=FakeIntentService(need),
+        rag_pipeline=rag_pipeline,
+        recommend_service=FakeRecommendService(),
+        llm_client=FakeLLMClient(),
+    )
+    db = _sqlite_session_with_products([])
+
+    try:
+        events = [
+            event
+            async for event in service.generate_guide_stream(
+                ChatRequest(session_id="guide-empty-fast-session", message="推荐一个机械键盘"),
+                db=db,
+            )
+        ]
+    finally:
+        db.close()
+
+    product_events = [event for event in events if event["event"] == "products"]
+    assert len(product_events) == 1
+    assert product_events[0]["data"]["items"][0]["name"] == "RAG 兜底键盘"
+    assert product_events[0]["data"]["provisional"] is False
+    assert product_events[0]["data"]["source"] == "rag"
+    assert rag_pipeline.calls
+
+
+@pytest.mark.anyio
+async def test_generate_guide_stream_promotes_fast_products_when_final_rag_is_empty() -> None:
+    need = StructuredNeed(intent="商品推荐", category=KEYBOARD_CATEGORY, budget_max=300)
+    service = ChatService(
+        intent_service=FakeIntentService(need),
+        rag_pipeline=FakeRAGPipeline([]),
+        recommend_service=FakeRecommendService(),
+        llm_client=FakeLLMClient(),
+    )
+    db = _sqlite_session_with_products([make_product("DB 兜底键盘")])
+
+    try:
+        events = [
+            event
+            async for event in service.generate_guide_stream(
+                ChatRequest(session_id="guide-final-empty-session", message="推荐一个机械键盘"),
+                db=db,
+            )
+        ]
+    finally:
+        db.close()
+
+    product_events = [event for event in events if event["event"] == "products"]
+    assert product_events[0]["data"]["provisional"] is True
+    assert product_events[-1]["data"]["items"][0]["name"] == "DB 兜底键盘"
+    assert product_events[-1]["data"]["provisional"] is False
+    assert product_events[-1]["data"]["source"] == "fallback"
+    assert product_events[-1]["data"]["fallback_stage"] == "fast_db_final_fallback"
 
 
 @pytest.mark.anyio

@@ -70,6 +70,16 @@ internal fun GuideProcessingCard(state: GuideState, onIgnoreSavedPreferencesChan
                     )
                 }
             }
+            if (state.hasProvisionalResults && hasGuideResults) {
+                Surface(color = BuyWiseTheme.colors.primarySoft, shape = RoundedCornerShape(12.dp)) {
+                    Text(
+                        "先返回候选，正在复核商品证据。",
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                        color = BuyWiseTheme.colors.primary,
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                }
+            }
             if (!isCompareChat) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),

@@ -190,6 +190,8 @@ data class GuideState(
     val resultStatus: GuideResultStatus = GuideResultStatus.Idle,
     val clarificationMessage: String? = null,
     val fallbackMessage: String? = null,
+    val hasProvisionalResults: Boolean = false,
+    val pendingRefreshMessage: String? = null,
     val partialReply: String = "",
     val chatDraft: String = "",
     val chatMessages: List<GuideChatMessage> = emptyList(),

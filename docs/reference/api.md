@@ -133,10 +133,12 @@
 | `meta` | `{"session_id": "..."}` |
 | `status` | `{"stage": "intent|retrieval|generation|fallback", "message": "..."}` |
 | `token` | `{"text": "..."}` |
-| `products` | `{"need_clarify": false, "structured_need": StructuredNeed, "items": ProductCard[], "bundle_plans": BundlePlan[], "applied_preferences": AppliedPreferences}` |
+| `products` | `{"need_clarify": false, "structured_need": StructuredNeed, "items": ProductCard[], "bundle_plans": BundlePlan[], "applied_preferences": AppliedPreferences, "provisional": false, "source": "rag|fast_db|fallback|null", "fallback_used": false, "fallback_stage": null, "result_quality": "exact|relaxed|broad|low_confidence"}` |
 | `heartbeat` | `{"status": "ok"}` |
 | `done` | `{"reply": "...", "degraded": false, "degraded_reason": null, "should_refresh": false, "refresh_reason": null}` |
 | `error` | `{"code": "chat_stream_failed|chat_stream_timeout", "message": "...", "session_id": "..."}` |
+
+`products.provisional=true` 表示首屏临时候选，客户端应先展示但继续等待后续非 provisional 的终局 `products` 事件；`source=fast_db` 表示来自数据库快速候选，`source=rag` 表示完整 RAG 结果，`source=fallback` 表示放宽条件、数据库兜底或临时候选升级为终局兜底。`/api/v1/ai/guide/stream` 对首轮纯文本、无图片/语音且规则能识别品类的请求，会先发送 `provisional=true, source=fast_db` 的候选，再继续完整 RAG 并发送终局 `provisional=false` 结果；如果 RAG 终局为空但 fast DB 已有候选，会把 fast DB 候选升级为 `source=fallback` 的终局结果，避免用户从有候选跳到空结果。
 
 `heartbeat` 用于连接空闲期间保持 SSE 长连接活跃。`error` 只用于流已经开始后无法改 HTTP 状态的异常兜底或总时长超时；空结果和容量降级都不使用 `error`：空结果通过 `products.items=[]` 和 `done.reply` 表达，容量降级通过 `status.stage=fallback` 和 `done.degraded=true` 表达。导购已经发送 `products` 后如果最终总结超时，会返回 `done.degraded=true` 和 `degraded_reason=stream_generation_timeout`，客户端应保留已展示的商品结果。`done.reply` 始终包含最终完整回复，供客户端补偿 token 拼接或处理无 token 的降级路径。
 
