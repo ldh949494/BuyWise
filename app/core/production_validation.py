@@ -31,6 +31,14 @@ def _production_base_errors(settings: Any) -> list[str]:
         errors.append("AUTH_OTP_MOCK_ENABLED must be false in prod.")
     if settings.external_purchase_feedback_mode not in {"delayed", "immediate"}:
         errors.append("EXTERNAL_PURCHASE_FEEDBACK_MODE must be 'delayed' or 'immediate'.")
+    if not settings.chat_session_tokens_enabled:
+        errors.append("CHAT_SESSION_TOKENS_ENABLED must be true in prod.")
+    if not settings.ai_chat_actions_require_auth_in_prod:
+        errors.append("AI_CHAT_ACTIONS_REQUIRE_AUTH_IN_PROD must be true in prod.")
+    if not settings.ai_checkout_confirmation_required:
+        errors.append("AI_CHECKOUT_CONFIRMATION_REQUIRED must be true in prod.")
+    if not settings.ai_media_url_allowlist_enabled:
+        errors.append("AI_MEDIA_URL_ALLOWLIST_ENABLED must be true in prod.")
     return errors
 
 

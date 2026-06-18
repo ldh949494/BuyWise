@@ -18,21 +18,49 @@ class ChatRepository:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def get_or_create_session(self, session_id: str | None = None, title: str | None = None) -> ChatSession:
-        normalized_session_id = (session_id or "").strip() or self.generate_session_id()
-        statement = select(ChatSession).where(ChatSession.session_id == normalized_session_id)
-        session = self.db.scalar(statement)
-        if session is not None:
-            return session
+    def get_session(self, session_id: str | None) -> ChatSession | None:
+        normalized_session_id = (session_id or "").strip()
+        if not normalized_session_id:
+            return None
+        return self.db.scalar(select(ChatSession).where(ChatSession.session_id == normalized_session_id))
 
+    def create_session(
+        self,
+        *,
+        session_id: str | None = None,
+        title: str | None = None,
+        owner_subject: str | None = None,
+        owner_auth_type: str | None = None,
+        user_id: int | None = None,
+        session_token_hash: str | None = None,
+        expires_at: datetime | None = None,
+    ) -> ChatSession:
+        now = datetime.utcnow()
         session = ChatSession(
-            session_id=normalized_session_id,
+            session_id=(session_id or "").strip() or self.generate_session_id(),
+            user_id=user_id,
+            owner_subject=owner_subject,
+            owner_auth_type=owner_auth_type,
+            session_token_hash=session_token_hash,
+            expires_at=expires_at,
             title=title,
-            created_at=datetime.utcnow(),
+            created_at=now,
+            updated_at=now,
         )
         self.db.add(session)
         self.db.flush()
         return session
+
+    def get_or_create_session(self, session_id: str | None = None, title: str | None = None) -> ChatSession:
+        session = self.get_session(session_id)
+        if session is not None:
+            return session
+        return self.create_session(session_id=session_id, title=title)
+
+    def update_session_activity(self, session: ChatSession, expires_at: datetime | None) -> None:
+        session.updated_at = datetime.utcnow()
+        session.expires_at = expires_at
+        self.db.flush()
 
     def create_message(
         self,

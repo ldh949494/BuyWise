@@ -3,6 +3,7 @@
 from app.models.chat_message import ChatMessage
 from app.models.chat_session import ChatSession
 from app.models.cart import Address, Cart, CartItem, CheckoutSession
+from app.models.agent_action import AgentAction
 from app.models.admin_user import AdminUser
 from app.models.otp_challenge import OtpChallenge
 from app.models.order import Order, OrderItem
@@ -17,6 +18,7 @@ from app.models.user_session import UserSession
 __all__ = [
     "ChatMessage",
     "ChatSession",
+    "AgentAction",
     "Address",
     "Cart",
     "CartItem",

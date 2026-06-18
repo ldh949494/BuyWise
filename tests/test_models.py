@@ -5,6 +5,7 @@ from sqlalchemy import BigInteger, Boolean, Date, DateTime, Integer, JSON, Numer
 from app.core.database import Base
 from app.models import (
     Address,
+    AgentAction,
     Cart,
     CartItem,
     ChatMessage,
@@ -169,9 +170,33 @@ def test_chat_session_table_schema() -> None:
     assert isinstance(column(ChatSession, "session_id").type, String)
     assert column(ChatSession, "session_id").type.length == 64
     assert column(ChatSession, "user_id").nullable is True
+    assert isinstance(column(ChatSession, "owner_subject").type, String)
+    assert isinstance(column(ChatSession, "owner_auth_type").type, String)
+    assert isinstance(column(ChatSession, "session_token_hash").type, String)
+    assert isinstance(column(ChatSession, "expires_at").type, DateTime)
+    assert isinstance(column(ChatSession, "updated_at").type, DateTime)
+    assert isinstance(column(ChatSession, "context_summary").type, Text)
     assert isinstance(column(ChatSession, "title").type, String)
     assert isinstance(column(ChatSession, "created_at").type, DateTime)
     assert ("session_id",) in index_columns(ChatSession)
+    assert ("owner_subject",) in index_columns(ChatSession)
+    assert ("expires_at",) in index_columns(ChatSession)
+
+
+def test_agent_action_table_schema() -> None:
+    assert AgentAction.__tablename__ == "agent_actions"
+    assert isinstance(column(AgentAction, "id").type, BigInteger)
+    assert isinstance(column(AgentAction, "action_id").type, String)
+    assert isinstance(column(AgentAction, "session_id").type, String)
+    assert isinstance(column(AgentAction, "owner_subject").type, String)
+    assert isinstance(column(AgentAction, "action").type, String)
+    assert isinstance(column(AgentAction, "status").type, String)
+    assert isinstance(column(AgentAction, "confirmation_required").type, Boolean)
+    assert isinstance(column(AgentAction, "resolved_payload").type, JSON)
+    assert isinstance(column(AgentAction, "result_payload").type, JSON)
+    assert isinstance(column(AgentAction, "expires_at").type, DateTime)
+    assert ("action_id",) in index_columns(AgentAction)
+    assert ("session_id",) in index_columns(AgentAction)
 
 
 def test_user_auth_table_schemas() -> None:

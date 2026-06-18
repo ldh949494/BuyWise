@@ -10,6 +10,7 @@ from app.schemas.guide_preferences import AppliedPreferences, GuidePreferences
 
 class ChatRequest(BaseSchema):
     session_id: str | None = None
+    session_token: str | None = Field(default=None, min_length=16)
     message: str | None = None
     image_url: str | None = None
     audio_url: str | None = None

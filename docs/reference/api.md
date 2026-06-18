@@ -120,7 +120,7 @@
 - 商品对比：`POST /api/v1/products/compare`，请求体包含 `product_ids` 和可选 `user_need`。对比页继续追问使用 `POST /api/v1/ai/compare/follow-up/stream`，请求携带当前对比 `items`、`summary`、`winner_id` 和用户问题，不要求先完成 AI 导购。
 - 购物车与下单：`GET /api/v1/cart` 读取当前 active cart，`POST /api/v1/cart/items` 加入商品，`PATCH /api/v1/cart/items/{item_id}` 修改数量，`DELETE /api/v1/cart/items/{item_id}` 删除商品；`GET/POST/PATCH /api/v1/addresses` 管理默认地址；`POST /api/v1/cart/checkout` 用默认地址生成 BuyWise 影子订单并清空购物车。
 - 订单反馈闭环：`POST /api/v1/orders` 仍支持直接记录购买；购物车 checkout 会生成同一订单模型。closed beta 外部购买记录带 `external_platform` 后可直接进入待评价；`POST /api/v1/orders/{order_id}/advance` 仅用于 demo、smoke 或管理推进；`GET /api/v1/feedback/prompts` 获取待评价项，`POST /api/v1/reviews/from-order-item` 提交已购评价。
-- AI 导购：`POST /api/v1/ai/chat` 返回 JSON，`POST /api/v1/ai/chat/stream` 保留为兼容流式入口。Android 主链路使用快慢接口：`POST /api/v1/ai/guide/stream` 用于开始或刷新导购，完整执行理解、检索、排序和生成；`POST /api/v1/ai/guide/follow-up/stream` 用于基于当前 `session_id` 的最新推荐快照继续追问，不重新检索和排序。请求包含 `session_id` 和 `message`，可选 `image_url`、`audio_url`、`ignore_saved_preferences` 和 `temporary_preferences`。普通用户带 User JWT 时会自动合并账号级导购偏好；单品需求返回 `products`，组合搭配需求返回 `bundle_plans`，响应会返回结构化 `applied_preferences`。
+- AI 导购：`POST /api/v1/ai/chat` 返回 JSON，`POST /api/v1/ai/chat/stream` 保留为兼容流式入口。Android 主链路使用快慢接口：`POST /api/v1/ai/guide/stream` 用于开始或刷新导购，完整执行理解、检索、排序和生成；`POST /api/v1/ai/guide/follow-up/stream` 用于基于当前 `session_id` 的最新推荐快照继续追问，不重新检索和排序。请求包含 `session_id` 和 `message`，可选 `session_token`、`image_url`、`audio_url`、`ignore_saved_preferences` 和 `temporary_preferences`。匿名会话安全开关启用时，首次响应会返回 `session_token`，后续匿名续聊必须带回；普通用户带 User JWT 时会自动合并账号级导购偏好。单品需求返回 `products`，组合搭配需求返回 `bundle_plans`，响应会返回结构化 `applied_preferences`。
 - 导购偏好：`GET /api/v1/guide/preferences` 获取账号级导购偏好，`PUT /api/v1/guide/preferences` 保存结构化偏好，`DELETE /api/v1/guide/preferences` 清除偏好。偏好包括预算策略、单品/整套预算区间、核心偏好、排除项、已有设备和推荐呈现方式。
 - 拍照找货：Android 上传图片后调用 `POST /api/v1/visual-search`，将识别出的品类、颜色、材质、版型、风格和品牌线索转成相似商品候选。返回候选可继续进入详情、对比或加入购物车。
 
@@ -130,7 +130,7 @@
 
 | 事件 | payload |
 | --- | --- |
-| `meta` | `{"session_id": "..."}` |
+| `meta` | `{"session_id": "...", "session_token": "..."}` |
 | `status` | `{"stage": "intent|retrieval|generation|fallback", "message": "..."}` |
 | `token` | `{"text": "..."}` |
 | `products` | `{"need_clarify": false, "structured_need": StructuredNeed, "items": ProductCard[], "bundle_plans": BundlePlan[], "applied_preferences": AppliedPreferences, "provisional": false, "source": "rag|fast_db|fallback|null", "fallback_used": false, "fallback_stage": null, "result_quality": "exact|relaxed|broad|low_confidence"}` |
@@ -140,7 +140,7 @@
 
 `products.provisional=true` 表示首屏临时候选，客户端应先展示但继续等待后续非 provisional 的终局 `products` 事件；`source=fast_db` 表示来自数据库快速候选，`source=rag` 表示完整 RAG 结果，`source=fallback` 表示放宽条件、数据库兜底或临时候选升级为终局兜底。`/api/v1/ai/guide/stream` 对首轮纯文本、无图片/语音且规则能识别品类的请求，会先发送 `provisional=true, source=fast_db` 的候选，再继续完整 RAG 并发送终局 `provisional=false` 结果；如果 RAG 终局为空但 fast DB 已有候选，会把 fast DB 候选升级为 `source=fallback` 的终局结果，避免用户从有候选跳到空结果。
 
-`heartbeat` 用于连接空闲期间保持 SSE 长连接活跃。`error` 只用于流已经开始后无法改 HTTP 状态的异常兜底或总时长超时；空结果和容量降级都不使用 `error`：空结果通过 `products.items=[]` 和 `done.reply` 表达，容量降级通过 `status.stage=fallback` 和 `done.degraded=true` 表达。导购已经发送 `products` 后如果最终总结超时，会返回 `done.degraded=true` 和 `degraded_reason=stream_generation_timeout`，客户端应保留已展示的商品结果。`done.reply` 始终包含最终完整回复，供客户端补偿 token 拼接或处理无 token 的降级路径。
+`session_token` 只在匿名新会话且服务端启用会话 token 时返回；登录用户或旧配置下可为 `null` 或缺省。`heartbeat` 用于连接空闲期间保持 SSE 长连接活跃。`error` 只用于流已经开始后无法改 HTTP 状态的异常兜底或总时长超时；空结果和容量降级都不使用 `error`：空结果通过 `products.items=[]` 和 `done.reply` 表达，容量降级通过 `status.stage=fallback` 和 `done.degraded=true` 表达。导购已经发送 `products` 后如果最终总结超时，会返回 `done.degraded=true` 和 `degraded_reason=stream_generation_timeout`，客户端应保留已展示的商品结果。`done.reply` 始终包含最终完整回复，供客户端补偿 token 拼接或处理无 token 的降级路径。
 
 追问快接口不会自动升级到完整导购。如果缺少 `session_id`、找不到当前会话的推荐快照，或用户问题明显改变推荐条件，`done.should_refresh=true`，`refresh_reason` 说明原因，客户端应引导用户刷新导购或调用 `/api/v1/ai/guide/stream`。
 
