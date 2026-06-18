@@ -366,6 +366,64 @@ async def test_extract_normalizes_realistic_llm_recommendation_aliases() -> None
 
 
 @pytest.mark.anyio
+async def test_extract_normalizes_english_taxonomy_from_llm() -> None:
+    service = IntentService(
+        llm_client=FakeLLMClient(
+            """
+            {
+              "intent": "recommend",
+              "category": "backpack",
+              "budget_max": 80,
+              "scenario": "class and commuting",
+              "preferences": ["laptop compartment", "water-resistant"],
+              "need_clarify": false,
+              "missing_fields": []
+            }
+            """
+        )
+    )
+
+    need = await service.extract("上课和通勤用，预算80美元以内，推荐有电脑仓、防泼水的双肩包")
+
+    assert need.category == "双肩包"
+    assert need.scenario == "通勤"
+    assert need.preferences == ["电脑仓", "防泼水"]
+
+
+@pytest.mark.anyio
+async def test_extract_filters_unsupported_platform_claims_from_preferences() -> None:
+    service = IntentService(
+        llm_client=FakeLLMClient(
+            """
+            {
+              "intent": "buy",
+              "category": "keyboard",
+              "preferences": ["官方认证", "现货", "包邮", "wireless"],
+              "need_clarify": false,
+              "missing_fields": []
+            }
+            """
+        )
+    )
+
+    need = await service.extract("推荐一款官方认证、现货、包邮的无线机械键盘")
+
+    assert need.category == "机械键盘"
+    assert need.preferences == ["无线"]
+
+
+@pytest.mark.anyio
+async def test_extract_out_of_scope_request_short_circuits_recommendation() -> None:
+    service = IntentService()
+
+    need = await service.extract("帮我写一个Python爬虫抓京东价格，不要推荐商品")
+
+    assert need.intent == "非导购"
+    assert need.category is None
+    assert need.need_clarify is False
+
+
+@pytest.mark.anyio
 async def test_extract_falls_back_to_rules_when_llm_fails() -> None:
     service = IntentService(llm_client=FakeLLMClient(should_fail=True))
 

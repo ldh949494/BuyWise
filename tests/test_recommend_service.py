@@ -55,7 +55,7 @@ def test_rank_returns_product_cards_sorted_by_score_with_reasons() -> None:
     assert "符合低噪音偏好" in cards[0].reason
     assert "符合无线偏好" in cards[0].reason
     assert "符合性价比偏好" in cards[0].reason
-    assert "库存充足" in cards[0].reason
+    assert "商品卡显示有库存" in cards[0].reason
     assert "宿舍场景匹配不明确" not in (cards[1].reason or "")
     assert "超出预算" in cards[1].conflicts
     assert "库存不足" in cards[1].conflicts

@@ -17,6 +17,7 @@ from app.repositories.price_repo import PriceHistoryRepository
 from app.repositories.product_repo import ProductRepository
 from app.repositories.review_repo import ReviewRepository
 from app.ai.rag_policy import RagFallbackPolicy, RagFilterPolicy, RagRerankPolicy
+from app.utils.taxonomy import CATEGORY_KEYWORDS
 from app.utils.logging import get_logger
 from app.utils.text_builder import build_query_from_need
 from app.vectorstore.chroma_client import ChromaProductStore
@@ -233,6 +234,9 @@ class RAGPipeline:
         for stage in self.fallback_policy.list_stages():
             candidates = self._fallback_candidates_for_stage(repo, need, stage, top_k)
             filtered, reasons = self.filter_policy.get_filtered_products(candidates, need, stage=stage)
+            filtered = self._guard_fallback_category(filtered, need, stage)
+            if candidates and not filtered:
+                reasons["fallback_category_mismatch"] += len(candidates)
             if filtered:
                 return filtered, stage, reasons
         return [], "none", Counter()
@@ -263,6 +267,41 @@ class RAGPipeline:
         if stage == "fallback_popular":
             return self._popular_candidates(repo, page_size)
         return self._adjacent_category_candidates(repo, category, page_size)
+
+    def _guard_fallback_category(self, products: list[Product], need: Any, stage: str) -> list[Product]:
+        category = self._get_need_value(need, "category")
+        if not category or stage in {"fallback_budget", "fallback_relaxed"}:
+            return products
+        if stage == "fallback_adjacent":
+            allowed = set(self.fallback_policy.list_adjacent_categories(category))
+            return [product for product in products if product.category in allowed]
+        if category in CATEGORY_KEYWORDS:
+            return [product for product in products if product.category == category]
+        if stage == "fallback_popular":
+            return []
+        return [
+            product
+            for product in products
+            if self._product_matches_non_standard_target(product, str(category))
+        ]
+
+    def _product_matches_non_standard_target(self, product: Product, category: str) -> bool:
+        target = category.strip().lower()
+        if not target:
+            return False
+        searchable = " ".join(
+            str(value or "")
+            for value in [
+                product.name,
+                product.category,
+                product.description,
+                product.review_summary,
+                product.tags,
+                product.suitable_scene,
+                product.specs,
+            ]
+        ).lower()
+        return target in searchable
 
     def _keyword_candidates(
         self,

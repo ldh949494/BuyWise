@@ -51,6 +51,10 @@ class ChatStreamFastPathMixin:
 
         need = await self._extract_need(context, request)
         need = self._guide_final_need(need, fast_need)
+        if self.chat_service._is_out_of_scope_need(need):
+            async for event in self._stream_out_of_scope(context, need):
+                yield event
+            return
         if need.need_clarify:
             context["stream_path"] = "guide_clarify"
             async for event in self._stream_clarify(context, need):

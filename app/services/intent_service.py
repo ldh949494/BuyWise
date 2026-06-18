@@ -11,10 +11,13 @@ from app.services.intent_taxonomy import (
     BROWSE_KEYWORDS,
     BUY_READY_KEYWORDS,
     CATEGORY_KEYWORDS,
+    OUT_OF_SCOPE_INTENT,
+    OUT_OF_SCOPE_KEYWORDS,
     PREFERENCE_KEYWORDS,
     RULE_PREFERENCE_ALIASES,
     SCENARIO_KEYWORDS,
     SHOPPING_TARGET_KEYWORDS,
+    UNSUPPORTED_PLATFORM_CLAIMS,
 )
 from app.utils.intent_strategy import retrieval_strategy_for
 from app.utils.list_values import dedupe_strings
@@ -52,6 +55,9 @@ class IntentService:
         image_info = image_info or {}
         history_context = history_context or {}
 
+        if self._is_out_of_scope(normalized_text):
+            return self._out_of_scope_need()
+
         rule_need = self._extract_by_rules(normalized_text, image_info, history_context)
         if self.llm_client is None:
             return rule_need
@@ -66,7 +72,12 @@ class IntentService:
         image_info: dict | None = None,
         history_context: dict | None = None,
     ) -> StructuredNeed:
+        if self._is_out_of_scope(text or ""):
+            return self._out_of_scope_need()
         return self._extract_by_rules(text or "", image_info or {}, history_context or {})
+
+    def _out_of_scope_need(self) -> StructuredNeed:
+        return StructuredNeed(intent=OUT_OF_SCOPE_INTENT, retrieval_strategy="balanced")
 
     def _extract_by_rules(
         self,
@@ -294,7 +305,22 @@ class IntentService:
         for keyword, preference in RULE_PREFERENCE_ALIASES.items():
             if keyword in text and preference not in preferences:
                 preferences.append(preference)
-        return preferences
+        return [preference for preference in preferences if preference not in UNSUPPORTED_PLATFORM_CLAIMS]
+
+    def _is_out_of_scope(self, text: str) -> bool:
+        normalized = text.strip().lower()
+        if not normalized:
+            return False
+        if self._extract_category(text) or self._extract_shopping_target(text):
+            if not any(keyword in normalized for keyword in ["python", "爬虫", "抓取", "爬取", "股票", "天气"]):
+                return False
+        if any(keyword in normalized for keyword in OUT_OF_SCOPE_KEYWORDS):
+            return True
+        if "系统提示" in text or "提示词" in text:
+            return True
+        if "忽略" in text and ("规则" in text or "之前" in text):
+            return True
+        return False
 
     def _extract_style_preferences(self, text: str) -> list[str]:
         styles = ["\u4f11\u95f2", "\u901a\u52e4", "\u8fd0\u52a8", "\u6781\u7b80", "\u65e5\u7cfb", "\u6237\u5916", "\u751c\u9177", "\u5546\u52a1", "\u9ad8\u989c\u503c", "\u8f7b\u719f"]
@@ -326,6 +352,9 @@ class IntentService:
 
         if intent in {"bundle_recommend", "\u573a\u666f\u5316\u7ec4\u5408\u63a8\u8350"}:
             return self._bundle_missing_fields(scenario)
+
+        if intent == OUT_OF_SCOPE_INTENT:
+            return []
 
         if intent not in {"\u5546\u54c1\u63a8\u8350", "\u627e\u5e73\u66ff"}:
             return []

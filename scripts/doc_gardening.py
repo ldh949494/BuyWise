@@ -4,7 +4,6 @@ import argparse
 import json
 import os
 import shutil
-import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -13,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from app.utils.subprocess_tools import run  # noqa: E402
+from app.utils.subprocess_tools import run, run_with_input  # noqa: E402
 
 ARTIFACTS_DIR = ROOT / "artifacts" / "doc-gardening"
 DEFAULT_MODEL = "openai/gpt-4.1"
@@ -29,21 +28,6 @@ CONTEXT_PATHS = [
     "scripts/auto_validate.ps1",
     "scripts/validate_docs.py",
 ]
-
-
-def run_with_input(cmd: list[str], stdin: str) -> str:
-    result = subprocess.run(
-        cmd,
-        cwd=ROOT,
-        input=stdin,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    if result.returncode != 0:
-        output = "\n".join(part.strip() for part in (result.stdout, result.stderr) if part.strip())
-        raise RuntimeError(output or f"Command failed: {' '.join(cmd)}")
-    return result.stdout.strip()
 
 
 def read_text(path: Path, *, limit: int = 12000) -> str:
