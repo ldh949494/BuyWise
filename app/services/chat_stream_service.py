@@ -16,6 +16,7 @@ from app.core.metrics import (
     observe_chat_stream_first_products_latency,
 )
 from app.core.traffic import is_capacity_limited
+from app.core.providers import Principal
 from app.schemas.chat import BundlePlan, ChatRequest, ProductCard, StructuredNeed
 from app.schemas.guide_preferences import AppliedPreferences
 from app.schemas.chat_stream import (
@@ -43,9 +44,10 @@ class ChatStreamRunner(ChatStreamFastPathMixin):
         request: ChatRequest,
         db: Session,
         user_id: int | None = None,
+        principal: Principal | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         started_at = time.perf_counter()
-        context = self._build_context(request, db, user_id)
+        context = self._build_context(request, db, user_id, principal)
         try:
             async for event in self._generate_from_context(context, request, db):
                 yield event
@@ -69,8 +71,9 @@ class ChatStreamRunner(ChatStreamFastPathMixin):
         request: ChatRequest,
         db: Session,
         user_id: int | None = None,
+        principal: Principal | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
-        async for event in self._generate_with_handler(request, db, user_id, self._generate_guide_from_context):
+        async for event in self._generate_with_handler(request, db, user_id, principal, self._generate_guide_from_context):
             yield event
 
     async def generate_follow_up_events(
@@ -78,8 +81,9 @@ class ChatStreamRunner(ChatStreamFastPathMixin):
         request: ChatRequest,
         db: Session,
         user_id: int | None = None,
+        principal: Principal | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
-        async for event in self._generate_with_handler(request, db, user_id, self._generate_follow_up_from_context):
+        async for event in self._generate_with_handler(request, db, user_id, principal, self._generate_follow_up_from_context):
             yield event
 
     async def _generate_with_handler(
@@ -87,10 +91,11 @@ class ChatStreamRunner(ChatStreamFastPathMixin):
         request: ChatRequest,
         db: Session,
         user_id: int | None,
+        principal: Principal | None,
         handler: Any,
     ) -> AsyncIterator[dict[str, Any]]:
         started_at = time.perf_counter()
-        context = self._build_context(request, db, user_id)
+        context = self._build_context(request, db, user_id, principal)
         try:
             async for event in handler(context, request, db):
                 yield event
@@ -109,18 +114,24 @@ class ChatStreamRunner(ChatStreamFastPathMixin):
                 ),
             )
 
-    def _build_context(self, request: ChatRequest, db: Session, user_id: int | None) -> dict[str, Any]:
+    def _build_context(
+        self,
+        request: ChatRequest,
+        db: Session,
+        user_id: int | None,
+        principal: Principal | None,
+    ) -> dict[str, Any]:
         chat_repo = self.chat_service._chat_repo(request, db)
-        chat_session = chat_repo.get_or_create_session(
-            request.session_id,
-            title=self.chat_service._session_title(request),
-        )
+        security_context = self.chat_service._chat_security_context(request, chat_repo, principal, user_id)
         return {
             "chat_repo": chat_repo,
-            "session_id": chat_session.session_id or chat_repo.generate_session_id(),
+            "session_id": security_context.session_id,
+            "session_token": security_context.session_token,
             "started_at": time.perf_counter(),
             "stream_path": "full_rag",
-            "user_id": user_id,
+            "user_id": security_context.user_id,
+            "owner_subject": security_context.owner_subject,
+            "owner_auth_type": security_context.owner_auth_type,
             "applied_preferences": AppliedPreferences(ignored_saved_preferences=request.ignore_saved_preferences),
         }
 
@@ -130,7 +141,7 @@ class ChatStreamRunner(ChatStreamFastPathMixin):
         request: ChatRequest,
         db: Session,
     ) -> AsyncIterator[dict[str, Any]]:
-        yield self._event("meta", ChatStreamMetaEventData(session_id=context["session_id"]))
+        yield self._event("meta", self._meta_payload(context))
         yield self._event("status", ChatStreamStatusEventData(stage="intent", message="intent"))
         if self._can_use_fast_products(request, db):
             async for event in self._stream_fast_products(context, request, db):
@@ -152,7 +163,7 @@ class ChatStreamRunner(ChatStreamFastPathMixin):
         request: ChatRequest,
         db: Session,
     ) -> AsyncIterator[dict[str, Any]]:
-        yield self._event("meta", ChatStreamMetaEventData(session_id=context["session_id"]))
+        yield self._event("meta", self._meta_payload(context))
         yield self._event("status", ChatStreamStatusEventData(stage="intent", message="intent"))
         if self._can_use_fast_products(request, db):
             async for event in self._stream_guide_fast_first(context, request, db):
@@ -175,7 +186,7 @@ class ChatStreamRunner(ChatStreamFastPathMixin):
         request: ChatRequest,
         db: Session,
     ) -> AsyncIterator[dict[str, Any]]:
-        yield self._event("meta", ChatStreamMetaEventData(session_id=context["session_id"]))
+        yield self._event("meta", self._meta_payload(context))
         async for event in GuideFollowUpStreamService(self.chat_service, self._event).generate_events(context, request):
             yield event
 
@@ -431,6 +442,12 @@ class ChatStreamRunner(ChatStreamFastPathMixin):
         if hasattr(data, "model_dump"):
             data = data.model_dump(mode="json")
         return {"event": event, "data": data}
+
+    def _meta_payload(self, context: dict[str, Any]) -> ChatStreamMetaEventData:
+        return ChatStreamMetaEventData(
+            session_id=context["session_id"],
+            session_token=context.get("session_token"),
+        )
 
     def _is_recoverable_llm_failure(self, exc: Exception) -> bool:
         return is_capacity_limited(exc, "llm") or getattr(exc, "code", None) == "provider_timeout"
