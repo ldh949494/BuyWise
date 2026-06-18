@@ -283,8 +283,8 @@ private fun HomeGuideEntry(
                     tone = TactileIconTone.Primary,
                 )
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("说说预算、用途和偏好", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
-                    Text("适合还没确定买哪一款时使用，BuyWise 会先给候选，再补理由。", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
+                    Text("说说想买什么", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
+                    Text("品类或商品名就能开始，预算、用途和偏好可以之后补充。", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.bodyMedium)
                 }
             }
             OutlinedTextField(
@@ -296,7 +296,7 @@ private fun HomeGuideEntry(
                 shape = RoundedCornerShape(14.dp),
             )
             Text(
-                if (query.isBlank()) "先描述需求，导购会自动进入结果页。" else "将带着这条需求进入导购页并自动生成。",
+                if (query.isBlank()) "输入品类、商品名或需求，导购会自动进入结果页。" else "将带着这条需求进入导购页并自动生成。",
                 color = BuyWiseTheme.colors.muted,
                 style = MaterialTheme.typography.labelMedium,
             )

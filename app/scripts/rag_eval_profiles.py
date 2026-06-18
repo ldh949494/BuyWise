@@ -5,8 +5,7 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-from app.scripts.demo_products import DEMO_SHOWCASE_PRODUCTS
-from app.scripts.seed_products import ANDROID_CONTRACT_PRODUCTS
+from app.scripts.seed_products import ANDROID_CONTRACT_PRODUCTS, DEMO_PROFILE_PRODUCTS
 
 RAG_EVAL_DIR = Path(__file__).resolve().parents[2] / "data" / "rag_eval"
 PROFILE_DATASETS = {
@@ -33,7 +32,7 @@ def known_seed_product_ids(profile: str = DEFAULT_PROFILE) -> set[int]:
     if profile == "android-contract":
         return {int(product["id"]) for product in ANDROID_CONTRACT_PRODUCTS}
     if profile == "demo":
-        return {int(product["id"]) for product in DEMO_SHOWCASE_PRODUCTS}
+        return {int(product["id"]) for product in DEMO_PROFILE_PRODUCTS}
     if profile == "beta-fixture":
         return _known_fixture_product_ids(PROFILE_PRODUCT_FIXTURES[profile])
     raise ValueError(PROFILE_ERROR)

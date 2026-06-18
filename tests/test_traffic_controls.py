@@ -50,6 +50,47 @@ def test_chat_rate_limit_returns_429(monkeypatch: pytest.MonkeyPatch) -> None:
     assert second.headers["Retry-After"]
 
 
+def test_guide_stream_rate_limit_returns_429(monkeypatch: pytest.MonkeyPatch) -> None:
+    reset_traffic_state()
+    monkeypatch.setattr(settings, "chat_rate_limit_per_minute", 1)
+    client = _make_client()
+
+    first = client.post("/api/v1/ai/guide/stream", json={"message": "推荐一个键盘"})
+    second = client.post("/api/v1/ai/guide/stream", json={"message": "推荐一个键盘"})
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+    assert second.json()["code"] == "rate_limited"
+
+
+def test_chat_session_rate_limit_returns_429(monkeypatch: pytest.MonkeyPatch) -> None:
+    reset_traffic_state()
+    monkeypatch.setattr(settings, "chat_rate_limit_per_minute", 100)
+    monkeypatch.setattr(settings, "chat_session_rate_limit_per_minute", 1)
+    client = _make_client()
+
+    first = client.post("/api/v1/ai/chat", json={"session_id": "limited-session", "message": "推荐一个键盘"})
+    second = client.post("/api/v1/ai/chat", json={"session_id": "limited-session", "message": "继续"})
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+    assert second.json()["code"] == "rate_limited"
+    assert second.json()["extra"]["limit_scope"] == "chat_session"
+
+
+def test_chat_session_rate_limit_is_scoped_by_session(monkeypatch: pytest.MonkeyPatch) -> None:
+    reset_traffic_state()
+    monkeypatch.setattr(settings, "chat_rate_limit_per_minute", 100)
+    monkeypatch.setattr(settings, "chat_session_rate_limit_per_minute", 1)
+    client = _make_client()
+
+    first = client.post("/api/v1/ai/chat", json={"session_id": "session-a", "message": "推荐一个键盘"})
+    second = client.post("/api/v1/ai/chat", json={"session_id": "session-b", "message": "推荐一个键盘"})
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+
+
 @pytest.mark.anyio
 async def test_chat_degrades_when_llm_capacity_is_full() -> None:
     service = ChatService(rag_pipeline=FakeRAGPipeline(), llm_client=CapacityLimitedLLM())

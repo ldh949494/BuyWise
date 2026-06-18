@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.buywise.android.data.GuideState
+import com.buywise.android.data.GuideResultStatus
 import com.buywise.android.data.Product
 import com.buywise.android.data.AppliedPreferences
 import com.buywise.android.ui.BuyWiseDimens
@@ -62,8 +63,11 @@ fun GuideScreen(
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    val isClarifying = state.resultStatus == GuideResultStatus.Clarifying
+    val hasResults = state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty()
     val shouldShowDemandPanel = state.query.isNotBlank() &&
         (state.intentSummary.isNotBlank() || state.recommendations.isNotEmpty())
+    val shouldShowResultsSection = !isClarifying
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -91,47 +95,55 @@ fun GuideScreen(
                 )
             }
         }
-        item {
-            SectionTitle(
-                title = if (state.bundlePlans.isNotEmpty()) "组合方案" else "首推与备选",
-                subtitle = "先看商品候选，再核对理由、风险和证据。",
-            )
-        }
-        if (state.appliedPreferences.hasVisibleSummary) {
+        if (shouldShowResultsSection) {
             item {
-                AppliedPreferenceSummary(
-                    appliedPreferences = state.appliedPreferences,
-                    ignoreSavedPreferences = state.ignoreSavedPreferences,
-                    onIgnoreSavedPreferencesChange = onIgnoreSavedPreferencesChange,
-                    onOpenGuidePreferences = onOpenGuidePreferences,
+                SectionTitle(
+                    title = if (state.bundlePlans.isNotEmpty()) "组合方案" else "首推与备选",
+                    subtitle = "先看商品候选，再核对理由、风险和证据。",
                 )
             }
-        }
-        if (!state.isStreaming && state.recommendations.isEmpty() && state.bundlePlans.isEmpty()) {
-            item { RecommendationEmptyState() }
-        }
-        if (state.bundlePlans.isNotEmpty()) {
-            itemsIndexed(state.bundlePlans) { index, plan ->
-                BundlePlanCard(plan = plan, featured = index == 1, onProductClick = onProductClick)
+            if (state.appliedPreferences.hasVisibleSummary) {
+                item {
+                    AppliedPreferenceSummary(
+                        appliedPreferences = state.appliedPreferences,
+                        ignoreSavedPreferences = state.ignoreSavedPreferences,
+                        onIgnoreSavedPreferencesChange = onIgnoreSavedPreferencesChange,
+                        onOpenGuidePreferences = onOpenGuidePreferences,
+                    )
+                }
             }
-        } else {
-            itemsIndexed(state.recommendations) { index, recommendation ->
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    if (index == 0) {
-                        TopRecommendationStrip(
+            if (!state.isStreaming && !hasResults) {
+                item { RecommendationEmptyState(resultStatus = state.resultStatus) }
+            }
+            if (state.hasProvisionalResults && hasResults) {
+                item { ResultQualityNotice(message = "先返回候选，正在复核商品证据。") }
+            }
+            if (state.fallbackMessage != null && hasResults) {
+                item { ResultQualityNotice(message = state.fallbackMessage) }
+            }
+            if (state.bundlePlans.isNotEmpty()) {
+                itemsIndexed(state.bundlePlans) { index, plan ->
+                    BundlePlanCard(plan = plan, featured = index == 1, onProductClick = onProductClick)
+                }
+            } else {
+                itemsIndexed(state.recommendations) { index, recommendation ->
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        if (index == 0) {
+                            TopRecommendationStrip(
+                                product = recommendation.product,
+                                onClick = { onProductClick(recommendation.product.id) },
+                            )
+                            EvidenceConfidenceNotice(product = recommendation.product)
+                        }
+                        ProductCard(
                             product = recommendation.product,
                             onClick = { onProductClick(recommendation.product.id) },
+                            isInCompareBasket = isInCompareBasket(recommendation.product.id),
+                            onToggleCompare = { onToggleCompare(recommendation.product, state.query) },
+                            recommendationReason = recommendation.reason,
+                            isFeatured = index == 0,
                         )
-                        EvidenceConfidenceNotice(product = recommendation.product)
                     }
-                    ProductCard(
-                        product = recommendation.product,
-                        onClick = { onProductClick(recommendation.product.id) },
-                        isInCompareBasket = isInCompareBasket(recommendation.product.id),
-                        onToggleCompare = { onToggleCompare(recommendation.product, state.query) },
-                        recommendationReason = recommendation.reason,
-                        isFeatured = index == 0,
-                    )
                 }
             }
         }
@@ -254,7 +266,7 @@ private fun GuideInputPanel(
                         tone = TactileIconTone.Primary,
                     )
                     Text(
-                        "描述预算、用途和偏好，BuyWise 会给出候选商品和理由。",
+                        "说出品类或商品名即可开始，预算、用途和偏好可以继续补充。",
                         modifier = Modifier.weight(1f),
                         color = BuyWiseTheme.colors.primary,
                         fontWeight = FontWeight.Bold,
@@ -404,31 +416,6 @@ private fun demandTemplatesForDate(date: LocalDate = LocalDate.now()): List<Dema
     DailyDemandTemplatePool.shuffled(Random(date.toEpochDay())).take(3)
 
 @Composable
-private fun RecommendationEmptyState() {
-    FloatingGlassCard(tone = FloatingGlassTone.Neutral, contentPadding = 20.dp) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TactileIconTile(
-                icon = BuyWiseIcons.Shopping,
-                contentDescription = null,
-                tone = TactileIconTone.Primary,
-            )
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("还没有推荐结果", style = MaterialTheme.typography.titleMedium, color = BuyWiseTheme.colors.ink)
-                Text(
-                    "输入预算、用途和偏好后，这里会先展示候选商品，再补齐推荐理由、风险和证据。",
-                    color = BuyWiseTheme.colors.muted,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun TopRecommendationStrip(product: Product, onClick: () -> Unit) {
     FloatingGlassCard(
         tone = FloatingGlassTone.Success,
@@ -477,7 +464,9 @@ private fun androidx.compose.foundation.lazy.LazyListScope.guideStreamItems(stat
     if (state.isStreaming) {
         item { AnalysisProgressCard(title = "BuyWise 正在生成导购建议") }
     }
-    if (state.partialReply.isNotBlank()) {
+    if (state.resultStatus == GuideResultStatus.Clarifying) {
+        item { ClarificationStateCard(message = state.clarificationMessage) }
+    } else if (state.partialReply.isNotBlank()) {
         item {
             InfoPanel(
                 icon = { Icon(BuyWiseIcons.Guide, contentDescription = null) },

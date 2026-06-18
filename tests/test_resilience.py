@@ -34,6 +34,12 @@ def test_classify_provider_failure_reasons() -> None:
     assert classify_provider_failure(TimeoutError("timeout")) == ProviderFailureReason.TIMEOUT
     assert classify_provider_failure(ProviderTimeoutError("timeout")) == ProviderFailureReason.TIMEOUT
     assert classify_provider_failure(RuntimeError("provider is not configured")) == ProviderFailureReason.CONFIGURATION
+    assert classify_provider_failure(
+        AppError("missing dependency", status_code=500, code="speech_provider_dependency_missing")
+    ) == ProviderFailureReason.CONFIGURATION
+    assert classify_provider_failure(
+        AppError("missing config", status_code=500, code="storage_provider_not_configured")
+    ) == ProviderFailureReason.CONFIGURATION
     assert classify_provider_failure(RuntimeError("remote failed")) == ProviderFailureReason.PROVIDER
 
 

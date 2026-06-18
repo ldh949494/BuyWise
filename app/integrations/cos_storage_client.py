@@ -33,16 +33,26 @@ class TencentCosStorageClient:
         content_type: str,
     ) -> str:
         self._validate_settings()
-        run_provider_call(
-            provider_policy("cos", "upload_fileobj"),
-            lambda: self.client.put_object(
-                Bucket=settings.cos_bucket,
-                Body=fileobj,
-                Key=key,
-                ContentType=content_type,
-                ACL="public-read",
-            ),
-        )
+        try:
+            run_provider_call(
+                provider_policy("cos", "upload_fileobj"),
+                lambda: self.client.put_object(
+                    Bucket=settings.cos_bucket,
+                    Body=fileobj,
+                    Key=key,
+                    ContentType=content_type,
+                    ACL="public-read",
+                ),
+            )
+        except AppError:
+            raise
+        except Exception as exc:
+            raise AppError(
+                "Tencent COS upload failed.",
+                status_code=503,
+                code="provider_error",
+                extra={"provider": "tencent_cos"},
+            ) from exc
         return self._public_url(key)
 
     def check_bucket_read_access(self) -> dict[str, object]:
@@ -53,12 +63,16 @@ class TencentCosStorageClient:
         )
 
     def _create_client(self):
+        self._validate_settings()
         try:
             from qcloud_cos import CosConfig, CosS3Client
         except ImportError as exc:
-            raise RuntimeError("cos-python-sdk-v5 is required for Tencent COS uploads") from exc
+            raise AppError(
+                "cos-python-sdk-v5 is required for Tencent COS uploads.",
+                status_code=500,
+                code="storage_provider_dependency_missing",
+            ) from exc
 
-        self._validate_settings()
         config = CosConfig(
             Region=settings.cos_region,
             SecretId=settings.tencent_secret_id,

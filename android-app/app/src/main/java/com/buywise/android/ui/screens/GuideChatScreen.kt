@@ -20,7 +20,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -52,10 +51,7 @@ import com.buywise.android.ui.components.ChatBundleSummary
 import com.buywise.android.ui.components.ChatRecommendationCard
 import com.buywise.android.ui.components.EvidenceTag
 import com.buywise.android.ui.components.EvidenceTone
-import com.buywise.android.ui.components.FloatingGlassCard
-import com.buywise.android.ui.components.FloatingGlassTone
 import com.buywise.android.ui.components.ShowcaseTopBar
-import com.buywise.android.ui.components.StatusChecklistRow
 import com.buywise.android.ui.components.TactileIconTile
 import com.buywise.android.ui.components.TactileIconTone
 
@@ -70,6 +66,7 @@ fun GuideChatScreen(
     onTakePhoto: () -> Unit,
     onRunVisionDemo: () -> Unit,
     onRunSpeechDemo: () -> Unit,
+    onRunPendingRefresh: () -> Unit,
     onProductClick: (String) -> Unit,
     onIgnoreSavedPreferencesChange: (Boolean) -> Unit,
 ) {
@@ -96,6 +93,9 @@ fun GuideChatScreen(
             if (state.errorMessage != null) {
                 item { ErrorPanel(message = state.errorMessage) }
             }
+            if (state.pendingRefreshMessage != null) {
+                item { RefreshGuideActionPanel(onRunPendingRefresh = onRunPendingRefresh) }
+            }
         }
         GuideChatInputBar(
             draft = state.chatDraft,
@@ -108,6 +108,32 @@ fun GuideChatScreen(
             onRunVisionDemo = onRunVisionDemo,
             onRunSpeechDemo = onRunSpeechDemo,
         )
+    }
+}
+
+@Composable
+private fun RefreshGuideActionPanel(onRunPendingRefresh: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = BuyWiseTheme.colors.primarySoft,
+        shape = RoundedCornerShape(14.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(BuyWiseIcons.Guide, contentDescription = null, tint = BuyWiseTheme.colors.primary)
+            Text(
+                "这句更像新的导购需求。",
+                modifier = Modifier.weight(1f),
+                color = BuyWiseTheme.colors.ink,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            TextButton(onClick = onRunPendingRefresh) {
+                Text("按这句话重新导购")
+            }
+        }
     }
 }
 
@@ -125,55 +151,11 @@ private fun GuideChatTopBar(onBack: () -> Unit) {
 @Composable
 private fun OpeningAssistantMessage(state: GuideState) {
     val text = when {
+        state.compareChatContext != null -> "已带入当前对比结果。你可以继续问我哪个更适合、主要风险或购买前要确认什么。"
         state.query.isNotBlank() -> "我已看到你的需求：${state.query}。你可以继续问我商品区别、推荐理由或细节。"
-        else -> "告诉我预算、用途和偏好，我可以帮你筛选商品。"
+        else -> "告诉我品类、商品名或需求，我可以先筛选商品；预算、用途和偏好可以之后补充。"
     }
     AssistantBubble(text = text, recommendations = emptyList(), bundlePlans = emptyList(), appliedPreferences = AppliedPreferences(), onProductClick = {})
-}
-
-@Composable
-private fun GuideProcessingCard(state: GuideState, onIgnoreSavedPreferencesChange: (Boolean) -> Unit) {
-    FloatingGlassCard(
-        tone = FloatingGlassTone.Neutral,
-        radius = 16.dp,
-        contentPadding = 14.dp,
-        elevated = false,
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            StatusChecklistRow(
-                label = "理解需求",
-                status = if (state.query.isNotBlank()) "完成" else "等待中",
-                done = state.query.isNotBlank(),
-            )
-            StatusChecklistRow(
-                label = "检索商品",
-                status = if (state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty()) "完成" else if (state.isStreaming) "搜索中" else "待开始",
-                done = state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty(),
-            )
-            StatusChecklistRow(
-                label = "生成回答",
-                status = if (state.isStreaming) "生成中" else if (state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty()) "完成" else "待开始",
-                done = !state.isStreaming && (state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty()),
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("导购偏好", color = BuyWiseTheme.colors.ink, fontWeight = FontWeight.Bold)
-                    Text(
-                        guidePreferenceSummaryText(state.appliedPreferences, state.ignoreSavedPreferences),
-                        color = BuyWiseTheme.colors.muted,
-                        style = MaterialTheme.typography.labelMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                Switch(checked = state.ignoreSavedPreferences, onCheckedChange = onIgnoreSavedPreferencesChange)
-            }
-        }
-    }
 }
 
 @Composable
@@ -477,7 +459,7 @@ private fun GuideChatInputBar(
                 value = draft,
                 onValueChange = onDraftChange,
                 modifier = Modifier.weight(1f),
-                placeholder = { Text(if (isRecordingAudio) "正在录音，点麦克风结束..." else "继续追问商品细节...") },
+                placeholder = { Text(if (isRecordingAudio) "正在录音，点麦克风结束..." else "继续补充或追问...") },
                 singleLine = true,
             )
             TactileIconTile(

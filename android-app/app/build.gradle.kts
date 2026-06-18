@@ -57,8 +57,8 @@ android {
         applicationId = "com.buywise.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 5
+        versionName = "0.1.4"
         val apiBaseUrl = configValue("ANDROID_API_BASE_URL", "http://10.0.2.2:8000")
         buildConfigField("String", "BUYWISE_API_BASE_URL", "\"${apiBaseUrl.get()}\"")
         val uploadToken = configValue("BUYWISE_UPLOAD_TOKEN", "upload-token")
@@ -124,6 +124,8 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp-sse:4.12.0")
     implementation("io.coil-kt.coil3:coil-compose:3.4.0")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.4.0")
+
+    testImplementation("junit:junit:4.13.2")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

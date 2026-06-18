@@ -138,6 +138,38 @@ def test_upload_endpoint_can_store_with_cos_client() -> None:
     assert storage_client.calls == [(payload["filename"], b"fake image bytes", "image/png")]
 
 
+def test_upload_endpoint_reports_missing_cos_configuration() -> None:
+    configure_upload_auth()
+    previous_secret_id = settings.tencent_secret_id
+    previous_secret_key = settings.tencent_secret_key
+    previous_bucket = settings.cos_bucket
+    previous_region = settings.cos_region
+    settings.upload_provider = "cos"
+    settings.tencent_secret_id = "sid"
+    settings.tencent_secret_key = "skey"
+    settings.cos_bucket = ""
+    settings.cos_region = ""
+    client = TestClient(create_app())
+
+    try:
+        response = client.post(
+            "/api/v1/upload",
+            files={"file": ("voice.wav", b"fake audio bytes", "audio/wav")},
+            headers=AUTH_HEADER,
+        )
+    finally:
+        settings.upload_provider = "local"
+        settings.tencent_secret_id = previous_secret_id
+        settings.tencent_secret_key = previous_secret_key
+        settings.cos_bucket = previous_bucket
+        settings.cos_region = previous_region
+
+    assert response.status_code == 500
+    payload = response.json()
+    assert payload["code"] == "storage_provider_not_configured"
+    assert set(payload["extra"]["missing"]) == {"COS_BUCKET", "COS_REGION"}
+
+
 def test_upload_endpoint_rejects_unsupported_extension() -> None:
     configure_upload_auth()
     app = create_app()
@@ -262,6 +294,27 @@ def test_speech_asr_endpoint_returns_mock_transcription() -> None:
     assert response.json() == {
         "text": "\u6211\u60f3\u4e70\u4e00\u4e2a\u5bbf\u820d\u7528\u7684\u673a\u68b0\u952e\u76d8\uff0c\u9884\u7b97\u4e09\u767e\u4ee5\u5185"
     }
+
+
+def test_speech_asr_endpoint_reports_missing_tencent_configuration() -> None:
+    previous_base = settings.upload_public_base_url
+    previous_secret_id = settings.tencent_secret_id
+    previous_secret_key = settings.tencent_secret_key
+    settings.speech_provider = "tencent"
+    settings.upload_public_base_url = "https://api.example.com"
+    settings.tencent_secret_id = ""
+    settings.tencent_secret_key = ""
+    client = TestClient(create_app())
+
+    try:
+        response = client.post("/api/v1/speech/asr", json={"audio_url": "/uploads/demo.wav"})
+    finally:
+        settings.upload_public_base_url = previous_base
+        settings.tencent_secret_id = previous_secret_id
+        settings.tencent_secret_key = previous_secret_key
+
+    assert response.status_code == 500
+    assert response.json()["code"] == "speech_provider_not_configured"
 
 
 def test_multimodal_routes_are_registered() -> None:

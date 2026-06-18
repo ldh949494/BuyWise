@@ -15,11 +15,14 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
 from app.core.database import get_db
-from app.core.dependencies import get_chat_service
+from app.core.dependencies import get_chat_service, get_compare_service
 from app.core.providers import Principal, get_auth_provider
+from app.core.traffic import check_chat_session_rate_limit
 from app.schemas.chat import ChatRequest, ChatResponse
-from app.schemas.chat_stream import ChatStreamErrorEventData
+from app.schemas.chat_stream import ChatStreamDoneEventData, ChatStreamErrorEventData
+from app.schemas.compare import CompareFollowUpRequest
 from app.services.chat_service import ChatService
+from app.services.compare_service import CompareService
 
 
 router = APIRouter(prefix="/ai")
@@ -32,7 +35,8 @@ async def chat(
     db: Session = Depends(get_db),
     service: ChatService = Depends(get_chat_service),
 ) -> ChatResponse:
-    return await _handle_chat(service, request, db, _optional_user_id(http_request))
+    check_chat_session_rate_limit(request.session_id)
+    return await _handle_chat(service, request, db, _optional_principal(http_request))
 
 
 @router.post("/chat/stream")
@@ -43,8 +47,10 @@ async def stream_chat(
     service: ChatService = Depends(get_chat_service),
     app_settings: Settings = Depends(get_settings),
 ) -> StreamingResponse:
+    check_chat_session_rate_limit(request.session_id)
+
     async def event_stream():
-        events = _generate_chat_stream(service, request, db, _optional_user_id(http_request))
+        events = _generate_chat_stream(service, request, db, _optional_principal(http_request))
         async for event in _stream_with_keepalive(events, request.session_id, app_settings):
             yield _format_sse(event["event"], event["data"])
 
@@ -59,8 +65,10 @@ async def stream_guide(
     service: ChatService = Depends(get_chat_service),
     app_settings: Settings = Depends(get_settings),
 ) -> StreamingResponse:
+    check_chat_session_rate_limit(request.session_id)
+
     async def event_stream():
-        events = _generate_guide_stream(service, request, db, _optional_user_id(http_request))
+        events = _generate_guide_stream(service, request, db, _optional_principal(http_request))
         async for event in _stream_with_keepalive(events, request.session_id, app_settings):
             yield _format_sse(event["event"], event["data"])
 
@@ -75,8 +83,26 @@ async def stream_guide_follow_up(
     service: ChatService = Depends(get_chat_service),
     app_settings: Settings = Depends(get_settings),
 ) -> StreamingResponse:
+    check_chat_session_rate_limit(request.session_id)
+
     async def event_stream():
-        events = _generate_follow_up_stream(service, request, db, _optional_user_id(http_request))
+        events = _generate_follow_up_stream(service, request, db, _optional_principal(http_request))
+        async for event in _stream_with_keepalive(events, request.session_id, app_settings):
+            yield _format_sse(event["event"], event["data"])
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@router.post("/compare/follow-up/stream")
+async def stream_compare_follow_up(
+    request: CompareFollowUpRequest,
+    service: CompareService = Depends(get_compare_service),
+    app_settings: Settings = Depends(get_settings),
+) -> StreamingResponse:
+    check_chat_session_rate_limit(request.session_id)
+
+    async def event_stream():
+        events = service.generate_follow_up_stream(request)
         async for event in _stream_with_keepalive(events, request.session_id, app_settings):
             yield _format_sse(event["event"], event["data"])
 
@@ -91,6 +117,7 @@ async def _stream_with_keepalive(
     deadline = time.monotonic() + _stream_max_seconds(app_settings)
     iterator = events.__aiter__()
     pending: asyncio.Task | None = None
+    has_products = False
     try:
         while time.monotonic() < deadline:
             pending = pending or asyncio.create_task(iterator.__anext__())
@@ -99,10 +126,11 @@ async def _stream_with_keepalive(
                 yield _heartbeat_event()
                 continue
             pending = None
+            has_products = has_products or _is_product_result_event(event)
             yield event
             if event["event"] in {"done", "error"}:
                 return
-        yield _timeout_event(session_id)
+        yield _partial_done_event() if has_products else _timeout_event(session_id)
     except StopAsyncIteration:
         return
     finally:
@@ -146,6 +174,26 @@ def _timeout_event(session_id: str | None) -> dict[str, Any]:
     }
 
 
+def _partial_done_event() -> dict[str, Any]:
+    return {
+        "event": "done",
+        "data": ChatStreamDoneEventData(
+            reply="导购总结生成较慢，已先返回商品候选。你可以先查看商品卡片，或继续追问具体差异。",
+            degraded=True,
+            degraded_reason="stream_generation_timeout",
+        ),
+    }
+
+
+def _is_product_result_event(event: dict[str, Any]) -> bool:
+    if event.get("event") != "products":
+        return False
+    data = event.get("data") or {}
+    if hasattr(data, "model_dump"):
+        data = data.model_dump(mode="json")
+    return bool(data.get("items") or data.get("bundle_plans"))
+
+
 def _heartbeat_seconds(app_settings: Settings) -> float:
     return max(0.01, app_settings.chat_stream_heartbeat_seconds)
 
@@ -159,37 +207,44 @@ def _format_sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {payload}\n\n"
 
 
-def _generate_chat_stream(service: ChatService, request: ChatRequest, db: Session, user_id: int | None):
+def _generate_chat_stream(service: ChatService, request: ChatRequest, db: Session, principal: Principal | None):
     parameters = inspect.signature(service.generate_chat_stream).parameters
+    if "principal" in parameters:
+        return service.generate_chat_stream(request, db, principal=principal)
     if "user_id" in parameters:
-        return service.generate_chat_stream(request, db, user_id=user_id)
+        return service.generate_chat_stream(request, db, user_id=_principal_user_id(principal))
     return service.generate_chat_stream(request, db)
 
 
-def _generate_guide_stream(service: ChatService, request: ChatRequest, db: Session, user_id: int | None):
+def _generate_guide_stream(service: ChatService, request: ChatRequest, db: Session, principal: Principal | None):
     parameters = inspect.signature(service.generate_guide_stream).parameters
+    if "principal" in parameters:
+        return service.generate_guide_stream(request, db, principal=principal)
     if "user_id" in parameters:
-        return service.generate_guide_stream(request, db, user_id=user_id)
+        return service.generate_guide_stream(request, db, user_id=_principal_user_id(principal))
     return service.generate_guide_stream(request, db)
 
 
-def _generate_follow_up_stream(service: ChatService, request: ChatRequest, db: Session, user_id: int | None):
+def _generate_follow_up_stream(service: ChatService, request: ChatRequest, db: Session, principal: Principal | None):
     parameters = inspect.signature(service.generate_follow_up_stream).parameters
+    if "principal" in parameters:
+        return service.generate_follow_up_stream(request, db, principal=principal)
     if "user_id" in parameters:
-        return service.generate_follow_up_stream(request, db, user_id=user_id)
+        return service.generate_follow_up_stream(request, db, user_id=_principal_user_id(principal))
     return service.generate_follow_up_stream(request, db)
 
 
-async def _handle_chat(service: ChatService, request: ChatRequest, db: Session, user_id: int | None) -> ChatResponse:
+async def _handle_chat(service: ChatService, request: ChatRequest, db: Session, principal: Principal | None) -> ChatResponse:
     parameters = inspect.signature(service.handle_chat).parameters
+    if "principal" in parameters:
+        return await service.handle_chat(request, db, principal=principal)
     if "user_id" in parameters:
-        return await service.handle_chat(request, db, user_id=user_id)
+        return await service.handle_chat(request, db, user_id=_principal_user_id(principal))
     return await service.handle_chat(request, db)
 
 
-def _optional_user_id(request: Request) -> int | None:
-    principal = get_auth_provider().get_current_principal(request)
-    return _principal_user_id(principal)
+def _optional_principal(request: Request) -> Principal | None:
+    return get_auth_provider().get_current_principal(request)
 
 
 def _principal_user_id(principal: Principal | None) -> int | None:

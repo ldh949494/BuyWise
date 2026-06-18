@@ -23,6 +23,16 @@ data class Recommendation(
     val reason: String,
 )
 
+enum class GuideResultStatus {
+    Idle,
+    Clarifying,
+    Exact,
+    Relaxed,
+    Broad,
+    LowConfidence,
+    Empty,
+}
+
 data class BundlePlan(
     val id: String,
     val title: String,
@@ -115,7 +125,19 @@ data class VisionResult(
     val labels: List<String>,
     val similarProducts: List<Product>,
     val fallbackUsed: Boolean = false,
-)
+) {
+    val hasContent: Boolean
+        get() = title.isNotBlank() || labels.isNotEmpty() || similarProducts.isNotEmpty()
+
+    companion object {
+        val Empty = VisionResult(
+            title = "",
+            confidence = 0,
+            labels = emptyList(),
+            similarProducts = emptyList(),
+        )
+    }
+}
 
 data class CartItem(
     val id: String,
@@ -165,6 +187,11 @@ data class GuideState(
     val intentSummary: String,
     val recommendations: List<Recommendation>,
     val bundlePlans: List<BundlePlan> = emptyList(),
+    val resultStatus: GuideResultStatus = GuideResultStatus.Idle,
+    val clarificationMessage: String? = null,
+    val fallbackMessage: String? = null,
+    val hasProvisionalResults: Boolean = false,
+    val pendingRefreshMessage: String? = null,
     val partialReply: String = "",
     val chatDraft: String = "",
     val chatMessages: List<GuideChatMessage> = emptyList(),
@@ -172,6 +199,15 @@ data class GuideState(
     val ignoreSavedPreferences: Boolean = false,
     val isStreaming: Boolean = false,
     val errorMessage: String? = null,
+    val sessionId: String? = null,
+    val compareChatContext: CompareChatContext? = null,
+)
+
+data class CompareChatContext(
+    val products: List<Product>,
+    val summary: String? = null,
+    val winnerId: String? = null,
+    val userNeed: String? = null,
     val sessionId: String? = null,
 )
 

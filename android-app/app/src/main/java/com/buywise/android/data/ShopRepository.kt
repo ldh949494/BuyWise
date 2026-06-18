@@ -47,14 +47,7 @@ class ShopRepository(
 
     fun cartState(): CartState = CartState()
 
-    fun visionState(): VisionState = VisionState(
-        result = VisionResult(
-            title = "等待识别商品",
-            confidence = 0,
-            labels = emptyList(),
-            similarProducts = emptyList(),
-        ),
-    )
+    fun visionState(): VisionState = VisionState(result = VisionResult.Empty)
 
     @Throws(IOException::class)
     fun runVisionDemo(): VisionResult = uploadRepository.runVisionDemo()
@@ -106,4 +99,11 @@ class ShopRepository(
         onEvent: (ChatStreamEvent) -> Unit,
     ): EventSource =
         guideRepository.streamGuideFollowUp(query, sessionId, ignoreSavedPreferences, onEvent)
+
+    fun streamCompareFollowUp(
+        query: String,
+        context: CompareChatContext,
+        onEvent: (ChatStreamEvent) -> Unit,
+    ): EventSource =
+        guideRepository.streamCompareFollowUp(query, context, onEvent)
 }

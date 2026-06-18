@@ -6,8 +6,10 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base, get_db
+from app.core.config import settings
 from app.main import create_app
 from app.models import Product
+from app.services.user_token_service import build_user_access_token
 
 
 def make_client() -> TestClient:
@@ -19,15 +21,25 @@ def make_client() -> TestClient:
     Base.metadata.create_all(bind=engine)
     testing_session_local = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     with testing_session_local() as db:
-        db.add(
-            Product(
-                name="Campus75 三模静音机械键盘",
-                category="机械键盘",
-                price=Decimal("299.00"),
-                tags=["低噪音", "无线"],
-                suitable_scene=["宿舍"],
-                stock_status="in_stock",
-            )
+        db.add_all(
+            [
+                Product(
+                    name="Campus75 三模静音机械键盘",
+                    category="机械键盘",
+                    price=Decimal("299.00"),
+                    tags=["低噪音", "无线"],
+                    suitable_scene=["宿舍"],
+                    stock_status="in_stock",
+                ),
+                Product(
+                    name="DormLite 静音鼠标",
+                    category="鼠标",
+                    price=Decimal("89.00"),
+                    tags=["静音", "无线"],
+                    suitable_scene=["宿舍"],
+                    stock_status="in_stock",
+                ),
+            ]
         )
         db.commit()
 
@@ -82,3 +94,51 @@ def test_chat_checkout_uses_default_address() -> None:
     assert checkout.json()["extra"]["action"] == "checkout.confirm"
     assert checkout.json()["extra"]["checkout"]["order"]["payment_mode"] == "shadow_paid"
     assert client.get("/api/v1/cart").json()["items"] == []
+
+
+def test_prod_chat_remove_confirmation_preserves_target_position() -> None:
+    settings.app_env = "prod"
+    settings.app_debug = False
+    settings.auth_api_keys = "ops:ops-token:orders:read"
+    settings.mysql_password = "secret"
+    settings.readiness_token = "ready-token"
+    settings.user_jwt_secret = "test-user-secret"
+    settings.auth_otp_mock_enabled = False
+    settings.allow_mock_providers_in_prod = True
+    settings.chat_session_tokens_enabled = True
+    settings.ai_media_url_allowlist_enabled = True
+    client = make_client()
+    access_token, _ = build_user_access_token(42)
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    client.post("/api/v1/cart/items", json={"product_id": 1, "quantity": 1}, headers=headers)
+    client.post("/api/v1/cart/items", json={"product_id": 2, "quantity": 1}, headers=headers)
+
+    pending = client.post(
+        "/api/v1/ai/chat",
+        json={"session_id": "prod-remove-confirm", "message": "删掉第二个"},
+        headers=headers,
+    )
+    assert pending.status_code == 200
+    assert pending.json()["extra"]["action_status"] == "pending_confirmation"
+    assert [item["product_id"] for item in client.get("/api/v1/cart", headers=headers).json()["items"]] == [1, 2]
+
+    ambiguous = client.post(
+        "/api/v1/ai/chat",
+        json={"session_id": "prod-remove-confirm", "message": "继续推荐"},
+        headers=headers,
+    )
+    assert ambiguous.status_code == 200
+    assert ambiguous.json()["extra"].get("action") != "cart.remove"
+    assert [item["product_id"] for item in client.get("/api/v1/cart", headers=headers).json()["items"]] == [1, 2]
+
+    confirmed = client.post(
+        "/api/v1/ai/chat",
+        json={"session_id": "prod-remove-confirm", "message": "确认"},
+        headers=headers,
+    )
+
+    assert confirmed.status_code == 200
+    assert confirmed.json()["extra"]["action"] == "cart.remove"
+    assert confirmed.json()["extra"]["position"] == 2
+    assert [item["product_id"] for item in client.get("/api/v1/cart", headers=headers).json()["items"]] == [1]

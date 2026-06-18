@@ -7,52 +7,18 @@ from typing import Any, Callable
 
 from app.core.providers import AppError
 from app.schemas.chat import StructuredNeed
+from app.services.intent_taxonomy import (
+    CATEGORY_KEYWORDS,
+    CORE_MISSING_FIELDS,
+    INTENT_ALIASES,
+    PREFERENCE_ALIASES,
+    SCENARIO_KEYWORDS,
+)
 from app.utils.intent_strategy import retrieval_strategy_for
 from app.utils.list_values import dedupe_strings
 
 
 MissingFieldsFn = Callable[[str, str | None, float | None, str | None, list[str], str], list[str]]
-
-CORE_MISSING_FIELDS = {"category", "budget_max", "scenario", "preferences"}
-INTENT_ALIASES = {
-    "推荐": "商品推荐",
-    "商品推荐": "商品推荐",
-    "找推荐": "商品推荐",
-    "bundle_recommend": "bundle_recommend",
-    "组合推荐": "bundle_recommend",
-    "场景化组合推荐": "bundle_recommend",
-    "搭配方案": "bundle_recommend",
-    "购物清单": "bundle_recommend",
-    "对比": "商品对比",
-    "比较": "商品对比",
-    "商品对比": "商品对比",
-    "平替": "找平替",
-    "找平替": "找平替",
-    "价格判断": "价格判断",
-    "参数咨询": "参数咨询",
-}
-CATEGORY_KEYWORDS = {
-    "机械键盘": ["机械键盘", "键盘"],
-    "蓝牙耳机": ["蓝牙耳机", "耳机", "耳麦"],
-    "台灯": ["台灯", "护眼灯", "灯"],
-    "充电宝": ["充电宝", "移动电源"],
-    "双肩包": ["双肩包", "背包", "包"],
-    "电脑": ["电脑", "主机", "笔记本", "迷你主机"],
-    "显示器": ["显示器", "屏幕", "显示屏"],
-    "鼠标": ["鼠标"],
-    "支架": ["支架", "显示器支架"],
-    "拓展坞": ["拓展坞", "扩展坞"],
-    "插排": ["插排", "排插", "插线板"],
-}
-SCENARIO_KEYWORDS = ["宿舍", "办公", "通勤", "运动", "学习", "写代码", "旅行", "阅读", "应急"]
-PREFERENCE_ALIASES = {
-    "静音": "低噪音",
-    "声音小": "低噪音",
-    "安静": "低噪音",
-    "性价比高": "性价比",
-    "蓝牙": "无线",
-    "主动降噪": "降噪",
-}
 
 
 class LlmIntentExtractor:

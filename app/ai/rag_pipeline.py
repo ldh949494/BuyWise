@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import Counter
 import time
 from collections.abc import Callable
+import re
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -58,17 +59,7 @@ class RAGPipeline:
     ) -> list[Product]:
         started_at = time.perf_counter()
         repo = ProductRepository(db)
-        search_results = self._search_vector_store(need, self._candidate_top_k(top_k))
-        candidates = self._build_candidates(repo, need, search_results, top_k)
-        filtered, filter_reasons = self.filter_policy.get_filtered_products(candidates, need)
-        fallback_stage = "strict"
-        if not filtered:
-            filtered, fallback_stage, fallback_reasons = self._fallback_products(repo, need, top_k)
-            filter_reasons.update(fallback_reasons)
-            if fallback_stage != "none":
-                count_rag_fallback("chat", fallback_stage)
-            if not filtered:
-                count_rag_empty_results("chat", "vector")
+        search_results, candidates, filtered, filter_reasons, fallback_stage = self._retrieve_products(repo, need, top_k)
         reranked = self._rerank_products(filtered, need, db)[:top_k]
         self.last_diagnostics = self._build_diagnostics(
             search_results,
@@ -80,6 +71,57 @@ class RAGPipeline:
         )
         self._log_search(top_k)
         return reranked
+
+    def _retrieve_products(
+        self,
+        repo: ProductRepository,
+        need: Any,
+        top_k: int,
+    ) -> tuple[list[dict], list[Product], list[Product], Counter[str], str]:
+        if self._should_use_popular_fallback(need):
+            return self._retrieve_popular_fallback(repo, need, top_k)
+        search_results = self._search_vector_store(need, self._candidate_top_k(top_k))
+        candidates = self._build_candidates(repo, need, search_results, top_k)
+        filtered, filter_reasons = self.filter_policy.get_filtered_products(candidates, need)
+        fallback_stage = "strict"
+        if not filtered:
+            filtered, fallback_stage, fallback_reasons = self._fallback_products(repo, need, top_k)
+            filter_reasons.update(fallback_reasons)
+            if fallback_stage != "none":
+                count_rag_fallback("chat", fallback_stage)
+            if not filtered:
+                count_rag_empty_results("chat", "vector")
+        return search_results, candidates, filtered, filter_reasons, fallback_stage
+
+    def _retrieve_popular_fallback(
+        self,
+        repo: ProductRepository,
+        need: Any,
+        top_k: int,
+    ) -> tuple[list[dict], list[Product], list[Product], Counter[str], str]:
+        stage = "fallback_popular"
+        candidates = self._fallback_candidates_for_stage(repo, need, stage, top_k)
+        filtered, reasons = self.filter_policy.get_filtered_products(candidates, need, stage=stage)
+        count_rag_fallback("chat", stage)
+        if not filtered:
+            count_rag_empty_results("chat", "database")
+        return [], candidates, filtered, reasons, stage
+
+    def _should_use_popular_fallback(self, need: Any) -> bool:
+        intent = self._get_need_value(need, "intent")
+        if intent not in {None, "商品推荐", "recommend"}:
+            return False
+        keys = ["category", "budget_max", "scenario", "preferences", "avoid", "style_preferences"]
+        return not any(self._has_need_value(self._get_need_value(need, key)) for key in keys)
+
+    def _has_need_value(self, value: Any) -> bool:
+        if value is None:
+            return False
+        if isinstance(value, str):
+            return bool(value.strip())
+        if isinstance(value, list | tuple | set):
+            return bool(value)
+        return True
 
     def _search_vector_store(self, need: Any, top_k: int) -> list[dict]:
         query = build_query_from_need(need)
@@ -216,7 +258,87 @@ class RAGPipeline:
         if stage == "fallback_relaxed":
             candidates, _ = repo.list_products(category=category, page=1, page_size=page_size)
             return candidates
+        if stage == "fallback_keyword":
+            return self._keyword_candidates(repo, need, page_size)
+        if stage == "fallback_popular":
+            return self._popular_candidates(repo, page_size)
         return self._adjacent_category_candidates(repo, category, page_size)
+
+    def _keyword_candidates(
+        self,
+        repo: ProductRepository,
+        need: Any,
+        page_size: int,
+    ) -> list[Product]:
+        candidates: list[Product] = []
+        seen_ids: set[int] = set()
+        for keyword in self._keywords_from_need(need):
+            products, _ = repo.list_products(keyword=keyword, page=1, page_size=page_size)
+            for product in products:
+                if product.id in seen_ids:
+                    continue
+                seen_ids.add(product.id)
+                candidates.append(product)
+                if len(candidates) >= page_size:
+                    return candidates
+        return candidates
+
+    def _popular_candidates(self, repo: ProductRepository, page_size: int) -> list[Product]:
+        products, _ = repo.list_products(page=1, page_size=max(page_size, 50))
+        return sorted(products, key=self._fallback_sort_key)[:page_size]
+
+    def _keywords_from_need(self, need: Any) -> list[str]:
+        raw_values = [
+            self._get_need_value(need, "category"),
+            self._get_need_value(need, "scenario"),
+            *self._coerce_list(self._get_need_value(need, "preferences")),
+            *self._coerce_list(self._get_need_value(need, "avoid")),
+            *self._coerce_list(self._get_need_value(need, "style_preferences")),
+        ]
+        keywords: list[str] = []
+        for value in raw_values:
+            if value in (None, ""):
+                continue
+            text = str(value).strip()
+            if not text:
+                continue
+            keywords.append(text)
+            keywords.extend(self._split_keyword_terms(text))
+        return self._dedupe_keywords(keywords)
+
+    def _split_keyword_terms(self, text: str) -> list[str]:
+        return [
+            term
+            for term in re.split(r"[\s,，、。；;:/\\|]+", text)
+            if len(term.strip()) >= 2
+        ]
+
+    def _dedupe_keywords(self, keywords: list[str]) -> list[str]:
+        result = []
+        seen = set()
+        for keyword in keywords:
+            normalized = keyword.strip()
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            result.append(normalized)
+        return result
+
+    def _coerce_list(self, value: Any) -> list[Any]:
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return value
+        if isinstance(value, tuple | set):
+            return list(value)
+        return [value]
+
+    def _fallback_sort_key(self, product: Product) -> tuple[int, int, float, float, int]:
+        has_stock = 1 if (product.stock is None or product.stock > 0) else 0
+        has_price = 1 if product.price is not None else 0
+        rating = float(product.rating or 0)
+        sales = float(product.sales or 0)
+        return (-has_stock, -has_price, -rating, -sales, product.id)
 
     def _adjacent_category_candidates(
         self,

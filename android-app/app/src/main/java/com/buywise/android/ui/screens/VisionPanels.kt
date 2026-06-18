@@ -187,6 +187,6 @@ private fun VisionActionButton(
 
 fun VisionResult.displayVisionSummary(query: String?): String {
     val labelsText = labels.takeIf { it.isNotEmpty() }?.joinToString(" / ") ?: "暂无明确标签"
-    val generatedQuery = query?.takeIf { it.isNotBlank() } ?: title.takeIf { it != "等待识别商品" } ?: "白色 无线 紧凑机械键盘"
+    val generatedQuery = query?.takeIf { it.isNotBlank() } ?: title.takeIf { it.isNotBlank() } ?: "暂无可用导购词"
     return "识别结果：$labelsText\n用于导购：$generatedQuery"
 }

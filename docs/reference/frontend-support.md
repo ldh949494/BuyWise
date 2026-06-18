@@ -268,12 +268,14 @@ Accept: text/event-stream
 
 SSE 事件类型固定为 `meta`、`status`、`token`、`products`、`heartbeat`、`done` 和 `error`。客户端不应依赖其他事件类型。
 
+`/api/v1/ai/guide/stream` 的首轮纯文本品类需求可能先返回 `products.provisional=true, source=fast_db`，客户端应立即展示这些候选并继续等待后续终局 `products.provisional=false` 事件。终局 `source=rag` 表示完整 RAG 结果，`source=fallback` 表示放宽条件、数据库兜底或 fast DB 候选被升级为终局兜底。若只收到临时候选后连接超时或 LLM 降级，客户端应保留已展示候选并提示可重试复核。
+
 | 事件 | payload |
 | --- | --- |
 | `meta` | `{"session_id": "..."}` |
 | `status` | `{"stage": "intent|retrieval|generation|fallback", "message": "..."}` |
 | `token` | `{"text": "..."}` |
-| `products` | `{"need_clarify": false, "structured_need": {...}, "items": [...], "bundle_plans": [...], "applied_preferences": {...}}` |
+| `products` | `{"need_clarify": false, "structured_need": {...}, "items": [...], "bundle_plans": [...], "applied_preferences": {...}, "provisional": false, "source": "rag|fast_db|fallback|null", "fallback_used": false, "fallback_stage": null, "result_quality": "exact|relaxed|broad|low_confidence"}` |
 | `heartbeat` | `{"status": "ok"}` |
 | `done` | `{"reply": "...", "degraded": false, "degraded_reason": null}` |
 | `error` | `{"code": "chat_stream_failed|chat_stream_timeout", "message": "...", "session_id": "..."}` |

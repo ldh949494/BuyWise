@@ -7,6 +7,7 @@ import android.content.Context
 import com.buywise.android.data.CartItem
 import com.buywise.android.data.CartState
 import com.buywise.android.data.CompareBasketState
+import com.buywise.android.data.CompareChatContext
 import com.buywise.android.data.CompareState
 import com.buywise.android.data.FeedbackDraft
 import com.buywise.android.data.FeedbackPrompt
@@ -22,10 +23,15 @@ class BuyWiseViewModel(
     private val repository: ShopRepository = ShopRepository(),
 ) : ViewModel() {
     private val homeViewModel = HomeViewModel.from(repository)
-    private val guideViewModel = GuideViewModel.from(repository)
     private val compareViewModel = CompareViewModel.from(repository)
     private val productDetailViewModel = ProductDetailViewModel.from(repository)
     private val cartViewModel = CartViewModel.from(repository)
+    private val guideViewModel = GuideViewModel(
+        repository.guideRepository,
+        repository.guideState(""),
+        onCartUpdated = { cart, message -> cartViewModel.applyServerCart(cart, message) },
+        onCartRefreshRequested = { cartViewModel.refresh() },
+    )
     private val feedbackViewModel = FeedbackViewModel.from(repository)
     private val uploadViewModel = UploadViewModel.from(repository)
     private val accountViewModel = AccountViewModel(repository.authRepository, repository.guidePreferencesRepository, viewModelScope)
@@ -144,7 +150,7 @@ class BuyWiseViewModel(
     fun startGuideFromHome(query: String): Boolean {
         val normalized = query.trim()
         if (normalized.isBlank()) {
-            homeViewModel.setError("先描述预算、用途和偏好，再开始导购。")
+            homeViewModel.setError("先输入品类、商品名或需求，再开始导购。")
             return false
         }
         guideViewModel.useQuery(normalized)
@@ -185,7 +191,16 @@ class BuyWiseViewModel(
                 append(summary)
             }
         }
-        guideViewModel.useChatDraft(draft)
+        guideViewModel.useCompareChatContext(
+            CompareChatContext(
+                products = products,
+                summary = compareState.summary,
+                winnerId = compareState.winnerId,
+                userNeed = compareViewModel.basketState.userNeed,
+                sessionId = guideState.sessionId,
+            ),
+            draft,
+        )
     }
 
     fun submitGuideQuery() {
@@ -194,6 +209,10 @@ class BuyWiseViewModel(
 
     fun sendGuideChatMessage() {
         guideViewModel.sendChatMessage()
+    }
+
+    fun runPendingGuideRefresh() {
+        guideViewModel.runPendingRefresh()
     }
 
     fun setGuideIgnoreSavedPreferences(value: Boolean) {

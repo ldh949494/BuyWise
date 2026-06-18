@@ -6,6 +6,7 @@ from typing import Any, Protocol
 
 from sqlalchemy.orm import Session
 
+from app.core.providers import AppError
 from app.ai.rag_pipeline import RAGPipeline
 from app.repositories.product_repo import ProductRepository
 from app.schemas.chat import ProductCard, StructuredNeed
@@ -17,7 +18,11 @@ from app.schemas.visual_search import (
 )
 from app.services.recommend_service import RecommendService
 from app.services.vision_service import VisionService
+from app.utils.logging import get_logger
 from app.vectorstore.chroma_client import ChromaProductStore
+
+
+logger = get_logger(__name__)
 
 
 class ProductImageSearchGateway(Protocol):
@@ -62,9 +67,9 @@ class VisualSearchService:
         self.image_store = image_store or ProductImageTextStore()
 
     async def search(self, request: VisualSearchRequest, db: Session) -> VisualSearchResponse:
-        recognized = VisionRecognition.model_validate(await self.vision_service.extract_image_info(request.image_url))
+        recognized, recognition_fallback_used = await self._recognize_or_fallback(request)
         need = self._need_from_recognition(recognized, request.message)
-        visual_matches = self._visual_matches(recognized, request.image_url, request.top_k)
+        visual_matches = [] if recognition_fallback_used else self._visual_matches(recognized, request.image_url, request.top_k)
         products = self._products_from_matches(db, visual_matches)
         rag_products = await self.rag_pipeline.search_products(need, db, top_k=request.top_k)
         merged = self._merge_products(products, rag_products)
@@ -75,7 +80,40 @@ class VisualSearchService:
             products=cards,
             match_reasons=reasons,
             visual_matches=visual_matches,
-            fallback_used=not visual_matches,
+            fallback_used=recognition_fallback_used or not visual_matches,
+        )
+
+    async def _recognize_or_fallback(self, request: VisualSearchRequest) -> tuple[VisionRecognition, bool]:
+        try:
+            recognized = VisionRecognition.model_validate(await self.vision_service.extract_image_info(request.image_url))
+            return recognized, False
+        except Exception as exc:
+            logger.error(
+                "Visual recognition failed; falling back to text and catalog search",
+                exc_info=True,
+                extra={"top_k": request.top_k, "has_message": bool(request.message)},
+            )
+            if not request.message or not request.message.strip():
+                raise AppError(
+                    "Visual recognition failed.",
+                    status_code=503,
+                    code="visual_recognition_failed",
+                ) from exc
+            return self._fallback_recognition(request.message), True
+
+    def _fallback_recognition(self, message: str | None) -> VisionRecognition:
+        query = message.strip() if message else None
+        return VisionRecognition(
+            category=None,
+            features=[query] if query else [],
+            query=query,
+            colors=[],
+            materials=[],
+            shape=None,
+            style=None,
+            brand_cues=[],
+            confidence=0.0,
+            detected_objects=[],
         )
 
     def _visual_matches(self, recognized: VisionRecognition, image_url: str, top_k: int) -> list[VisualMatch]:

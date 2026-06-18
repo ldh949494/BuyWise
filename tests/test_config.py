@@ -48,6 +48,9 @@ def test_settings_reads_new_env_names() -> None:
         "CHAT_STREAM_FAST_PRODUCTS_ENABLED": "false",
         "CHAT_STREAM_FAST_PRODUCTS_LIMIT": "7",
         "CHAT_STREAM_FAST_REPLY_MAX_TOKENS": "180",
+        "CHAT_SESSION_TOKENS_ENABLED": "true",
+        "AI_MEDIA_URL_ALLOWLIST_ENABLED": "true",
+        "AI_MEDIA_ALLOWED_HOSTS": "cdn.example.com",
     }
     previous = {key: os.environ.get(key) for key in env}
     os.environ.update(env)
@@ -109,6 +112,9 @@ def test_settings_reads_new_env_names() -> None:
     assert settings.chat_stream_fast_products_enabled is False
     assert settings.chat_stream_fast_products_limit == 7
     assert settings.chat_stream_fast_reply_max_tokens == 180
+    assert settings.chat_session_tokens_enabled is True
+    assert settings.ai_media_url_allowlist_enabled is True
+    assert settings.media_allowed_hosts == ["cdn.example.com"]
 
 
 def test_settings_database_url_uses_pymysql() -> None:
@@ -235,6 +241,8 @@ def test_prod_non_mock_multimodal_requires_public_upload_url() -> None:
         SPEECH_PROVIDER="mock",
         UPLOAD_PROVIDER="local",
         UPLOAD_PUBLIC_BASE_URL="",
+        CHAT_SESSION_TOKENS_ENABLED=True,
+        AI_MEDIA_URL_ALLOWLIST_ENABLED=True,
     )
 
     try:
@@ -267,6 +275,8 @@ def test_prod_non_mock_multimodal_allows_cos_upload_provider() -> None:
         TENCENT_SECRET_KEY="skey",
         COS_BUCKET="bucket",
         COS_REGION="ap-shanghai",
+        CHAT_SESSION_TOKENS_ENABLED=True,
+        AI_MEDIA_URL_ALLOWLIST_ENABLED=True,
     )
 
     settings.validate_production()
@@ -292,6 +302,8 @@ def test_prod_requires_non_mock_embedding_provider_by_default() -> None:
         COS_BUCKET="bucket",
         COS_REGION="ap-shanghai",
         EMBEDDING_PROVIDER="mock",
+        CHAT_SESSION_TOKENS_ENABLED=True,
+        AI_MEDIA_URL_ALLOWLIST_ENABLED=True,
     )
 
     try:

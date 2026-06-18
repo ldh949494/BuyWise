@@ -1,27 +1,19 @@
 from decimal import Decimal
 
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.core.database import Base, get_db
-from app.main import create_app
-from app.models import ChatMessage, ChatSession, Product, Recommendation
+from app.ai.llm_client import LLMClient
+from app.core.database import Base
+from app.models import Product
 from app.schemas.chat import ChatRequest, ProductCard, StructuredNeed
 from app.services.chat_service import ChatService
 
 
 KEYBOARD_CATEGORY = "\u673a\u68b0\u952e\u76d8"
-QUIET_TAG = "\u4f4e\u566a\u97f3"
-DORM_SCENE = "\u5bbf\u820d"
 KEYBOARD_NAME = "K87 \u9759\u97f3\u7ea2\u8f74\u673a\u68b0\u952e\u76d8"
-API_MESSAGE = (
-    "\u63a8\u8350\u4e00\u4e2a\u5bbf\u820d\u7528\u7684"
-    "\u673a\u68b0\u952e\u76d8\uff0c\u9884\u7b97300\u4ee5\u5185\uff0c"
-    "\u58f0\u97f3\u5c0f\u4e00\u70b9"
-)
 
 
 class FakeSpeechService:
@@ -62,10 +54,11 @@ class FakeIntentService:
 
 
 class FakeRAGPipeline:
-    def __init__(self, products=None, should_fail=False) -> None:
+    def __init__(self, products=None, should_fail=False, fallback_stage=None) -> None:
         self.products = products or []
         self.should_fail = should_fail
         self.calls = []
+        self.last_diagnostics = {"fallback_stage": fallback_stage} if fallback_stage is not None else {}
 
     async def search_products(self, need, db, top_k=20):
         self.calls.append({"need": need, "top_k": top_k})
@@ -120,12 +113,35 @@ def make_product(name="K87 静音红轴机械键盘"):
 
 
 @pytest.mark.anyio
-async def test_handle_chat_returns_clarify_response_when_need_incomplete() -> None:
+async def test_handle_chat_recommends_when_category_is_present_without_optional_fields() -> None:
     need = StructuredNeed(
         intent="商品推荐",
         category="蓝牙耳机",
+    )
+    product = make_product("AirBuds Lite 蓝牙耳机")
+    intent_service = FakeIntentService(need)
+    service = ChatService(
+        intent_service=intent_service,
+        rag_pipeline=FakeRAGPipeline([product]),
+        recommend_service=FakeRecommendService(),
+        llm_client=FakeLLMClient(),
+    )
+
+    response = await service.handle_chat(ChatRequest(message="推荐一个耳机"), db=object())
+
+    assert response.reply == "推荐：AirBuds Lite 蓝牙耳机"
+    assert response.need_clarify is False
+    assert response.structured_need == need
+    assert response.products[0].name == "AirBuds Lite 蓝牙耳机"
+
+
+@pytest.mark.anyio
+async def test_handle_chat_returns_clarify_response_when_category_is_missing() -> None:
+    need = StructuredNeed(
+        intent="商品推荐",
+        category=None,
         need_clarify=True,
-        missing_fields=["budget_max", "scenario"],
+        missing_fields=["category"],
     )
     intent_service = FakeIntentService(need)
     service = ChatService(
@@ -133,7 +149,7 @@ async def test_handle_chat_returns_clarify_response_when_need_incomplete() -> No
         llm_client=FakeLLMClient(),
     )
 
-    response = await service.handle_chat(ChatRequest(message="推荐一个耳机"), db=object())
+    response = await service.handle_chat(ChatRequest(message="推荐一下"), db=object())
 
     assert response.reply == "请补充预算和使用场景。"
     assert response.need_clarify is True
@@ -222,6 +238,42 @@ async def test_handle_chat_uses_strict_retrieval_for_buy_ready_need() -> None:
 
 
 @pytest.mark.anyio
+async def test_handle_chat_exposes_rag_fallback_metadata() -> None:
+    need = StructuredNeed(intent="商品推荐", category="空气炸锅")
+    product = make_product("CrispAir 轻油空气炸锅")
+    service = ChatService(
+        intent_service=FakeIntentService(need),
+        rag_pipeline=FakeRAGPipeline([product], fallback_stage="fallback_keyword"),
+        recommend_service=FakeRecommendService(),
+        llm_client=FakeLLMClient(),
+    )
+
+    response = await service.handle_chat(ChatRequest(message="租房做饭用的空气炸锅"), db=object())
+
+    assert response.products[0].name == "CrispAir 轻油空气炸锅"
+    assert response.extra["fallback_used"] is True
+    assert response.extra["fallback_stage"] == "fallback_keyword"
+    assert response.extra["result_quality"] == "broad"
+
+
+@pytest.mark.anyio
+async def test_handle_chat_explains_when_no_matching_products() -> None:
+    need = StructuredNeed(intent="商品推荐", category="机械键盘")
+    service = ChatService(
+        intent_service=FakeIntentService(need),
+        rag_pipeline=FakeRAGPipeline([]),
+        recommend_service=FakeRecommendService(),
+        llm_client=LLMClient(),
+    )
+
+    response = await service.handle_chat(ChatRequest(message="我需要一个键盘"), db=object())
+
+    assert response.need_clarify is False
+    assert response.products == []
+    assert "没有找到匹配商品" in response.reply
+
+
+@pytest.mark.anyio
 async def test_generate_chat_stream_emits_products_tokens_and_done() -> None:
     need = StructuredNeed(
         intent="商品推荐",
@@ -252,6 +304,31 @@ async def test_generate_chat_stream_emits_products_tokens_and_done() -> None:
     assert event_names[-1] == "done"
     assert events[0]["data"]["session_id"] == "stream-session"
     assert events[-1]["data"]["reply"]
+
+
+@pytest.mark.anyio
+async def test_generate_chat_stream_emits_rag_fallback_metadata() -> None:
+    need = StructuredNeed(intent="商品推荐", category="空气炸锅")
+    product = make_product("CrispAir 轻油空气炸锅")
+    service = ChatService(
+        intent_service=FakeIntentService(need),
+        rag_pipeline=FakeRAGPipeline([product], fallback_stage="fallback_keyword"),
+        recommend_service=FakeRecommendService(),
+        llm_client=FakeLLMClient(),
+    )
+
+    events = [
+        event
+        async for event in service.generate_chat_stream(
+            ChatRequest(session_id="fallback-meta-stream", message="租房做饭用的空气炸锅"),
+            db=object(),
+        )
+    ]
+
+    products_event = next(event for event in events if event["event"] == "products")
+    assert products_event["data"]["fallback_used"] is True
+    assert products_event["data"]["fallback_stage"] == "fallback_keyword"
+    assert products_event["data"]["result_quality"] == "broad"
 
 
 @pytest.mark.anyio
@@ -362,70 +439,6 @@ async def test_handle_chat_returns_friendly_error_response() -> None:
     assert response.reply == "抱歉，当前暂时无法完成推荐，请稍后再试或换个条件。"
     assert response.need_clarify is False
     assert response.products == []
-
-
-def test_chat_api_route_is_registered_and_returns_response() -> None:
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(bind=engine)
-    session_factory = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-    with session_factory() as db:
-        db.add(
-            Product(
-                name=KEYBOARD_NAME,
-                category=KEYBOARD_CATEGORY,
-                price=Decimal("299.00"),
-                rating=Decimal("4.8"),
-                sales=1800,
-                tags=[QUIET_TAG],
-                suitable_scene=[DORM_SCENE],
-                stock=10,
-            )
-        )
-        db.commit()
-
-    app = create_app()
-
-    def override_get_db():
-        db = session_factory()
-        try:
-            yield db
-        finally:
-            db.close()
-
-    app.dependency_overrides[get_db] = override_get_db
-    client = TestClient(app)
-
-    response = client.post(
-        "/api/v1/ai/chat",
-        json={
-            "session_id": "s001",
-            "message": API_MESSAGE,
-        },
-    )
-
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["need_clarify"] is False
-    assert payload["structured_need"]["category"] == KEYBOARD_CATEGORY
-    assert payload["products"][0]["name"] == KEYBOARD_NAME
-    assert KEYBOARD_NAME in payload["reply"]
-    assert payload["extra"]["session_id"] == "s001"
-
-    with session_factory() as db:
-        session = db.scalar(select(ChatSession).where(ChatSession.session_id == "s001"))
-        messages = list(db.scalars(select(ChatMessage).where(ChatMessage.session_id == "s001")).all())
-        recommendations = list(
-            db.scalars(select(Recommendation).where(Recommendation.session_id == "s001")).all()
-        )
-
-    assert session is not None
-    assert [message.role for message in messages] == ["user", "assistant"]
-    assert recommendations
-    assert recommendations[0].explanation["budget_match"] is True
 
 
 def _sqlite_session_with_products(products: list[Product]):

@@ -8,7 +8,7 @@ from app.core.config import settings
 
 
 def runtime_config_summary() -> dict[str, object]:
-    return {
+    summary: dict[str, object] = {
         "app_env": settings.app_env,
         "app_debug": settings.app_debug,
         "allow_mock_providers_in_prod": settings.allow_mock_providers_in_prod,
@@ -22,6 +22,9 @@ def runtime_config_summary() -> dict[str, object]:
         "chroma_persist_dir": settings.chroma_persist_dir,
         "chroma_product_collection": settings.chroma_product_collection,
     }
+    if settings.vision_provider.strip().lower() == "mock":
+        summary["vision_provider_note"] = "mock vision returns fixed demo recognition; use llm or dashscope for real image recognition."
+    return summary
 
 
 def main() -> None:
