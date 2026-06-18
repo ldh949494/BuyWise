@@ -6,26 +6,11 @@ from collections.abc import AsyncIterator
 from typing import Any, Protocol
 
 from app.ai.prompts import RECOMMEND_PROMPT
+from app.ai.safety import AgentSafetyService
 from app.core.config import settings
 from app.core.resilience import provider_policy, provider_stream, run_provider_call_async
 
 
-UNSUPPORTED_CLAIM_KEYWORDS = [
-    "优惠券",
-    "券",
-    "满减",
-    "折扣",
-    "打折",
-    "促销",
-    "包邮",
-    "免邮",
-    "保修",
-    "售后",
-    "官方认证",
-    "正品保证",
-    "闪购",
-    "秒杀",
-]
 UNSUPPORTED_CLAIM_FALLBACK = "我只能基于当前商品卡片做推荐，暂无可验证的优惠券、促销或额外平台功能信息。"
 
 
@@ -115,6 +100,7 @@ class LLMClient:
         provider_name: str | None = None,
     ) -> None:
         self.provider = provider or self._build_provider(provider_name or settings.llm_provider)
+        self.safety = AgentSafetyService()
 
     async def chat(self, messages: list[dict], *, max_tokens: int | None = None) -> str:
         normalized = [
@@ -295,22 +281,7 @@ class LLMClient:
         return getattr(source, key, None)
 
     def _guard_recommendation_reply(self, reply: str, products: list[Any]) -> str:
-        if not reply:
-            return self._template_recommendation_reply(products)
-        if self._has_unsupported_claim(reply, products):
-            return self._template_recommendation_reply(products)
-        return reply
-
-    def _has_unsupported_claim(self, reply: str, products: list[Any]) -> bool:
-        for keyword in UNSUPPORTED_CLAIM_KEYWORDS:
-            if keyword not in reply:
-                continue
-            if not self._claim_supported(keyword, products):
-                return True
-        return False
-
-    def _claim_supported(self, keyword: str, products: list[Any]) -> bool:
-        return any(keyword in self._format_mapping(product) for product in products)
+        return self.safety.guard_recommendation_reply(reply, products, self._template_recommendation_reply(products))
 
     def _template_recommendation_reply(self, products: list[Any]) -> str:
         product_lines = []

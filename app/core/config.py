@@ -124,6 +124,17 @@ class Settings(BaseSettings):
     chat_stream_fast_products_limit: int = Field(default=5, validation_alias="CHAT_STREAM_FAST_PRODUCTS_LIMIT")
     chat_stream_fast_reply_max_tokens: int = Field(default=220, validation_alias="CHAT_STREAM_FAST_REPLY_MAX_TOKENS")
     chat_rate_limit_per_minute: int = Field(default=60, validation_alias="CHAT_RATE_LIMIT_PER_MINUTE")
+    chat_auth_rate_limit_per_minute: int = Field(default=0, validation_alias="CHAT_AUTH_RATE_LIMIT_PER_MINUTE")
+    chat_anon_rate_limit_per_minute: int = Field(default=0, validation_alias="CHAT_ANON_RATE_LIMIT_PER_MINUTE")
+    chat_session_rate_limit_per_minute: int = Field(default=0, validation_alias="CHAT_SESSION_RATE_LIMIT_PER_MINUTE")
+    chat_session_tokens_enabled: bool = Field(default=False, validation_alias="CHAT_SESSION_TOKENS_ENABLED")
+    chat_anon_session_ttl_hours: int = Field(default=24, validation_alias="CHAT_ANON_SESSION_TTL_HOURS")
+    chat_context_max_messages: int = Field(default=8, validation_alias="CHAT_CONTEXT_MAX_MESSAGES")
+    chat_context_max_chars: int = Field(default=6000, validation_alias="CHAT_CONTEXT_MAX_CHARS")
+    ai_chat_actions_require_auth_in_prod: bool = Field(default=True, validation_alias="AI_CHAT_ACTIONS_REQUIRE_AUTH_IN_PROD")
+    ai_checkout_confirmation_required: bool = Field(default=True, validation_alias="AI_CHECKOUT_CONFIRMATION_REQUIRED")
+    ai_media_url_allowlist_enabled: bool = Field(default=False, validation_alias="AI_MEDIA_URL_ALLOWLIST_ENABLED")
+    ai_media_allowed_hosts: str = Field(default="", validation_alias="AI_MEDIA_ALLOWED_HOSTS")
     vision_rate_limit_per_minute: int = Field(default=30, validation_alias="VISION_RATE_LIMIT_PER_MINUTE")
     speech_rate_limit_per_minute: int = Field(default=30, validation_alias="SPEECH_RATE_LIMIT_PER_MINUTE")
     upload_rate_limit_per_minute: int = Field(default=20, validation_alias="UPLOAD_RATE_LIMIT_PER_MINUTE")
@@ -162,6 +173,10 @@ class Settings(BaseSettings):
     @property
     def cors_headers(self) -> list[str]:
         return self._split_csv(self.cors_allowed_headers)
+
+    @property
+    def media_allowed_hosts(self) -> list[str]:
+        return self._split_csv(self.ai_media_allowed_hosts)
 
     @property
     def database_url(self) -> str:

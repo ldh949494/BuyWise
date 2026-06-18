@@ -21,10 +21,21 @@ def isolate_mutable_settings():
         "chat_stream_fast_products_enabled": settings.chat_stream_fast_products_enabled,
         "chat_stream_fast_products_limit": settings.chat_stream_fast_products_limit,
         "chat_stream_fast_reply_max_tokens": settings.chat_stream_fast_reply_max_tokens,
+        "chat_auth_rate_limit_per_minute": settings.chat_auth_rate_limit_per_minute,
+        "chat_anon_rate_limit_per_minute": settings.chat_anon_rate_limit_per_minute,
+        "chat_session_rate_limit_per_minute": settings.chat_session_rate_limit_per_minute,
+        "chat_session_tokens_enabled": settings.chat_session_tokens_enabled,
+        "chat_anon_session_ttl_hours": settings.chat_anon_session_ttl_hours,
+        "chat_context_max_messages": settings.chat_context_max_messages,
+        "chat_context_max_chars": settings.chat_context_max_chars,
         "cors_allowed_origins": settings.cors_allowed_origins,
         "cors_allow_credentials": settings.cors_allow_credentials,
         "external_purchase_feedback_mode": settings.external_purchase_feedback_mode,
         "feedback_delay_days": settings.feedback_delay_days,
+        "ai_chat_actions_require_auth_in_prod": settings.ai_chat_actions_require_auth_in_prod,
+        "ai_checkout_confirmation_required": settings.ai_checkout_confirmation_required,
+        "ai_media_url_allowlist_enabled": settings.ai_media_url_allowlist_enabled,
+        "ai_media_allowed_hosts": settings.ai_media_allowed_hosts,
         "embedding_provider": settings.embedding_provider,
         "llm_provider": settings.llm_provider,
         "mysql_password": settings.mysql_password,
@@ -44,6 +55,17 @@ def isolate_mutable_settings():
     settings.chat_stream_fast_products_enabled = True
     settings.chat_stream_fast_products_limit = 5
     settings.chat_stream_fast_reply_max_tokens = 220
+    settings.chat_auth_rate_limit_per_minute = 0
+    settings.chat_anon_rate_limit_per_minute = 0
+    settings.chat_session_rate_limit_per_minute = 0
+    settings.chat_session_tokens_enabled = False
+    settings.chat_anon_session_ttl_hours = 24
+    settings.chat_context_max_messages = 8
+    settings.chat_context_max_chars = 6000
+    settings.ai_chat_actions_require_auth_in_prod = True
+    settings.ai_checkout_confirmation_required = True
+    settings.ai_media_url_allowlist_enabled = False
+    settings.ai_media_allowed_hosts = ""
     settings.embedding_provider = "mock"
     settings.llm_provider = "mock"
     settings.speech_provider = "mock"

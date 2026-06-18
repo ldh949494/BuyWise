@@ -8,6 +8,7 @@ from typing import Any
 from app.core.config import settings
 from app.core.metrics import count_llm_failure
 from app.core.traffic import is_capacity_limited
+from app.ai.safety import AgentSafetyService
 from app.schemas.chat import ChatRequest
 from app.schemas.chat_stream import (
     ChatStreamDoneEventData,
@@ -20,6 +21,7 @@ class GuideFollowUpStreamService:
     def __init__(self, chat_service: Any, event_builder: Callable[[str, Any], dict[str, Any]]) -> None:
         self.chat_service = chat_service
         self._event = event_builder
+        self.safety = AgentSafetyService()
 
     async def generate_events(
         self,
@@ -57,7 +59,19 @@ class GuideFollowUpStreamService:
     def _execute_action_if_present(self, context: dict[str, Any], text: str) -> Any:
         chat_repo = context["chat_repo"]
         db = chat_repo.db if hasattr(chat_repo, "db") else object()
-        return self.chat_service._execute_chat_action(text, chat_repo, context["session_id"], db, context.get("user_id"))
+        security_context = self._security_context(context)
+        return self.chat_service._execute_chat_action(text, chat_repo, security_context, db)
+
+    def _security_context(self, context: dict[str, Any]) -> Any:
+        from app.services.chat_session_security import ChatSessionContext
+
+        return ChatSessionContext(
+            session_id=context["session_id"],
+            session_token=context.get("session_token"),
+            owner_subject=context.get("owner_subject"),
+            owner_auth_type=context.get("owner_auth_type"),
+            user_id=context.get("user_id"),
+        )
 
     async def _stream_follow_up_answer(
         self,
@@ -83,6 +97,7 @@ class GuideFollowUpStreamService:
             yield self._event("status", ChatStreamStatusEventData(stage="fallback", message="llm_capacity_limited"))
             yield self._event("token", ChatStreamTokenEventData(text=chunks[0]))
         reply = "".join(chunks)
+        reply = self.safety.guard_follow_up_reply(reply, snapshot, self._fallback_follow_up_reply(snapshot))
         self._save_follow_up_assistant(context, reply, snapshot)
         yield self._event("done", ChatStreamDoneEventData(reply=reply))
 

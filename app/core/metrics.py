@@ -65,6 +65,26 @@ FEEDBACK_SUBMIT_FAILURES_TOTAL = Counter(
     "Feedback submit failure count.",
     labelnames=("reason",),
 )
+AGENT_ACTION_TOTAL = Counter(
+    "buywise_agent_action_total",
+    "Agent action count.",
+    labelnames=("action", "status"),
+)
+AGENT_SAFETY_BLOCK_TOTAL = Counter(
+    "buywise_agent_safety_block_total",
+    "Agent safety block count.",
+    labelnames=("stage", "reason"),
+)
+CHAT_SESSION_FORBIDDEN_TOTAL = Counter(
+    "buywise_chat_session_forbidden_total",
+    "Chat session authorization failure count.",
+    labelnames=("reason",),
+)
+CHAT_RATE_LIMITED_TOTAL = Counter(
+    "buywise_chat_rate_limited_total",
+    "Chat rate limit count.",
+    labelnames=("scope",),
+)
 
 
 def observe_chat_latency(mode: str, outcome: str, seconds: float) -> None:
@@ -113,3 +133,19 @@ def count_feedback_submit_success(source: str) -> None:
 
 def count_feedback_submit_failure(reason: str) -> None:
     FEEDBACK_SUBMIT_FAILURES_TOTAL.labels(reason=reason).inc()
+
+
+def count_agent_action(action: str, status: str) -> None:
+    AGENT_ACTION_TOTAL.labels(action=action, status=status).inc()
+
+
+def count_agent_safety_block(stage: str, reason: str) -> None:
+    AGENT_SAFETY_BLOCK_TOTAL.labels(stage=stage, reason=reason).inc()
+
+
+def count_chat_session_forbidden(reason: str) -> None:
+    CHAT_SESSION_FORBIDDEN_TOTAL.labels(reason=reason).inc()
+
+
+def count_chat_rate_limited(scope: str) -> None:
+    CHAT_RATE_LIMITED_TOTAL.labels(scope=scope).inc()
