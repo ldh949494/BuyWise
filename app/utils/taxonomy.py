@@ -1,0 +1,228 @@
+"""Shared shopping taxonomy constants."""
+
+from __future__ import annotations
+
+CORE_MISSING_FIELDS = {"category"}
+OUT_OF_SCOPE_INTENT = "非导购"
+
+INTENT_ALIASES = {
+    "推荐": "商品推荐",
+    "商品推荐": "商品推荐",
+    "找推荐": "商品推荐",
+    "bundle_recommend": "bundle_recommend",
+    "组合推荐": "bundle_recommend",
+    "场景化组合推荐": "bundle_recommend",
+    "搭配方案": "bundle_recommend",
+    "购物清单": "bundle_recommend",
+    "对比": "商品对比",
+    "比较": "商品对比",
+    "商品对比": "商品对比",
+    "平替": "找平替",
+    "找平替": "找平替",
+    "价格判断": "价格判断",
+    "参数咨询": "参数咨询",
+    "非导购": OUT_OF_SCOPE_INTENT,
+    "能力外": OUT_OF_SCOPE_INTENT,
+    "out_of_scope": OUT_OF_SCOPE_INTENT,
+    "unsupported": OUT_OF_SCOPE_INTENT,
+}
+
+CATEGORY_KEYWORDS = {
+    "机械键盘": ["机械键盘", "键盘"],
+    "蓝牙耳机": ["蓝牙耳机", "耳机", "耳麦"],
+    "台灯": ["台灯", "护眼灯", "灯"],
+    "充电宝": ["充电宝", "移动电源"],
+    "双肩包": ["双肩包", "书包", "背包", "包"],
+    "电脑": ["电脑", "主机", "笔记本", "迷你主机"],
+    "显示器": ["显示器", "屏幕", "显示屏"],
+    "鼠标": ["鼠标"],
+    "支架": ["支架", "显示器支架"],
+    "拓展坞": ["拓展坞", "扩展坞"],
+    "插排": ["插排", "排插", "插线板"],
+    "防晒": ["防晒", "防晒霜", "防晒喷雾"],
+    "外套": ["外套", "夹克", "冲锋衣"],
+    "上衣": ["上衣", "T恤", "衬衫", "短袖"],
+    "裤装": ["裤装", "裤子", "短裤", "长裤"],
+    "鞋履": ["鞋", "鞋履", "凉鞋", "拖鞋", "运动鞋"],
+    "墨镜": ["墨镜", "太阳镜"],
+    "帽子": ["帽子", "遮阳帽"],
+}
+
+CATEGORY_ALIASES = {
+    "keyboard": "机械键盘",
+    "mechanical keyboard": "机械键盘",
+    "earbuds": "蓝牙耳机",
+    "earbud": "蓝牙耳机",
+    "headphones": "蓝牙耳机",
+    "headphone": "蓝牙耳机",
+    "bluetooth earbuds": "蓝牙耳机",
+    "bluetooth headphones": "蓝牙耳机",
+    "desk lamp": "台灯",
+    "lamp": "台灯",
+    "power bank": "充电宝",
+    "powerbank": "充电宝",
+    "portable charger": "充电宝",
+    "backpack": "双肩包",
+    "bag": "双肩包",
+    "refrigerator": "冰箱",
+    "fridge": "冰箱",
+}
+
+SCENARIO_KEYWORDS = [
+    "宿舍",
+    "办公",
+    "通勤",
+    "运动",
+    "学习",
+    "写代码",
+    "旅行",
+    "度假",
+    "阅读",
+    "应急",
+    "桌面",
+    "电脑外设",
+    "租房",
+    "做饭",
+    "厨房",
+    "卧室",
+    "宠物",
+    "跑步",
+    "健身",
+    "办公室",
+    "小学",
+    "海边",
+    "户外",
+    "穿搭",
+]
+
+SCENARIO_ALIASES = {
+    "commuting": "通勤",
+    "commute": "通勤",
+    "class": "学习",
+    "school": "学习",
+    "study": "学习",
+    "office": "办公",
+    "dorm": "宿舍",
+    "dormitory": "宿舍",
+    "travel": "旅行",
+    "bedroom": "卧室",
+}
+
+PREFERENCE_KEYWORDS = [
+    "低噪音",
+    "无线",
+    "降噪",
+    "护眼",
+    "轻便",
+    "大容量",
+    "性价比",
+    "快充",
+    "防泼水",
+    "小巧",
+    "透气",
+    "速干",
+    "防晒",
+    "高颜值",
+    "休闲",
+    "易清洗",
+    "容易清洗",
+    "占地小",
+    "吸猫毛",
+    "续航好",
+    "心率记录",
+    "佩戴舒服",
+    "画面清楚",
+    "自动校正",
+    "不漏水",
+    "内容可控",
+    "家长管理",
+]
+
+PREFERENCE_ALIASES = {
+    "静音": "低噪音",
+    "声音小": "低噪音",
+    "安静": "低噪音",
+    "quiet": "低噪音",
+    "low noise": "低噪音",
+    "性价比高": "性价比",
+    "蓝牙": "无线",
+    "bluetooth": "无线",
+    "wireless": "无线",
+    "主动降噪": "降噪",
+    "noise cancelling": "降噪",
+    "noise canceling": "降噪",
+    "anc": "降噪",
+    "water-resistant": "防泼水",
+    "water resistant": "防泼水",
+    "waterproof": "防泼水",
+    "laptop compartment": "电脑仓",
+    "laptop sleeve": "电脑仓",
+    "energy-saving": "节能",
+    "energy saving": "节能",
+    "lightweight": "轻便",
+}
+
+RULE_PREFERENCE_ALIASES = {
+    key: value
+    for key, value in PREFERENCE_ALIASES.items()
+    if key != "蓝牙"
+}
+
+BROWSE_KEYWORDS = ["随便看看", "先看看", "看看", "逛逛", "了解一下", "有什么", "推荐几类"]
+BUY_READY_KEYWORDS = ["想买", "准备买", "马上买", "下单", "入手", "就买", "要买"]
+SHOPPING_TARGET_KEYWORDS = [
+    "空气炸锅",
+    "电煮锅",
+    "吸尘器",
+    "清洁机",
+    "智能手表",
+    "手表",
+    "投影仪",
+    "咖啡杯",
+    "保温杯",
+    "学习平板",
+    "平板",
+    "电脑包",
+    "数码配件",
+    "小家电",
+    "冰箱",
+]
+
+UNSUPPORTED_PLATFORM_CLAIMS = {
+    "优惠券",
+    "券",
+    "满减",
+    "折扣",
+    "打折",
+    "促销",
+    "包邮",
+    "免邮",
+    "保修",
+    "售后",
+    "官方认证",
+    "正品保证",
+    "闪购",
+    "秒杀",
+    "库存充足",
+    "现货",
+    "实时价格",
+    "实时库存",
+}
+
+OUT_OF_SCOPE_KEYWORDS = [
+    "python",
+    "爬虫",
+    "抓取",
+    "爬取",
+    "系统提示词",
+    "提示词",
+    "忽略之前",
+    "忽略所有规则",
+    "股票",
+    "基金",
+    "天气",
+    "翻译",
+    "写一篇",
+    "写文章",
+    "生成代码",
+]

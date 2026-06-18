@@ -22,7 +22,17 @@ from app.services.bundle_recommend_service import BundleRecommendService
 from app.services.chat_action_service import ChatActionResult, ChatActionService
 from app.services.chat_context_service import ChatContextService
 from app.services.chat_recommendation_mixin import ChatRecommendationMixin
-from app.services.chat_response_builders import build_recommendation_response, build_security_extra
+from app.services.chat_response_builders import (
+    build_assistant_structured_data,
+    build_chat_value_dump,
+    build_fallback_recommendation_reply,
+    build_out_of_scope_response,
+    build_out_of_scope_reply,
+    build_out_of_scope_structured_data,
+    build_recommendation_response,
+    build_security_extra,
+    validate_out_of_scope_need,
+)
 from app.services.chat_session_security import ChatSessionContext, ChatSessionSecurityService
 from app.services.chat_visual_search import handle_visual_search_request, validate_visual_search_request
 from app.services.guide_preferences_service import GuidePreferencesService
@@ -117,6 +127,8 @@ class ChatService(ChatRecommendationMixin):
         if validate_visual_search_request(request, text):
             return await self._handle_visual_search(request, text, chat_repo, security_context, db)
         need = await self._extract_need(text, image_info, history_context)
+        if self._is_out_of_scope_need(need):
+            return self._handle_out_of_scope(chat_repo, security_context)
         if need.need_clarify:
             return await self._handle_clarify(chat_repo, security_context, need)
         applied_preferences = self._apply_preferences(request, need, db, security_context.user_id)
@@ -204,6 +216,23 @@ class ChatService(ChatRecommendationMixin):
         else:
             outcome = "degraded" if response.extra.get("degraded") else "success"
         observe_chat_latency("json", outcome, time.perf_counter() - started_at)
+
+    def _is_out_of_scope_need(self, need: Any) -> bool:
+        return validate_out_of_scope_need(need, self._get_need_value)
+
+    def _handle_out_of_scope(self, chat_repo: Any, security_context: ChatSessionContext) -> ChatResponse:
+        reply = self._out_of_scope_reply()
+        chat_repo.create_message(
+            security_context.session_id,
+            "assistant",
+            reply,
+            structured_data=build_out_of_scope_structured_data(),
+        )
+        self._commit(chat_repo)
+        return build_out_of_scope_response(security_context)
+
+    def _out_of_scope_reply(self) -> str:
+        return build_out_of_scope_reply()
 
     def _chat_security_context(
         self,
@@ -342,7 +371,7 @@ class ChatService(ChatRecommendationMixin):
             applied_preferences,
             extra,
         )
-        return self._build_recommendation_response(
+        return build_recommendation_response(
             reply=reply,
             need=need,
             products=top_products,
@@ -356,25 +385,6 @@ class ChatService(ChatRecommendationMixin):
         extra.update(self._rag_fallback_meta())
         return extra
 
-    def _build_recommendation_response(
-        self,
-        *,
-        reply: str,
-        need: Any,
-        products: list[Any],
-        bundle_plans: list[BundlePlan],
-        applied_preferences: AppliedPreferences,
-        extra: dict[str, Any],
-    ) -> ChatResponse:
-        return build_recommendation_response(
-            reply=reply,
-            need=need,
-            products=products,
-            bundle_plans=bundle_plans,
-            applied_preferences=applied_preferences,
-            extra=extra,
-        )
-
     def _save_recommendation_result(
         self,
         chat_repo: Any,
@@ -386,7 +396,13 @@ class ChatService(ChatRecommendationMixin):
         applied_preferences: AppliedPreferences,
         extra: dict[str, Any],
     ) -> None:
-        structured_data = self._assistant_structured_data(need, products, extra, bundle_plans, applied_preferences)
+        structured_data = build_assistant_structured_data(
+            need=need,
+            products=products,
+            extra=extra,
+            bundle_plans=bundle_plans,
+            applied_preferences=applied_preferences,
+        )
         chat_repo.create_message(security_context.session_id, "assistant", reply, structured_data=structured_data)
         chat_repo.create_recommendations(security_context.session_id, products)
         self._commit(chat_repo)
@@ -409,30 +425,7 @@ class ChatService(ChatRecommendationMixin):
                 raise
             count_llm_failure("recommendation", "capacity_limited")
         extra.update({"degraded": True, "degraded_reason": "llm_capacity_limited"})
-        return self._fallback_recommendation_reply(top_products), extra
-
-    def _assistant_structured_data(
-        self,
-        need: Any,
-        top_products: list[Any],
-        extra: dict[str, Any],
-        bundle_plans: list[BundlePlan] | None = None,
-        applied_preferences: AppliedPreferences | None = None,
-    ) -> dict[str, Any]:
-        structured_data = {
-            "need": self._dump(need),
-            "products": [self._dump(product) for product in top_products],
-            "applied_preferences": self._dump(applied_preferences or AppliedPreferences()),
-        }
-        if bundle_plans:
-            structured_data["bundle_plans"] = [self._dump(plan) for plan in bundle_plans]
-        for key in ["fallback_used", "fallback_stage", "result_quality"]:
-            if key in extra:
-                structured_data[key] = extra[key]
-        if extra.get("degraded"):
-            structured_data["degraded"] = True
-            structured_data["degraded_reason"] = extra["degraded_reason"]
-        return structured_data
+        return build_fallback_recommendation_reply(top_products), extra
 
     def _apply_preferences(
         self,
@@ -464,9 +457,7 @@ class ChatService(ChatRecommendationMixin):
         return None
 
     def _dump(self, value: Any) -> Any:
-        if hasattr(value, "model_dump"):
-            return value.model_dump(mode="json")
-        return value
+        return build_chat_value_dump(value)
 
     def _commit(self, chat_repo: Any) -> None:
         db = getattr(chat_repo, "db", None)
@@ -483,11 +474,3 @@ class ChatService(ChatRecommendationMixin):
         if hasattr(db, "scalar") and hasattr(db, "add"):
             return ChatRepository(db)
         return NoopChatRepository(request.session_id)
-
-    def _fallback_recommendation_reply(self, products: list[Any]) -> str:
-        if not products:
-            return "没有找到匹配商品。可以换个品类、商品名，或放宽预算和偏好后再试。"
-        names = "、".join(str(getattr(product, "name", "")) for product in products[:3] if getattr(product, "name", None))
-        if names:
-            return f"当前 AI 总结暂时繁忙，先为你返回基础推荐：{names}。你可以先查看商品卡片。"
-        return "当前 AI 总结暂时繁忙，先为你返回基础推荐。你可以先查看商品卡片。"

@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import os
 import shutil
-import subprocess
 import sys
 from collections import Counter
 from datetime import UTC, datetime
@@ -14,24 +13,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from scripts.validate_entropy import BASELINE_PATH, collect_issues  # noqa: E402
+from app.utils.subprocess_tools import run_with_input  # noqa: E402
 
 ARTIFACTS_DIR = ROOT / "artifacts" / "entropy-gc"
 DEFAULT_MODEL = "openai/gpt-4.1"
-
-
-def run_with_input(cmd: list[str], stdin: str) -> str:
-    result = subprocess.run(
-        cmd,
-        cwd=ROOT,
-        input=stdin,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    if result.returncode != 0:
-        output = "\n".join(part.strip() for part in (result.stdout, result.stderr) if part.strip())
-        raise RuntimeError(output or f"Command failed: {' '.join(cmd)}")
-    return result.stdout.strip()
 
 
 def render_deterministic_report() -> str:

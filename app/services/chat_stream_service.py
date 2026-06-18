@@ -27,6 +27,7 @@ from app.schemas.chat_stream import (
     ChatStreamStatusEventData,
     ChatStreamTokenEventData,
 )
+from app.services.chat_response_builders import build_fallback_recommendation_reply
 from app.services.chat_stream_fast_path import ChatStreamFastPathMixin
 from app.services.guide_follow_up_stream_service import GuideFollowUpStreamService
 from app.utils.logging import get_logger
@@ -148,6 +149,10 @@ class ChatStreamRunner(ChatStreamFastPathMixin):
                 yield event
             return
         need = await self._extract_need(context, request)
+        if self.chat_service._is_out_of_scope_need(need):
+            async for event in self._stream_out_of_scope(context, need):
+                yield event
+            return
         if need.need_clarify:
             context["stream_path"] = "clarify"
             async for event in self._stream_clarify(context, need):
@@ -174,6 +179,10 @@ class ChatStreamRunner(ChatStreamFastPathMixin):
         if need.need_clarify:
             context["stream_path"] = "guide_clarify"
             async for event in self._stream_clarify(context, need):
+                yield event
+            return
+        if self.chat_service._is_out_of_scope_need(need):
+            async for event in self._stream_out_of_scope(context, need):
                 yield event
             return
         self._apply_preferences(context, request, need, db)
@@ -218,6 +227,19 @@ class ChatStreamRunner(ChatStreamFastPathMixin):
         self._observe_first_products(context, context["stream_path"])
         yield self._event("products", self._products_payload(context, need, [], need_clarify=True))
         yield self._event("done", ChatStreamDoneEventData(reply=reply))
+
+    async def _stream_out_of_scope(
+        self,
+        context: dict[str, Any],
+        need: Any,
+    ) -> AsyncIterator[dict[str, Any]]:
+        context["stream_path"] = "out_of_scope"
+        reply = self.chat_service._out_of_scope_reply()
+        self._save_assistant(context, reply, need, [], need_clarify=False)
+        self._observe_first_products(context, context["stream_path"])
+        yield self._event("status", ChatStreamStatusEventData(stage="fallback", message="out_of_scope"))
+        yield self._event("products", self._products_payload(context, need, [], need_clarify=False))
+        yield self._event("done", ChatStreamDoneEventData(reply=reply, extra={"out_of_scope": True}))
 
     async def _stream_recommendation(
         self,
@@ -325,7 +347,7 @@ class ChatStreamRunner(ChatStreamFastPathMixin):
         *,
         degraded_reason: str = "llm_capacity_limited",
     ) -> AsyncIterator[dict[str, Any]]:
-        reply = self.chat_service._fallback_recommendation_reply(top_products)
+        reply = build_fallback_recommendation_reply(top_products)
         self._save_assistant(
             context,
             reply,

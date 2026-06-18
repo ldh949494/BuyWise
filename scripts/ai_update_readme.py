@@ -1,34 +1,15 @@
 import os
 import shutil
-import subprocess
 from pathlib import Path
 from typing import Optional
 
-from app.utils.subprocess_tools import run
+from app.utils.subprocess_tools import run, run_with_input
 
 ROOT = Path(__file__).resolve().parents[1]
 README_PATH = ROOT / "README.md"
 DIFF_PATHS = ("app", "android-app", "scripts", ".github", "requirements.txt", "README.md")
 AUTO_DOCS_START = "<!-- AUTO-DOCS:START -->"
 AUTO_DOCS_END = "<!-- AUTO-DOCS:END -->"
-
-
-def run_with_input(cmd: list[str], stdin: str) -> str:
-    result = subprocess.run(
-        cmd,
-        cwd=ROOT,
-        input=stdin,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    if result.returncode != 0:
-        output = "\n".join(
-            part.strip() for part in (result.stdout, result.stderr) if part.strip()
-        )
-        raise RuntimeError(output or f"Command failed: {' '.join(cmd)}")
-
-    return result.stdout.strip()
 
 
 def resolve_diff_range() -> Optional[str]:

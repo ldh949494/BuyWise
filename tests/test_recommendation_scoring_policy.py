@@ -33,7 +33,7 @@ def test_scores_budget_scenario_preferences_stock_and_feedback_reasons() -> None
     assert result.tags == ["低噪音", "无线", "性价比"]
     assert result.price == Decimal("299.00")
     assert result.rating == 4.8
-    assert result.reasons == ["价格符合预算", "适合宿舍场景", "符合低噪音偏好", "库存充足", "已购反馈满意度高"]
+    assert result.reasons == ["价格符合预算", "适合宿舍场景", "符合低噪音偏好", "商品卡显示有库存", "已购反馈满意度高"]
     assert result.conflicts == []
 
 
