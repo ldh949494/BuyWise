@@ -94,7 +94,7 @@ def admin_headers(client: TestClient) -> dict[str, str]:
 
 def test_admin_routes_are_registered() -> None:
     app = create_app()
-    paths = {route.path for route in app.routes}
+    paths = set(app.openapi().get("paths", {}))
 
     assert "/api/v1/admin/auth/login" in paths
     assert "/api/v1/admin/products" in paths
@@ -180,6 +180,8 @@ def configure_valid_prod_settings() -> None:
     settings.user_jwt_secret = "test-user-secret"
     settings.auth_otp_mock_enabled = False
     settings.allow_mock_providers_in_prod = True
+    settings.chat_session_tokens_enabled = True
+    settings.ai_media_url_allowlist_enabled = True
 
 
 def test_admin_products_require_jwt() -> None:

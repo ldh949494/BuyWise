@@ -8,11 +8,14 @@ from typing import Any, Callable
 from app.core.providers import AppError
 from app.schemas.chat import StructuredNeed
 from app.services.intent_taxonomy import (
+    CATEGORY_ALIASES,
     CATEGORY_KEYWORDS,
     CORE_MISSING_FIELDS,
     INTENT_ALIASES,
     PREFERENCE_ALIASES,
+    SCENARIO_ALIASES,
     SCENARIO_KEYWORDS,
+    UNSUPPORTED_PLATFORM_CLAIMS,
 )
 from app.utils.intent_strategy import retrieval_strategy_for
 from app.utils.list_values import dedupe_strings
@@ -179,6 +182,9 @@ class LlmIntentExtractor:
         category = self._optional_text(value)
         if category is None:
             return None
+        alias = CATEGORY_ALIASES.get(category.lower())
+        if alias:
+            return alias
         for normalized, keywords in CATEGORY_KEYWORDS.items():
             if any(keyword in category for keyword in keywords):
                 return normalized
@@ -188,6 +194,10 @@ class LlmIntentExtractor:
         scenario = self._optional_text(value)
         if scenario is None:
             return None
+        lowered = scenario.lower()
+        for keyword, normalized in SCENARIO_ALIASES.items():
+            if keyword in lowered:
+                return normalized
         for keyword in SCENARIO_KEYWORDS:
             if keyword in scenario:
                 return keyword
@@ -196,7 +206,10 @@ class LlmIntentExtractor:
     def _normalize_preferences(self, value: Any) -> list[str]:
         preferences = []
         for item in self._text_list(value):
-            preferences.append(PREFERENCE_ALIASES.get(item, item))
+            normalized = PREFERENCE_ALIASES.get(item, PREFERENCE_ALIASES.get(item.lower(), item))
+            if normalized in UNSUPPORTED_PLATFORM_CLAIMS:
+                continue
+            preferences.append(normalized)
         return dedupe_strings(preferences)
 
     def _normalize_purchase_stage(

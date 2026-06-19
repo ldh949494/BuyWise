@@ -84,6 +84,15 @@ def seed_products(db):
             suitable_scene=["租房", "厨房"],
             stock=12,
         ),
+        Product(
+            name="CityPack 通勤双肩包",
+            category="双肩包",
+            price=Decimal("69.00"),
+            description="适合上课通勤，有电脑仓",
+            tags=["电脑仓", "防泼水"],
+            suitable_scene=["通勤", "学习"],
+            stock=9,
+        ),
     ]
     db.add_all(products)
     db.commit()
@@ -243,8 +252,46 @@ async def test_search_products_returns_popular_fallback_when_no_keyword_or_adjac
 
     results = await pipeline.search_products(need, db, top_k=1)
 
-    assert [product.name for product in results] == ["K87 静音红轴机械键盘"]
-    assert pipeline.last_diagnostics["fallback_stage"] == "fallback_popular"
+    assert results == []
+    assert pipeline.last_diagnostics["fallback_stage"] == "none"
+
+
+@pytest.mark.anyio
+async def test_search_products_does_not_return_wrong_category_for_uncovered_target() -> None:
+    db = make_session()
+    seed_products(db)
+    store = FakeProductStore([])
+    pipeline = RAGPipeline(product_store=store)
+    need = StructuredNeed(
+        intent="商品推荐",
+        category="冰箱",
+        budget_max=500,
+        preferences=["节能", "低噪音"],
+    )
+
+    results = await pipeline.search_products(need, db, top_k=5)
+
+    assert results == []
+    assert pipeline.last_diagnostics["fallback_stage"] == "none"
+
+
+@pytest.mark.anyio
+async def test_search_products_filters_keyword_fallback_to_requested_standard_category() -> None:
+    db = make_session()
+    seed_products(db)
+    store = FakeProductStore([])
+    pipeline = RAGPipeline(product_store=store)
+    need = StructuredNeed(
+        intent="商品推荐",
+        category="双肩包",
+        scenario="通勤",
+        preferences=["快充"],
+    )
+
+    results = await pipeline.search_products(need, db, top_k=5)
+
+    assert results
+    assert all(product.category == "双肩包" for product in results)
 
 
 @pytest.mark.anyio

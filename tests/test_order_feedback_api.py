@@ -11,6 +11,19 @@ from app.main import create_app
 from app.models import Product
 
 
+def configure_valid_prod_settings(auth_api_keys: str) -> None:
+    settings.app_env = "prod"
+    settings.app_debug = False
+    settings.mysql_password = "secret"
+    settings.readiness_token = "ready-token"
+    settings.user_jwt_secret = "user-jwt-secret"
+    settings.auth_otp_mock_enabled = False
+    settings.allow_mock_providers_in_prod = True
+    settings.chat_session_tokens_enabled = True
+    settings.ai_media_url_allowlist_enabled = True
+    settings.auth_api_keys = auth_api_keys
+
+
 def make_client() -> TestClient:
     engine = create_engine(
         "sqlite:///:memory:",
@@ -51,7 +64,7 @@ def make_client() -> TestClient:
 
 def test_order_feedback_routes_are_registered() -> None:
     app = create_app()
-    paths = {route.path for route in app.routes}
+    paths = set(app.openapi().get("paths", {}))
 
     assert "/api/v1/orders" in paths
     assert "/api/v1/orders/{order_id}/advance" in paths
@@ -148,14 +161,7 @@ def test_review_requires_delivered_order_item() -> None:
 
 
 def test_prod_order_feedback_requires_bearer_token() -> None:
-    settings.app_env = "prod"
-    settings.app_debug = False
-    settings.mysql_password = "secret"
-    settings.readiness_token = "ready-token"
-    settings.user_jwt_secret = "user-jwt-secret"
-    settings.auth_otp_mock_enabled = False
-    settings.allow_mock_providers_in_prod = True
-    settings.auth_api_keys = "beta:beta-token:orders:read,orders:write,feedback:read,feedback:write"
+    configure_valid_prod_settings("beta:beta-token:orders:read,orders:write,feedback:read,feedback:write")
     client = make_client()
 
     response = client.post("/api/v1/orders", json={"product_id": 1})
@@ -165,14 +171,7 @@ def test_prod_order_feedback_requires_bearer_token() -> None:
 
 
 def test_prod_order_feedback_rejects_missing_scope() -> None:
-    settings.app_env = "prod"
-    settings.app_debug = False
-    settings.mysql_password = "secret"
-    settings.readiness_token = "ready-token"
-    settings.user_jwt_secret = "user-jwt-secret"
-    settings.auth_otp_mock_enabled = False
-    settings.allow_mock_providers_in_prod = True
-    settings.auth_api_keys = "beta:beta-token:orders:read"
+    configure_valid_prod_settings("beta:beta-token:orders:read")
     client = make_client()
 
     response = client.post(
@@ -186,16 +185,9 @@ def test_prod_order_feedback_rejects_missing_scope() -> None:
 
 
 def test_prod_order_feedback_uses_token_subject_for_user_ref() -> None:
-    settings.app_env = "prod"
-    settings.app_debug = False
-    settings.mysql_password = "secret"
-    settings.readiness_token = "ready-token"
-    settings.user_jwt_secret = "user-jwt-secret"
-    settings.auth_otp_mock_enabled = False
-    settings.allow_mock_providers_in_prod = True
     settings.external_purchase_feedback_mode = "immediate"
     settings.feedback_delay_days = 0
-    settings.auth_api_keys = (
+    configure_valid_prod_settings(
         "alice:alice-token:orders:read,orders:write,feedback:read,feedback:write;"
         "bob:bob-token:orders:read,orders:write,feedback:read,feedback:write"
     )
@@ -221,14 +213,7 @@ def test_prod_order_feedback_uses_token_subject_for_user_ref() -> None:
 
 
 def test_prod_order_advance_requires_advance_scope() -> None:
-    settings.app_env = "prod"
-    settings.app_debug = False
-    settings.mysql_password = "secret"
-    settings.readiness_token = "ready-token"
-    settings.user_jwt_secret = "user-jwt-secret"
-    settings.auth_otp_mock_enabled = False
-    settings.allow_mock_providers_in_prod = True
-    settings.auth_api_keys = (
+    configure_valid_prod_settings(
         "beta:beta-token:orders:read,orders:write,feedback:read,feedback:write;"
         "beta:advance-token:orders:read,orders:write,orders:advance"
     )

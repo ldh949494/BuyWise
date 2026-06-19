@@ -1,34 +1,15 @@
 import os
 import shutil
-import subprocess
 from pathlib import Path
 from typing import Optional
 
-from app.utils.subprocess_tools import run
+from app.utils.subprocess_tools import run, run_with_input
 
 ROOT = Path(__file__).resolve().parents[1]
 README_PATH = ROOT / "README.md"
 DIFF_PATHS = ("app", "android-app", "scripts", ".github", "requirements.txt", "README.md")
 AUTO_DOCS_START = "<!-- AUTO-DOCS:START -->"
 AUTO_DOCS_END = "<!-- AUTO-DOCS:END -->"
-
-
-def run_with_input(cmd: list[str], stdin: str) -> str:
-    result = subprocess.run(
-        cmd,
-        cwd=ROOT,
-        input=stdin,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    if result.returncode != 0:
-        output = "\n".join(
-            part.strip() for part in (result.stdout, result.stderr) if part.strip()
-        )
-        raise RuntimeError(output or f"Command failed: {' '.join(cmd)}")
-
-    return result.stdout.strip()
 
 
 def resolve_diff_range() -> Optional[str]:
@@ -91,9 +72,8 @@ def replace_auto_docs_block(readme: str, generated: str) -> str:
     return readme[:block_start] + generated_block + readme[end_index:]
 
 
-def update_readme_with_ai(readme: str, diff: str, tree: str) -> str:
-    model = os.getenv("GITHUB_MODELS_README_MODEL", "openai/gpt-4.1")
-    prompt = """
+def build_readme_prompt() -> str:
+    return """
 You are a professional software engineering documentation maintainer.
 Read the repository file tree, git diff, and current README.md from stdin.
 Return only the Markdown content that should appear inside the AUTO-DOCS block.
@@ -107,9 +87,11 @@ Requirements:
 6. If FastAPI, Android, Docker, RAG, or Agent-related content is detected, include the relevant run instructions.
 """.strip()
 
-    context = f"""
+
+def build_readme_context(readme: str, diff: str, tree: str) -> str:
+    return f"""
 Instructions:
-{prompt}
+{build_readme_prompt()}
 
 Current file tree:
 {tree}
@@ -121,6 +103,9 @@ Current README.md:
 {readme}
 """.strip()
 
+
+def update_readme_with_ai(readme: str, diff: str, tree: str) -> str:
+    model = os.getenv("GITHUB_MODELS_README_MODEL", "openai/gpt-4.1")
     output = run_with_input(
         [
             "gh",
@@ -129,26 +114,30 @@ Current README.md:
             model,
             "Read stdin and return only the Markdown content for the README AUTO-DOCS block.",
         ],
-        context,
+        build_readme_context(readme, diff, tree),
     )
-    generated = normalize_readme_output(output)
-    return replace_auto_docs_block(readme, generated)
+    return replace_auto_docs_block(readme, normalize_readme_output(output))
 
 
-def main() -> int:
+def ensure_readme_exists() -> None:
     if not README_PATH.exists():
         README_PATH.write_text("# Project\n\n", encoding="utf-8")
 
+
+def report_readme_status(changed: bool, message: str) -> int:
+    print(f"README_CHANGED={'true' if changed else 'false'}")
+    print(message)
+    return 0
+
+
+def main() -> int:
+    ensure_readme_exists()
     diff = get_git_diff()
     if not diff:
-        print("README_CHANGED=false")
-        print("No relevant code changes detected. Skip README update.")
-        return 0
+        return report_readme_status(False, "No relevant code changes detected. Skip README update.")
 
     if not shutil.which("gh"):
-        print("README_CHANGED=false")
-        print("GitHub CLI is not available. Skip README update.")
-        return 0
+        return report_readme_status(False, "GitHub CLI is not available. Skip README update.")
 
     readme = README_PATH.read_text(encoding="utf-8")
     tree = get_file_tree()
@@ -156,19 +145,13 @@ def main() -> int:
     try:
         new_readme = update_readme_with_ai(readme, diff, tree)
     except Exception as exc:  # noqa: BLE001
-        print("README_CHANGED=false")
-        print(f"README AI update skipped: {exc}")
-        return 0
+        return report_readme_status(False, f"README AI update skipped: {exc}")
 
     if new_readme == readme:
-        print("README_CHANGED=false")
-        print("README content unchanged after AI update.")
-        return 0
+        return report_readme_status(False, "README content unchanged after AI update.")
 
     README_PATH.write_text(new_readme, encoding="utf-8")
-    print("README_CHANGED=true")
-    print("README.md updated by AI.")
-    return 0
+    return report_readme_status(True, "README.md updated by AI.")
 
 
 if __name__ == "__main__":

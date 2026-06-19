@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import re
 import sys
 from pathlib import Path
@@ -8,6 +9,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 AGENTS_PATH = ROOT / "AGENTS.md"
 DOCS_ROOT = ROOT / "docs"
+SETTINGS_PATH = ROOT / "app" / "core" / "config.py"
+CONFIG_REFERENCE_PATH = DOCS_ROOT / "reference" / "configuration.md"
+ENV_EXAMPLE_PATHS = [
+    ROOT / ".env.example",
+    ROOT / ".env.dev.example",
+    ROOT / ".env.test.example",
+    ROOT / ".env.prod.example",
+]
 MAX_AGENTS_LINES = 120
 VALID_STATUSES = {"Draft", "Approved", "Implemented", "Deprecated"}
 REQUIRED_PATHS = [
@@ -122,6 +131,62 @@ def check_design_status(path: Path, errors: list[str]) -> None:
         errors.append(f"{path.relative_to(ROOT).as_posix()} has invalid Status: {statuses[0]}; expected one of {valid}.")
 
 
+def collect_settings_aliases() -> dict[str, list[str]]:
+    tree = ast.parse(SETTINGS_PATH.read_text(encoding="utf-8"), filename=str(SETTINGS_PATH))
+    settings_class = next(
+        node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "Settings"
+    )
+    aliases: dict[str, list[str]] = {}
+    for node in settings_class.body:
+        if not isinstance(node, ast.AnnAssign) or not isinstance(node.target, ast.Name):
+            continue
+        field_aliases = field_validation_aliases(node)
+        if field_aliases:
+            aliases[node.target.id] = field_aliases
+    return aliases
+
+
+def field_validation_aliases(node: ast.AnnAssign) -> list[str]:
+    if not isinstance(node.value, ast.Call):
+        return []
+    for keyword in node.value.keywords:
+        if keyword.arg == "validation_alias":
+            return alias_node_values(keyword.value)
+    return []
+
+
+def alias_node_values(node: ast.AST) -> list[str]:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return [node.value]
+    if isinstance(node, ast.Call) and getattr(node.func, "id", "") == "AliasChoices":
+        return [
+            arg.value
+            for arg in node.args
+            if isinstance(arg, ast.Constant) and isinstance(arg.value, str)
+        ]
+    return []
+
+
+def check_configuration_reference(errors: list[str]) -> None:
+    aliases_by_field = collect_settings_aliases()
+    reference = CONFIG_REFERENCE_PATH.read_text(encoding="utf-8")
+    for field_name, aliases in aliases_by_field.items():
+        if not any(alias in reference for alias in aliases):
+            errors.append(f"docs/reference/configuration.md does not reference setting: {field_name} ({aliases[0]})")
+    for env_path in ENV_EXAMPLE_PATHS:
+        check_env_example(env_path, aliases_by_field, errors)
+
+
+def check_env_example(path: Path, aliases_by_field: dict[str, list[str]], errors: list[str]) -> None:
+    if not path.exists():
+        errors.append(f"Environment example is missing: {path.name}")
+        return
+    text = path.read_text(encoding="utf-8")
+    for field_name, aliases in aliases_by_field.items():
+        if not any(alias in text for alias in aliases):
+            errors.append(f"{path.name} does not reference setting: {field_name} ({aliases[0]})")
+
+
 def iter_markdown_files() -> list[Path]:
     files = []
     if AGENTS_PATH.exists():
@@ -135,6 +200,7 @@ def main() -> int:
     errors: list[str] = []
     check_agents(errors)
     check_required_paths(errors)
+    check_configuration_reference(errors)
 
     for path in iter_markdown_files():
         check_links(path, errors)

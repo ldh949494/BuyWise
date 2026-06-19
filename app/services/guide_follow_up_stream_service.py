@@ -8,6 +8,7 @@ from typing import Any
 from app.core.config import settings
 from app.core.metrics import count_llm_failure
 from app.core.traffic import is_capacity_limited
+from app.ai.safety import AgentSafetyService
 from app.schemas.chat import ChatRequest
 from app.schemas.chat_stream import (
     ChatStreamDoneEventData,
@@ -20,6 +21,7 @@ class GuideFollowUpStreamService:
     def __init__(self, chat_service: Any, event_builder: Callable[[str, Any], dict[str, Any]]) -> None:
         self.chat_service = chat_service
         self._event = event_builder
+        self.safety = AgentSafetyService()
 
     async def generate_events(
         self,
@@ -28,8 +30,8 @@ class GuideFollowUpStreamService:
     ) -> AsyncIterator[dict[str, Any]]:
         yield self._event("status", ChatStreamStatusEventData(stage="context", message="follow_up_context"))
         text = (request.message or "").strip()
-        if refresh_reason := self._missing_context_reason(request, text):
-            async for event in self._stream_refresh_signal(context, "missing_context"):
+        if reason := self._missing_context_reason(request, text):
+            async for event in self._stream_refresh_signal(context, reason):
                 yield event
             return
         snapshot = self._latest_recommendation_snapshot(context)
@@ -38,12 +40,25 @@ class GuideFollowUpStreamService:
                 yield event
             return
         self.chat_service._save_user_message(context["chat_repo"], context["session_id"], request, text, None)
+        async for event in self._stream_follow_up_with_snapshot(context, text, snapshot):
+            yield event
+
+    async def _stream_follow_up_with_snapshot(
+        self,
+        context: dict[str, Any],
+        text: str,
+        snapshot: dict[str, Any],
+    ) -> AsyncIterator[dict[str, Any]]:
         if action_result := self._execute_action_if_present(context, text):
             async for event in self._stream_action_result(context, action_result):
                 yield event
             return
         if self._should_refresh_follow_up(text, snapshot):
             async for event in self._stream_refresh_signal(context, "needs_new_recommendation"):
+                yield event
+            return
+        if self._is_realtime_or_platform_claim_question(text):
+            async for event in self._stream_policy_limited_answer(context, snapshot):
                 yield event
             return
         async for event in self._stream_follow_up_answer(context, text, snapshot):
@@ -57,7 +72,19 @@ class GuideFollowUpStreamService:
     def _execute_action_if_present(self, context: dict[str, Any], text: str) -> Any:
         chat_repo = context["chat_repo"]
         db = chat_repo.db if hasattr(chat_repo, "db") else object()
-        return self.chat_service._execute_chat_action(text, chat_repo, context["session_id"], db, context.get("user_id"))
+        security_context = self._security_context(context)
+        return self.chat_service._execute_chat_action(text, chat_repo, security_context, db)
+
+    def _security_context(self, context: dict[str, Any]) -> Any:
+        from app.services.chat_session_security import ChatSessionContext
+
+        return ChatSessionContext(
+            session_id=context["session_id"],
+            session_token=context.get("session_token"),
+            owner_subject=context.get("owner_subject"),
+            owner_auth_type=context.get("owner_auth_type"),
+            user_id=context.get("user_id"),
+        )
 
     async def _stream_follow_up_answer(
         self,
@@ -68,23 +95,63 @@ class GuideFollowUpStreamService:
         context["stream_path"] = "follow_up_snapshot"
         yield self._event("status", ChatStreamStatusEventData(stage="generation", message="follow_up_generation"))
         chunks = []
+        async for chunk in self._stream_follow_up_chunks(message, snapshot):
+            if chunk["type"] == "status":
+                yield self._event("status", ChatStreamStatusEventData(stage="fallback", message=chunk["message"]))
+                continue
+            chunks.append(chunk["text"])
+            yield self._event("token", ChatStreamTokenEventData(text=chunk["text"]))
+        reply = self._build_guarded_follow_up_reply(chunks, snapshot)
+        if reply["degraded"]:
+            self._save_follow_up_assistant(context, reply["text"], snapshot)
+            yield self._event(
+                "done",
+                ChatStreamDoneEventData(
+                    reply=reply["text"],
+                    degraded=True,
+                    degraded_reason=reply["degraded_reason"],
+                ),
+            )
+            return
+        self._save_follow_up_assistant(context, reply["text"], snapshot)
+        yield self._event("done", ChatStreamDoneEventData(reply=reply["text"]))
+
+    async def _stream_follow_up_chunks(
+        self,
+        message: str,
+        snapshot: dict[str, Any],
+    ) -> AsyncIterator[dict[str, str]]:
         try:
             async for chunk in self.chat_service.llm_client.stream_chat(
                 self._follow_up_messages(message, snapshot),
                 max_tokens=settings.chat_stream_fast_reply_max_tokens,
             ):
-                chunks.append(chunk)
-                yield self._event("token", ChatStreamTokenEventData(text=chunk))
+                yield {"type": "token", "text": chunk}
         except Exception as exc:
             if not is_capacity_limited(exc, "llm"):
                 raise
             count_llm_failure("follow_up", "capacity_limited")
-            chunks = [self._fallback_follow_up_reply(snapshot)]
-            yield self._event("status", ChatStreamStatusEventData(stage="fallback", message="llm_capacity_limited"))
-            yield self._event("token", ChatStreamTokenEventData(text=chunks[0]))
-        reply = "".join(chunks)
+            yield {"type": "status", "message": "llm_capacity_limited"}
+            yield {"type": "token", "text": self._fallback_follow_up_reply(snapshot)}
+
+    def _build_guarded_follow_up_reply(self, chunks: list[str], snapshot: dict[str, Any]) -> dict[str, Any]:
+        fallback = self._fallback_follow_up_reply(snapshot)
+        text = self.safety.guard_follow_up_reply("".join(chunks), snapshot, fallback)
+        if self._looks_truncated(text):
+            return {"text": fallback, "degraded": True, "degraded_reason": "follow_up_truncated"}
+        return {"text": text, "degraded": False}
+
+    async def _stream_policy_limited_answer(
+        self,
+        context: dict[str, Any],
+        snapshot: dict[str, Any],
+    ) -> AsyncIterator[dict[str, Any]]:
+        context["stream_path"] = "follow_up_policy_limited"
+        reply = self._policy_limited_reply(snapshot)
         self._save_follow_up_assistant(context, reply, snapshot)
-        yield self._event("done", ChatStreamDoneEventData(reply=reply))
+        yield self._event("status", ChatStreamStatusEventData(stage="fallback", message="policy_limited"))
+        yield self._event("token", ChatStreamTokenEventData(text=reply))
+        yield self._event("done", ChatStreamDoneEventData(reply=reply, extra={"policy_limited": True}))
 
     async def _stream_action_result(self, context: dict[str, Any], action_result: Any) -> AsyncIterator[dict[str, Any]]:
         context["stream_path"] = "follow_up_action"
@@ -165,6 +232,31 @@ class GuideFollowUpStreamService:
         recommendation_request_markers = ["推荐一个", "推荐一款", "推荐一下", "帮我推荐", "再推荐"]
         return bool(category and any(marker in normalized for marker in recommendation_request_markers) and category not in normalized)
 
+    def _is_realtime_or_platform_claim_question(self, text: str) -> bool:
+        markers = [
+            "优惠券",
+            "包邮",
+            "免邮",
+            "满减",
+            "折扣",
+            "促销",
+            "实时库存",
+            "实时价格",
+            "现货",
+            "官方认证",
+            "保修",
+            "售后",
+        ]
+        return any(marker in text for marker in markers)
+
+    def _looks_truncated(self, reply: str) -> bool:
+        stripped = reply.strip()
+        if not stripped:
+            return False
+        if stripped.endswith(("。", "！", "？", ".", "!", "?", "）", "】")):
+            return False
+        return len(stripped) >= max(settings.chat_stream_fast_reply_max_tokens - 20, 80)
+
     def _follow_up_messages(self, message: str, snapshot: dict[str, Any]) -> list[dict[str, str]]:
         return [
             {
@@ -207,6 +299,17 @@ class GuideFollowUpStreamService:
             reason = top.get("reason") if isinstance(top, dict) else getattr(top, "reason", "")
             return f"基于当前导购结果，优先看 {name}。主要理由是{reason or '它更贴近已记录的预算和偏好'}。"
         return "基于当前导购结果，可以继续围绕已给出的方案比较理由、风险和购买前注意。"
+
+    def _policy_limited_reply(self, snapshot: dict[str, Any]) -> str:
+        products = snapshot.get("products") or []
+        if products:
+            top = products[0]
+            name = top.get("name") if isinstance(top, dict) else getattr(top, "name", "")
+            return (
+                "当前导购快照不能验证优惠券、包邮、实时库存、官方认证、保修或实时价格。"
+                f"只能基于已保存的商品卡片继续比较；当前可优先参考 {name} 的价格、评分、标签和适用场景。"
+            )
+        return "当前导购快照不能验证优惠券、包邮、实时库存、官方认证、保修或实时价格；需要回到商品详情页或平台页面确认。"
 
     def _refresh_reply(self, reason: str) -> str:
         messages = {

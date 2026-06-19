@@ -11,6 +11,7 @@ from app.schemas.guide_preferences import AppliedPreferences
 
 class ChatStreamMetaEventData(BaseSchema):
     session_id: str
+    session_token: str | None = None
 
 
 class ChatStreamStatusEventData(BaseSchema):

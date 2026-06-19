@@ -1,4 +1,5 @@
 from decimal import Decimal
+import logging
 
 import pytest
 from sqlalchemy import create_engine
@@ -47,6 +48,11 @@ class FakeImageStore:
 class UnexpectedImageStore:
     def search_by_recognition(self, recognized: VisionRecognition, image_url: str, top_k: int):
         raise AssertionError("image store should not be called after recognition fallback")
+
+
+class FailingImageStore:
+    def search_by_recognition(self, recognized: VisionRecognition, image_url: str, top_k: int):
+        raise OSError("image index unavailable")
 
 
 @pytest.mark.anyio
@@ -107,6 +113,33 @@ async def test_visual_search_falls_back_when_vision_provider_fails() -> None:
     assert response.recognized.query == "宿舍低噪音键盘"
     assert response.visual_matches == []
     assert [product.id for product in response.products] == [2]
+
+
+@pytest.mark.anyio
+async def test_visual_search_logs_image_index_fallback(caplog) -> None:
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    session_factory = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    with session_factory() as db:
+        db.add(Product(id=2, name="户外防风夹克", category="外套", price=Decimal("499.00"), tags=["户外", "拉链"]))
+        db.commit()
+        service = VisualSearchService(
+            vision_service=FakeVisionService(),
+            rag_pipeline=FakeRAGPipeline(),
+            image_store=FailingImageStore(),
+        )
+
+        with caplog.at_level(logging.WARNING):
+            response = await service.search(VisualSearchRequest(image_url="/uploads/jacket.png"), db)
+
+    assert response.fallback_used is True
+    assert response.visual_matches == []
+    assert [product.id for product in response.products] == [2]
+    assert "Visual image index search failed" in caplog.text
 
 
 @pytest.mark.anyio

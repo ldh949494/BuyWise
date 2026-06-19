@@ -152,7 +152,7 @@ class RecommendationScoringPolicy:
             conflicts.append("库存不足")
             return -20.0
         if stock is not None and stock > 0:
-            reasons.append("库存充足")
+            reasons.append("商品卡显示有库存")
             return 5.0
         return 0.0
 

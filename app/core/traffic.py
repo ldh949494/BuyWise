@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.config import settings
 from app.core.exceptions import AppError
+from app.core.metrics import count_chat_rate_limited
 
 
 REQUEST_ID_HEADER = "X-Request-ID"
@@ -77,7 +78,7 @@ _CAPACITY_LIMITERS: dict[str, CapacityLimiter] = {}
 
 
 def rate_limit_response(request: Request) -> JSONResponse | None:
-    endpoint_limit = _endpoint_limit(request.url.path)
+    endpoint_limit = _endpoint_limit(request)
     if endpoint_limit is None:
         return None
     identity = _rate_limit_identity(request)
@@ -85,6 +86,7 @@ def rate_limit_response(request: Request) -> JSONResponse | None:
     allowed, retry_after = _RATE_LIMITER.check(key, limit=endpoint_limit.per_minute, window_seconds=60)
     if allowed:
         return None
+    count_chat_rate_limited(endpoint_limit.scope)
     request_id = getattr(request.state, "request_id", None)
     return JSONResponse(
         status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -101,6 +103,29 @@ def rate_limit_response(request: Request) -> JSONResponse | None:
             "Retry-After": str(retry_after),
             REQUEST_ID_HEADER: request_id or "",
         },
+    )
+
+
+def check_chat_session_rate_limit(session_id: str | None) -> None:
+    normalized_session_id = (session_id or "").strip()
+    if not normalized_session_id or settings.chat_session_rate_limit_per_minute <= 0:
+        return
+    scope = "chat_session"
+    key = f"{scope}:{normalized_session_id}"
+    allowed, retry_after = _RATE_LIMITER.check(
+        key,
+        limit=settings.chat_session_rate_limit_per_minute,
+        window_seconds=60,
+    )
+    if allowed:
+        return
+    count_chat_rate_limited(scope)
+    raise AppError(
+        "Too many requests.",
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        code="rate_limited",
+        extra={"limit_scope": scope, "retry_after_seconds": retry_after},
+        headers={"Retry-After": str(retry_after)},
     )
 
 
@@ -166,9 +191,10 @@ def reset_traffic_state() -> None:
     _CAPACITY_LIMITERS.clear()
 
 
-def _endpoint_limit(path: str) -> EndpointLimit | None:
-    if path.endswith("/ai/chat/stream") or path.endswith("/ai/chat"):
-        return EndpointLimit("chat", settings.chat_rate_limit_per_minute)
+def _endpoint_limit(request: Request) -> EndpointLimit | None:
+    path = request.url.path
+    if _is_chat_path(path):
+        return _chat_endpoint_limit(request)
     if "/vision" in path:
         return EndpointLimit("vision", settings.vision_rate_limit_per_minute)
     if "/speech" in path:
@@ -178,14 +204,50 @@ def _endpoint_limit(path: str) -> EndpointLimit | None:
     return None
 
 
+def _is_chat_path(path: str) -> bool:
+    return any(
+        path.endswith(suffix)
+        for suffix in (
+            "/ai/chat",
+            "/ai/chat/stream",
+            "/ai/guide/stream",
+            "/ai/guide/follow-up/stream",
+            "/ai/compare/follow-up/stream",
+        )
+    )
+
+
+def _chat_endpoint_limit(request: Request) -> EndpointLimit:
+    from app.core.providers import get_auth_provider
+
+    principal = get_auth_provider().get_current_principal(request)
+    if principal is not None:
+        return EndpointLimit("chat_auth", _configured_chat_limit(settings.chat_auth_rate_limit_per_minute))
+    return EndpointLimit("chat_anon", _configured_chat_limit(settings.chat_anon_rate_limit_per_minute))
+
+
+def _configured_chat_limit(value: int) -> int:
+    return value if value > 0 else settings.chat_rate_limit_per_minute
+
+
 def _rate_limit_identity(request: Request) -> str:
     from app.core.providers import get_auth_provider
 
     principal = get_auth_provider().get_current_principal(request)
     if principal is not None:
         return f"subject:{principal.subject}"
+    session_id = _request_session_id(request)
+    if session_id:
+        return f"session:{session_id}"
     client_host = request.client.host if request.client else "unknown"
     return f"ip:{client_host}"
+
+
+def _request_session_id(request: Request) -> str | None:
+    content_type = request.headers.get("content-type", "")
+    if "application/json" not in content_type:
+        return None
+    return request.query_params.get("session_id")
 
 
 def _resource_limit(resource: str) -> int:

@@ -3,53 +3,50 @@ from __future__ import annotations
 import argparse
 import os
 import shutil
-import subprocess
 import sys
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from scripts.validate_entropy import BASELINE_PATH, collect_issues  # noqa: E402
+from app.utils.subprocess_tools import run_with_input  # noqa: E402
 
 ARTIFACTS_DIR = ROOT / "artifacts" / "entropy-gc"
 DEFAULT_MODEL = "openai/gpt-4.1"
 
 
-def run_with_input(cmd: list[str], stdin: str) -> str:
-    result = subprocess.run(
-        cmd,
-        cwd=ROOT,
-        input=stdin,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    if result.returncode != 0:
-        output = "\n".join(part.strip() for part in (result.stdout, result.stderr) if part.strip())
-        raise RuntimeError(output or f"Command failed: {' '.join(cmd)}")
-    return result.stdout.strip()
-
-
 def render_deterministic_report() -> str:
     issues = collect_issues()
-    counts = Counter(issue.rule for issue in issues)
-    lines = [
+    lines = build_report_header()
+    append_summary(lines, issues)
+    append_cleanup_candidates(lines, issues)
+    append_operating_notes(lines)
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def build_report_header() -> list[str]:
+    return [
         "# Entropy GC Report",
         "",
         f"Generated at: {datetime.now(UTC).isoformat()}",
         f"Baseline: {BASELINE_PATH.relative_to(ROOT).as_posix()}",
         "",
-        "## Summary",
-        "",
-        f"- Total detected entropy issues: {len(issues)}",
     ]
+
+
+def append_summary(lines: list[str], issues: list[Any]) -> None:
+    counts = Counter(issue.rule for issue in issues)
+    lines.extend(["## Summary", "", f"- Total detected entropy issues: {len(issues)}"])
     for rule, count in sorted(counts.items()):
         lines.append(f"- {rule}: {count}")
 
+
+def append_cleanup_candidates(lines: list[str], issues: list[Any]) -> None:
     lines.extend(["", "## Cleanup Candidates", ""])
     if not issues:
         lines.append("- No entropy issues detected.")
@@ -66,6 +63,8 @@ def render_deterministic_report() -> str:
             ]
         )
 
+
+def append_operating_notes(lines: list[str]) -> None:
     lines.extend(
         [
             "## Operating Notes",
@@ -74,7 +73,6 @@ def render_deterministic_report() -> str:
             "- After intentionally paying down or accepting debt, run `python scripts/validate_entropy.py --refresh-baseline`.",
         ]
     )
-    return "\n".join(lines).rstrip() + "\n"
 
 
 def build_ai_prompt() -> str:

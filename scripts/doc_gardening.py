@@ -4,7 +4,6 @@ import argparse
 import json
 import os
 import shutil
-import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -13,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from app.utils.subprocess_tools import run  # noqa: E402
+from app.utils.subprocess_tools import run, run_with_input  # noqa: E402
 
 ARTIFACTS_DIR = ROOT / "artifacts" / "doc-gardening"
 DEFAULT_MODEL = "openai/gpt-4.1"
@@ -29,21 +28,6 @@ CONTEXT_PATHS = [
     "scripts/auto_validate.ps1",
     "scripts/validate_docs.py",
 ]
-
-
-def run_with_input(cmd: list[str], stdin: str) -> str:
-    result = subprocess.run(
-        cmd,
-        cwd=ROOT,
-        input=stdin,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    if result.returncode != 0:
-        output = "\n".join(part.strip() for part in (result.stdout, result.stderr) if part.strip())
-        raise RuntimeError(output or f"Command failed: {' '.join(cmd)}")
-    return result.stdout.strip()
 
 
 def read_text(path: Path, *, limit: int = 12000) -> str:
@@ -182,6 +166,18 @@ def apply_updates(output: str) -> list[Path]:
     return changed
 
 
+def resolve_output_path(path_text: str) -> Path:
+    output_path = Path(path_text)
+    if not output_path.is_absolute():
+        output_path = ROOT / output_path
+    return output_path
+
+
+def write_report(output_path: Path, report: str) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(report, encoding="utf-8")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate a repository memory maintenance report.")
     parser.add_argument("--model", default=os.getenv("DOC_GARDENING_MODEL", DEFAULT_MODEL))
@@ -206,11 +202,8 @@ def main() -> int:
         else:
             print("No doc-gardening updates were needed.")
     else:
-        output_path = Path(args.output)
-        if not output_path.is_absolute():
-            output_path = ROOT / output_path
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(output.strip() + "\n", encoding="utf-8")
+        output_path = resolve_output_path(args.output)
+        write_report(output_path, output.strip() + "\n")
         print(f"Doc-gardening report written to {output_path}")
     return 0
 

@@ -94,6 +94,9 @@ class SecuritySettings:
 class TrafficSettings:
     request_max_bytes: int
     chat_rate_limit_per_minute: int
+    chat_auth_rate_limit_per_minute: int
+    chat_anon_rate_limit_per_minute: int
+    chat_session_rate_limit_per_minute: int
     vision_rate_limit_per_minute: int
     speech_rate_limit_per_minute: int
     upload_rate_limit_per_minute: int
@@ -103,6 +106,9 @@ class TrafficSettings:
         return cls(
             request_max_bytes=settings.request_max_bytes,
             chat_rate_limit_per_minute=settings.chat_rate_limit_per_minute,
+            chat_auth_rate_limit_per_minute=settings.chat_auth_rate_limit_per_minute,
+            chat_anon_rate_limit_per_minute=settings.chat_anon_rate_limit_per_minute,
+            chat_session_rate_limit_per_minute=settings.chat_session_rate_limit_per_minute,
             vision_rate_limit_per_minute=settings.vision_rate_limit_per_minute,
             speech_rate_limit_per_minute=settings.speech_rate_limit_per_minute,
             upload_rate_limit_per_minute=settings.upload_rate_limit_per_minute,

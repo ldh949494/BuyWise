@@ -96,7 +96,7 @@ def test_cart_address_checkout_shadow_order_flow() -> None:
 
 def test_cart_routes_are_registered() -> None:
     app = create_app()
-    paths = {route.path for route in app.routes}
+    paths = set(app.openapi().get("paths", {}))
 
     assert "/api/v1/cart" in paths
     assert "/api/v1/cart/items" in paths

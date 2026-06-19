@@ -12,22 +12,35 @@ from app.ai.llm_client import LLMClient
 from app.ai.model_gateway import AIModelGateway
 from app.ai.rag_pipeline import RAGPipeline
 from app.core.metrics import count_llm_failure, observe_chat_latency
+from app.core.providers import Principal
 from app.core.traffic import is_capacity_limited
 from app.core.transaction import UnitOfWork, unit_of_work
 from app.repositories.chat_repo import ChatRepository
-from app.repositories.price_repo import PriceHistoryRepository
-from app.repositories.review_repo import ReviewRepository
 from app.schemas.chat import BundlePlan, ChatRequest, ChatResponse
 from app.schemas.guide_preferences import AppliedPreferences
 from app.services.bundle_recommend_service import BundleRecommendService
 from app.services.chat_action_service import ChatActionResult, ChatActionService
+from app.services.chat_context_service import ChatContextService
+from app.services.chat_recommendation_mixin import ChatRecommendationMixin
+from app.services.chat_response_builders import (
+    build_assistant_structured_data,
+    build_chat_value_dump,
+    build_fallback_recommendation_reply,
+    build_out_of_scope_response,
+    build_out_of_scope_reply,
+    build_out_of_scope_structured_data,
+    build_recommendation_response,
+    build_security_extra,
+    validate_out_of_scope_need,
+)
+from app.services.chat_session_security import ChatSessionContext, ChatSessionSecurityService
 from app.services.chat_visual_search import handle_visual_search_request, validate_visual_search_request
 from app.services.guide_preferences_service import GuidePreferencesService
 from app.services.intent_service import IntentService
+from app.services.media_url_policy import MediaUrlPolicy
 from app.services.noop_chat_repo import NoopChatRepository
 from app.services.order_service import get_current_user_ref
 from app.services.recommend_service import RecommendService
-from app.services.recommendation_fallbacks import build_rag_fallback_meta, rank_with_fallback
 from app.services.speech_service import SpeechService
 from app.services.visual_search_service import VisualSearchService
 from app.services.vision_service import VisionService
@@ -37,7 +50,7 @@ from app.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
-class ChatService:
+class ChatService(ChatRecommendationMixin):
     def __init__(
         self,
         speech_service: SpeechService | None = None,
@@ -63,15 +76,24 @@ class ChatService:
             recommend_service=self.recommend_service,
         )
         self.chat_action_service = chat_action_service or ChatActionService()
+        self.chat_session_security = ChatSessionSecurityService()
+        self.media_url_policy = MediaUrlPolicy()
+        self.chat_context_service = ChatContextService()
 
-    async def handle_chat(self, request: ChatRequest, db: Session, user_id: int | None = None) -> ChatResponse:
+    async def handle_chat(
+        self,
+        request: ChatRequest,
+        db: Session,
+        user_id: int | None = None,
+        principal: Principal | None = None,
+    ) -> ChatResponse:
         started_at = time.perf_counter()
         chat_repo = self._chat_repo(request, db)
-        chat_session = chat_repo.get_or_create_session(request.session_id, title=self._session_title(request))
-        session_id = chat_session.session_id or chat_repo.generate_session_id()
+        security_context = self._chat_security_context(request, chat_repo, principal, user_id)
+        session_id = security_context.session_id
 
         try:
-            response = await self._handle_chat_checked(request, chat_repo, session_id, db, user_id)
+            response = await self._handle_chat_checked(request, chat_repo, security_context, db)
             self._observe_chat_response(response, started_at)
             return response
         except RuntimeError:
@@ -85,63 +107,78 @@ class ChatService:
             products=[],
             bundle_plans=[],
             applied_preferences=AppliedPreferences(ignored_saved_preferences=request.ignore_saved_preferences),
-            extra={"session_id": session_id},
+            extra=build_security_extra(security_context),
         )
 
     async def _handle_chat_checked(
         self,
         request: ChatRequest,
         chat_repo: Any,
-        session_id: str,
+        security_context: ChatSessionContext,
         db: Session,
-        user_id: int | None,
     ) -> ChatResponse:
+        session_id = security_context.session_id
         text = await self._build_user_text(request)
         image_info = await self._build_image_info(request)
         history_context = self._load_history_context(chat_repo, session_id)
         self._save_user_message(chat_repo, session_id, request, text, image_info)
-        if action_result := self._execute_chat_action(text, chat_repo, session_id, db, user_id):
-            return self._handle_action_result(chat_repo, session_id, action_result)
+        if action_result := self._execute_chat_action(text, chat_repo, security_context, db):
+            return self._handle_action_result(chat_repo, security_context, action_result)
         if validate_visual_search_request(request, text):
-            return await handle_visual_search_request(
-                request,
-                text,
-                chat_repo,
-                session_id,
-                db,
-                self.visual_search_service,
-                dump=self._dump,
-            )
+            return await self._handle_visual_search(request, text, chat_repo, security_context, db)
         need = await self._extract_need(text, image_info, history_context)
+        if self._is_out_of_scope_need(need):
+            return self._handle_out_of_scope(chat_repo, security_context)
         if need.need_clarify:
-            return await self._handle_clarify(chat_repo, session_id, need)
-        applied_preferences = self._apply_preferences(request, need, db, user_id)
-        return await self._handle_recommendation(chat_repo, session_id, need, db, applied_preferences)
+            return await self._handle_clarify(chat_repo, security_context, need)
+        applied_preferences = self._apply_preferences(request, need, db, security_context.user_id)
+        return await self._handle_recommendation(chat_repo, security_context, need, db, applied_preferences)
+
+    async def _handle_visual_search(
+        self,
+        request: ChatRequest,
+        text: str,
+        chat_repo: Any,
+        security_context: ChatSessionContext,
+        db: Session,
+    ) -> ChatResponse:
+        response = await handle_visual_search_request(
+            request,
+            text,
+            chat_repo,
+            security_context.session_id,
+            db,
+            self.visual_search_service,
+            dump=self._dump,
+        )
+        response.extra.update(build_security_extra(security_context))
+        return response
 
     def _execute_chat_action(
         self,
         text: str,
         chat_repo: Any,
-        session_id: str,
+        security_context: ChatSessionContext,
         db: Session,
-        user_id: int | None,
     ) -> ChatActionResult | None:
         return self.chat_action_service.handle_if_action(
             text=text,
             chat_repo=chat_repo,
-            session_id=session_id,
+            session_id=security_context.session_id,
             db=db,
-            user_ref=get_current_user_ref(str(user_id) if user_id is not None else None),
+            user_ref=get_current_user_ref(security_context.owner_subject),
+            owner_subject=security_context.owner_subject,
+            owner_auth_type=security_context.owner_auth_type,
         )
 
     def _handle_action_result(
         self,
         chat_repo: Any,
-        session_id: str,
+        security_context: ChatSessionContext,
         action_result: ChatActionResult,
     ) -> ChatResponse:
         chat_repo.create_message(
-            session_id,
+            security_context.session_id,
             "assistant",
             action_result.reply,
             structured_data={"action": action_result.action, **action_result.data},
@@ -154,7 +191,11 @@ class ChatService:
             products=[],
             bundle_plans=[],
             applied_preferences=AppliedPreferences(),
-            extra={"session_id": session_id, "action": action_result.action, **action_result.data},
+            extra={
+                **build_security_extra(security_context),
+                "action": action_result.action,
+                **action_result.data,
+            },
         )
 
     async def _extract_need(
@@ -176,39 +217,86 @@ class ChatService:
             outcome = "degraded" if response.extra.get("degraded") else "success"
         observe_chat_latency("json", outcome, time.perf_counter() - started_at)
 
+    def _is_out_of_scope_need(self, need: Any) -> bool:
+        return validate_out_of_scope_need(need, self._get_need_value)
+
+    def _handle_out_of_scope(self, chat_repo: Any, security_context: ChatSessionContext) -> ChatResponse:
+        reply = self._out_of_scope_reply()
+        chat_repo.create_message(
+            security_context.session_id,
+            "assistant",
+            reply,
+            structured_data=build_out_of_scope_structured_data(),
+        )
+        self._commit(chat_repo)
+        return build_out_of_scope_response(security_context)
+
+    def _out_of_scope_reply(self) -> str:
+        return build_out_of_scope_reply()
+
+    def _chat_security_context(
+        self,
+        request: ChatRequest,
+        chat_repo: Any,
+        principal: Principal | None,
+        user_id: int | None,
+    ) -> ChatSessionContext:
+        if principal is None and user_id is not None:
+            principal = Principal(subject=f"user:{user_id}", scopes=(), auth_type="user")
+        if not hasattr(chat_repo, "get_session"):
+            session = chat_repo.get_or_create_session(request.session_id, title=self._session_title(request))
+            return ChatSessionContext(
+                session_id=session.session_id or chat_repo.generate_session_id(),
+                session_token=None,
+                owner_subject=principal.subject if principal else None,
+                owner_auth_type=principal.auth_type if principal else "anonymous",
+                user_id=user_id,
+            )
+        return self.chat_session_security.get_or_create_context(
+            chat_repo,
+            session_id=request.session_id,
+            title=self._session_title(request),
+            principal=principal,
+            session_token=request.session_token,
+        )
+
     def generate_chat_stream(
         self,
         request: ChatRequest,
         db: Session,
         user_id: int | None = None,
+        principal: Principal | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         from app.services.chat_stream_service import ChatStreamRunner
 
-        return ChatStreamRunner(self).generate_events(request, db, user_id=user_id)
+        return ChatStreamRunner(self).generate_events(request, db, user_id=user_id, principal=principal)
 
     def generate_guide_stream(
         self,
         request: ChatRequest,
         db: Session,
         user_id: int | None = None,
+        principal: Principal | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         from app.services.chat_stream_service import ChatStreamRunner
 
-        return ChatStreamRunner(self).generate_guide_events(request, db, user_id=user_id)
+        return ChatStreamRunner(self).generate_guide_events(request, db, user_id=user_id, principal=principal)
 
     def generate_follow_up_stream(
         self,
         request: ChatRequest,
         db: Session,
         user_id: int | None = None,
+        principal: Principal | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         from app.services.chat_stream_service import ChatStreamRunner
 
-        return ChatStreamRunner(self).generate_follow_up_events(request, db, user_id=user_id)
+        return ChatStreamRunner(self).generate_follow_up_events(request, db, user_id=user_id, principal=principal)
 
     async def _build_user_text(self, request: ChatRequest) -> str:
         text = request.message or ""
         if request.audio_url:
+            self.media_url_policy.validate(request.audio_url)
             audio_text = await self.speech_service.extract_transcript(request.audio_url)
             text = self._join_text(text, audio_text)
         return text
@@ -216,11 +304,12 @@ class ChatService:
     async def _build_image_info(self, request: ChatRequest) -> dict | None:
         if not request.image_url:
             return None
+        self.media_url_policy.validate(request.image_url)
         return await self.vision_service.extract_image_info(request.image_url)
 
     def _load_history_context(self, chat_repo: Any, session_id: str) -> dict[str, Any]:
         prior_messages = chat_repo.list_messages(session_id)
-        return self._history_context(prior_messages)
+        return self.chat_context_service.build_history_context(prior_messages)
 
     def _save_user_message(
         self,
@@ -241,10 +330,10 @@ class ChatService:
             },
         )
 
-    async def _handle_clarify(self, chat_repo: Any, session_id: str, need: Any) -> ChatResponse:
+    async def _handle_clarify(self, chat_repo: Any, security_context: ChatSessionContext, need: Any) -> ChatResponse:
         reply = await self.llm_client.generate_clarify_question(need)
         chat_repo.create_message(
-            session_id,
+            security_context.session_id,
             "assistant",
             reply,
             structured_data={"need": self._dump(need), "need_clarify": True},
@@ -257,38 +346,66 @@ class ChatService:
             products=[],
             bundle_plans=[],
             applied_preferences=AppliedPreferences(),
-            extra={"session_id": session_id},
+            extra=build_security_extra(security_context),
         )
 
     async def _handle_recommendation(
         self,
         chat_repo: Any,
-        session_id: str,
+        security_context: ChatSessionContext,
         need: Any,
         db: Session,
         applied_preferences: AppliedPreferences,
     ) -> ChatResponse:
+        session_id = security_context.session_id
         top_products, bundle_plans = await self._recommendation_results(need, db)
-        fallback_meta = self._rag_fallback_meta()
         reply, extra = await self._recommendation_reply(session_id, need, top_products, bundle_plans)
-        extra.update(fallback_meta)
-        chat_repo.create_message(
-            session_id,
-            "assistant",
+        extra.update(self._recommendation_extra(security_context))
+        self._save_recommendation_result(
+            chat_repo,
+            security_context,
             reply,
-            structured_data=self._assistant_structured_data(need, top_products, extra, bundle_plans, applied_preferences),
+            need,
+            top_products,
+            bundle_plans,
+            applied_preferences,
+            extra,
         )
-        chat_repo.create_recommendations(session_id, top_products)
-        self._commit(chat_repo)
-        return ChatResponse(
+        return build_recommendation_response(
             reply=reply,
-            need_clarify=False,
-            structured_need=need,
+            need=need,
             products=top_products,
             bundle_plans=bundle_plans,
             applied_preferences=applied_preferences,
             extra=extra,
         )
+
+    def _recommendation_extra(self, security_context: ChatSessionContext) -> dict[str, Any]:
+        extra = build_security_extra(security_context)
+        extra.update(self._rag_fallback_meta())
+        return extra
+
+    def _save_recommendation_result(
+        self,
+        chat_repo: Any,
+        security_context: ChatSessionContext,
+        reply: str,
+        need: Any,
+        products: list[Any],
+        bundle_plans: list[BundlePlan],
+        applied_preferences: AppliedPreferences,
+        extra: dict[str, Any],
+    ) -> None:
+        structured_data = build_assistant_structured_data(
+            need=need,
+            products=products,
+            extra=extra,
+            bundle_plans=bundle_plans,
+            applied_preferences=applied_preferences,
+        )
+        chat_repo.create_message(security_context.session_id, "assistant", reply, structured_data=structured_data)
+        chat_repo.create_recommendations(security_context.session_id, products)
+        self._commit(chat_repo)
 
     async def _recommendation_reply(
         self,
@@ -308,30 +425,7 @@ class ChatService:
                 raise
             count_llm_failure("recommendation", "capacity_limited")
         extra.update({"degraded": True, "degraded_reason": "llm_capacity_limited"})
-        return self._fallback_recommendation_reply(top_products), extra
-
-    def _assistant_structured_data(
-        self,
-        need: Any,
-        top_products: list[Any],
-        extra: dict[str, Any],
-        bundle_plans: list[BundlePlan] | None = None,
-        applied_preferences: AppliedPreferences | None = None,
-    ) -> dict[str, Any]:
-        structured_data = {
-            "need": self._dump(need),
-            "products": [self._dump(product) for product in top_products],
-            "applied_preferences": self._dump(applied_preferences or AppliedPreferences()),
-        }
-        if bundle_plans:
-            structured_data["bundle_plans"] = [self._dump(plan) for plan in bundle_plans]
-        for key in ["fallback_used", "fallback_stage", "result_quality"]:
-            if key in extra:
-                structured_data[key] = extra[key]
-        if extra.get("degraded"):
-            structured_data["degraded"] = True
-            structured_data["degraded_reason"] = extra["degraded_reason"]
-        return structured_data
+        return build_fallback_recommendation_reply(top_products), extra
 
     def _apply_preferences(
         self,
@@ -363,9 +457,7 @@ class ChatService:
         return None
 
     def _dump(self, value: Any) -> Any:
-        if hasattr(value, "model_dump"):
-            return value.model_dump(mode="json")
-        return value
+        return build_chat_value_dump(value)
 
     def _commit(self, chat_repo: Any) -> None:
         db = getattr(chat_repo, "db", None)
@@ -382,98 +474,3 @@ class ChatService:
         if hasattr(db, "scalar") and hasattr(db, "add"):
             return ChatRepository(db)
         return NoopChatRepository(request.session_id)
-
-    def _fallback_recommendation_reply(self, products: list[Any]) -> str:
-        if not products:
-            return "没有找到匹配商品。可以换个品类、商品名，或放宽预算和偏好后再试。"
-        names = "、".join(str(getattr(product, "name", "")) for product in products[:3] if getattr(product, "name", None))
-        if names:
-            return f"当前 AI 总结暂时繁忙，先为你返回基础推荐：{names}。你可以先查看商品卡片。"
-        return "当前 AI 总结暂时繁忙，先为你返回基础推荐。你可以先查看商品卡片。"
-
-    def _history_context(self, messages: list[Any]) -> dict[str, Any]:
-        for message in reversed(messages):
-            structured_data = getattr(message, "structured_data", None) or {}
-            need = structured_data.get("need")
-            if isinstance(need, dict):
-                return {
-                    key: need.get(key)
-                    for key in ["category", "budget_max", "scenario", "preferences"]
-                    if need.get(key) not in (None, [], "")
-                }
-        return {}
-
-    async def _rank_recommendations(self, need: Any, db: Session) -> list[Any]:
-        if self._is_bundle_intent(need):
-            return await self._rank_bundle_recommendations(need, db)
-        strategy = self._get_need_value(need, "retrieval_strategy") or "balanced"
-        products = await self.rag_pipeline.search_products(need, db, top_k=self._retrieval_top_k(strategy))
-        self._attach_quality_signals(products, db)
-        return rank_with_fallback(
-            products,
-            need,
-            self.recommend_service,
-            get_value=self._get_need_value,
-            logger=logger,
-        )[: self._result_limit(strategy)]
-
-    async def _recommendation_results(self, need: Any, db: Session) -> tuple[list[Any], list[BundlePlan]]:
-        if not self._is_bundle_intent(need):
-            return await self._rank_recommendations(need, db), []
-        products = await self.rag_pipeline.search_products(need, db, top_k=30)
-        self._attach_quality_signals(products, db)
-        bundle_plans = self.bundle_recommend_service.build_plans(products, need)
-        return self._flatten_bundle_plan_products(bundle_plans), bundle_plans
-
-    async def _rank_bundle_recommendations(self, need: Any, db: Session) -> list[Any]:
-        products = await self.rag_pipeline.search_products(need, db, top_k=30)
-        self._attach_quality_signals(products, db)
-        return self.bundle_recommend_service.rank_cards(products, need)
-
-    def _is_bundle_intent(self, need: Any) -> bool:
-        return self._get_need_value(need, "intent") in {"bundle_recommend", "场景化组合推荐"}
-
-    def _flatten_bundle_plan_products(self, bundle_plans: list[BundlePlan]) -> list[Any]:
-        products = []
-        seen_ids = set()
-        for plan in bundle_plans:
-            for item in plan.items:
-                if item.product.id in seen_ids:
-                    continue
-                seen_ids.add(item.product.id)
-                products.append(item.product)
-        return products
-
-    def _fallback_bundle_reply(self, bundle_plans: list[BundlePlan]) -> str:
-        names = "、".join(plan.title for plan in bundle_plans[:3])
-        return f"我按预算档整理了 {len(bundle_plans)} 套组合方案：{names}。你可以先看总价、完整度和关键取舍，再进入方案对比。"
-
-    def _get_need_value(self, need: Any, key: str) -> Any:
-        if isinstance(need, dict):
-            return need.get(key)
-        return getattr(need, key, None)
-
-    def _rag_fallback_meta(self) -> dict[str, Any]:
-        return build_rag_fallback_meta(self.rag_pipeline)
-
-    def _retrieval_top_k(self, strategy: str) -> int:
-        if strategy == "explore":
-            return 30
-        if strategy == "strict":
-            return 12
-        return 20
-
-    def _result_limit(self, strategy: str) -> int:
-        if strategy == "explore":
-            return 8
-        return 5
-
-    def _attach_quality_signals(self, products: list[Any], db: Session) -> None:
-        if not hasattr(db, "execute"):
-            return
-        product_ids = [product.id for product in products]
-        price_averages = PriceHistoryRepository(db).get_average_by_product_ids(product_ids)
-        review_counts = ReviewRepository(db).get_sentiment_counts_by_product_ids(product_ids)
-        for product in products:
-            product.price_history_average = price_averages.get(product.id)
-            product.review_sentiment_counts = review_counts.get(product.id, {})

@@ -186,7 +186,7 @@ def test_compare_api_returns_frontend_ready_table_payload() -> None:
 
 def test_compare_api_route_is_registered() -> None:
     app = create_app()
-    paths = {route.path for route in app.routes}
+    paths = set(app.openapi().get("paths", {}))
 
     assert "/api/v1/products/compare" in paths
 

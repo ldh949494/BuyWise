@@ -13,14 +13,14 @@ def test_create_app_returns_fastapi_instance() -> None:
 
 def test_health_route_is_registered() -> None:
     app = create_app()
-    paths = {route.path for route in app.routes}
+    paths = set(app.openapi().get("paths", {}))
 
     assert f"{settings.api_v1_prefix}/health" in paths
 
 
 def test_metrics_route_is_registered_when_instrumentation_is_available() -> None:
     app = create_app()
-    paths = {route.path for route in app.routes}
+    paths = set(app.openapi().get("paths", {}))
 
     try:
         import prometheus_fastapi_instrumentator  # noqa: F401

@@ -119,7 +119,16 @@ class VisualSearchService:
     def _visual_matches(self, recognized: VisionRecognition, image_url: str, top_k: int) -> list[VisualMatch]:
         try:
             return self.image_store.search_by_recognition(recognized, image_url, top_k)
-        except (OSError, RuntimeError, TypeError, ValueError):
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
+            logger.warning(
+                "Visual image index search failed; falling back to text and catalog search",
+                exc_info=True,
+                extra={
+                    "image_url": image_url,
+                    "top_k": top_k,
+                    "failure_reason": type(exc).__name__,
+                },
+            )
             return []
 
     def _products_from_matches(self, db: Session, visual_matches: list[VisualMatch]) -> list[Any]:

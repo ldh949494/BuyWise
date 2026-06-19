@@ -2,8 +2,9 @@
 
 ## 验证
 
-- `scripts/auto_validate.ps1`：仓库提交前和 CI 验证入口。它会运行文档校验、provider lint、仓库 lint、熵债校验、后端 smoke check、使用仓库内 basetemp 且禁用 cache 的 pytest，并默认构建 `admin-web`；可用 `-SkipAdminWebBuild` 跳过后台前端构建，可用 `-SkipAndroidBuild` 跳过 Android 构建。
+- `scripts/auto_validate.ps1`：仓库提交前和 CI 验证入口。它会运行文档校验、provider lint、仓库 lint、熵债校验、OpenAPI contract、后端 smoke check、使用仓库内 basetemp 且禁用 cache 的 pytest，并默认构建 `admin-web`；可用 `-SkipAdminWebBuild` 跳过后台前端构建，可用 `-SkipAndroidBuild` 跳过 Android 构建。
 - `scripts/release_check.ps1`：发版前聚合验证入口。默认调用 `auto_validate.ps1`、Android lint 和 Android debug build；传入 `-CheckIndex` 时运行 `app.scripts.check_vector_index`，传入 `-RunRagEval` 时运行 RAG 质量阈值门禁，传入 `-RunRealDependencySmoke` 时运行 MySQL 与 COS 真实或沙箱依赖 smoke，传入 `-Token` 与 `-ReadinessToken` 时运行 closed beta readiness 和 smoke。可用 `-ExpectedActiveProducts <count>` 把固定目录规模门禁传给 readiness；可用 `-RagEvalProfile android-contract|demo|beta-fixture`、`-RagEvalRetrieval fallback|vector`、`-MinRagRecall`、`-MinRagTop1`、`-MinRagMrr`、`-MaxRagFallbackRate`、`-MaxRagEmptyResultRate` 和 `-RagEvalOutputJson` 配置 RAG 门禁；可用 `-SmokeMySql`、`-SmokeCos` 和 `-RealDependencySmokeOutputJson` 配置真实依赖 smoke；可用 `-SkipAndroidBuild`、`-SkipAndroidAnalyze` 和 `-SkipDependencyInstall` 控制本地耗时。
+- `scripts/security_audit.ps1`：显式依赖安全审计入口。它会先运行 `scripts/validate_chroma_boundary.py` 确认项目没有使用或部署 Chroma HTTP API，再用 `pip-audit -r requirements-dev.txt` 审计 Python 依赖，并在存在 `admin-web/package.json` 时运行 `npm audit`；可用 `-SkipPython` 或 `-SkipAdminWeb` 跳过单侧审计。ChromaDB 当前无上游修复版本的 HTTP API CVE 只在边界校验通过后按 CVE ID 单项忽略。
 - `scripts/validate_docs.py`：校验 `AGENTS.md` 和 `docs/`。
 - `scripts/validate_providers.py`：校验后端模块是否通过统一 Provider 入口访问横切能力。
 - `scripts/validate_repo_lint.py`：自定义仓库 linter，覆盖结构化日志、命名、文件大小和导入边界。
@@ -11,6 +12,7 @@
 - `scripts/validate_entropy.py`：根据 `docs/entropy/baseline.json` 校验黄金原则熵债规则。
 - `scripts/entropy_gc.py`：在 `artifacts/entropy-gc/` 下生成只读熵债清理报告。
 - `scripts/entropy_cleanup_agent.py`：通过 GitHub Models 执行一个低风险熵债清理，供后台清理流程使用。
+- `scripts/validate_chroma_boundary.py`：校验 BuyWise 只使用本地持久化 Chroma client，不使用 `chromadb.HttpClient`、默认网络 client、Chroma server CLI 或 Chroma server container。
 - `scripts/test_matrix.ps1`：分层测试入口。`-Tier unit` 运行无真实外部依赖的 pytest，`-Tier integration` 运行带 `integration` marker 的 Chroma、MySQL 兼容路径和 mock external provider 测试，`-Tier release` 转发到 `release_check.ps1` 运行发版级 readiness、smoke、AI smoke、索引、RAG eval gate 和真实依赖 smoke。
 
 ## 依赖文件

@@ -319,7 +319,7 @@ def test_speech_asr_endpoint_reports_missing_tencent_configuration() -> None:
 
 def test_multimodal_routes_are_registered() -> None:
     app = create_app()
-    paths = {route.path for route in app.routes}
+    paths = set(app.openapi().get("paths", {}))
 
     assert "/api/v1/upload" in paths
     assert "/api/v1/vision/recognize" in paths

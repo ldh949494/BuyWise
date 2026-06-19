@@ -62,6 +62,8 @@ def test_readiness_requires_token_in_prod() -> None:
     settings.user_jwt_secret = "test-user-secret"
     settings.auth_otp_mock_enabled = False
     settings.allow_mock_providers_in_prod = True
+    settings.chat_session_tokens_enabled = True
+    settings.ai_media_url_allowlist_enabled = True
 
     class FakeReadinessService:
         def validate_readiness(self, include_details=False):

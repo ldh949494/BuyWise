@@ -13,6 +13,7 @@
 
 ## 已完成记录
 
+- 2026-06-19 深度维护清理：刷新 OpenAPI snapshot 并把 contract 校验并入默认验证；补齐 `docs/reference/configuration.md` 与 `.env.*.example` 的 `Settings` 覆盖，并让 docs 校验自动核对配置参考与示例文件；admin-web 构建依赖已移入 devDependencies，Vite 升到 `8.0.16`；Python 依赖已升级 FastAPI/Starlette、Instrumentator、cryptography 和 python-multipart 以修复可用 CVE，新增 `scripts/security_audit.ps1` 与 Chroma HTTP 边界校验，对 ChromaDB 当前无修复版本的 HTTP API CVE 仅在边界校验通过后单项忽略；entropy baseline 已收敛到 0；视觉商品图索引失败已补结构化 warning 与测试；Android AGP 升到 `8.13.2`，常规 lint 禁用联网依赖查新并清零 debug lint 报告，launcher 资源收敛为 adaptive icon；AGP 自身仍保留 Gradle 10 兼容 warning，作为上游风险记录。
 - 后端已按 `docs/design/p1-order-feedback-loop.md` 实现交易影子模型和反馈闭环：`orders`、`order_items`、扩展 `reviews`、订单状态推进、待评价提示、已购评价提交/更新/撤回、归属校验和反馈权重聚合。
 - 已购反馈信号已接入推荐、对比、商品详情和聊天分析，并保持预算、品类、库存、场景等主约束优先。
 - 商品维护、RAG 演示质量、多模态 provider、上传清理、release prepare、脚本参考和主要 API/config 参考已同步到实现。
