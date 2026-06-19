@@ -1189,6 +1189,18 @@
             ],
             "title": "Session Id"
           },
+          "session_token": {
+            "anyOf": [
+              {
+                "minLength": 16,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Token"
+          },
           "temporary_preferences": {
             "anyOf": [
               {
@@ -2359,6 +2371,17 @@
             ],
             "title": "Budget Match"
           },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
           "conflicts": {
             "items": {
               "type": "string"
@@ -2385,9 +2408,31 @@
             "title": "Name",
             "type": "string"
           },
+          "platform": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform"
+          },
           "price": {
             "title": "Price",
             "type": "number"
+          },
+          "product_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Url"
           },
           "rating": {
             "anyOf": [
@@ -2432,6 +2477,17 @@
               }
             ],
             "title": "Score"
+          },
+          "stock_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock Status"
           },
           "tags": {
             "items": {

@@ -152,8 +152,8 @@ fun SearchPill(
 fun CategoryShortcut(
     label: String,
     icon: ImageVector,
-    @DrawableRes assetRes: Int? = null,
     modifier: Modifier = Modifier,
+    @DrawableRes assetRes: Int? = null,
     tone: TactileIconTone = TactileIconTone.Primary,
     onClick: (() -> Unit)? = null,
 ) {

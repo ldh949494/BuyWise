@@ -52,7 +52,7 @@ def make_client():
 
 def test_products_routes_are_registered() -> None:
     app = create_app()
-    paths = {route.path for route in app.routes}
+    paths = set(app.openapi().get("paths", {}))
 
     assert "/api/v1/products" in paths
     assert "/api/v1/products/{product_id}" in paths

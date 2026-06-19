@@ -25,6 +25,27 @@ jobs:
       - name: Detect changed paths
         id: changes
         run: |
+          function Get-ChangedFiles {
+            param(
+              [string] $Before,
+              [string] $Sha
+            )
+
+            if (-not $Before -or $Before -eq ("0" * 40)) {
+              git diff-tree --no-commit-id --name-only -r $Sha
+              return
+            }
+
+            git rev-parse --verify "$Before^{commit}" *> $null
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "Before SHA $Before is unavailable; falling back to current commit files."
+              git diff-tree --no-commit-id --name-only -r $Sha
+              return
+            }
+
+            git diff --name-only "$Before..$Sha"
+          }
+
           $androidChanged = $false
           $adminWebChanged = $false
 
@@ -35,11 +56,7 @@ jobs:
           } else {
             $before = "${{ github.event.before }}"
             $sha = "${{ github.sha }}"
-            if (-not $before -or $before -eq ("0" * 40)) {
-              $changedFiles = git diff-tree --no-commit-id --name-only -r $sha
-            } else {
-              $changedFiles = git diff --name-only "$before..$sha"
-            }
+            $changedFiles = Get-ChangedFiles -Before $before -Sha $sha
           }
 
           foreach ($file in $changedFiles) {

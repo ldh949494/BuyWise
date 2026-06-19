@@ -60,11 +60,15 @@ Write-Host "========== Entropy Validation =========="
 & $python scripts/validate_entropy.py
 Assert-LastExitCode "entropy validation"
 
+Write-Host "========== OpenAPI Contract Validation =========="
+& $python -m app.scripts.openapi_contract
+Assert-LastExitCode "OpenAPI contract validation"
+
 @'
 from app.api.v1.health import health_check
 from app.main import app
 
-registered_paths = {route.path for route in app.routes}
+registered_paths = set(app.openapi().get("paths", {}))
 if "/api/v1/health" not in registered_paths:
     raise SystemExit("Health route is not registered on the FastAPI app.")
 

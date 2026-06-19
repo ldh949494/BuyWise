@@ -1,6 +1,7 @@
 package com.buywise.android.data
 
 import android.content.Context
+import androidx.core.content.edit
 
 class AuthTokenStore(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences("buywise_auth", Context.MODE_PRIVATE)
@@ -12,15 +13,15 @@ class AuthTokenStore(context: Context) {
     fun getPhoneMasked(): String? = prefs.getString(KEY_PHONE_MASKED, null)?.takeIf { it.isNotBlank() }
 
     fun save(tokens: AuthTokens, user: AuthUser? = null) {
-        prefs.edit()
-            .putString(KEY_ACCESS_TOKEN, tokens.accessToken)
-            .putString(KEY_REFRESH_TOKEN, tokens.refreshToken)
-            .putString(KEY_PHONE_MASKED, user?.phoneMasked ?: getPhoneMasked().orEmpty())
-            .apply()
+        prefs.edit {
+            putString(KEY_ACCESS_TOKEN, tokens.accessToken)
+            putString(KEY_REFRESH_TOKEN, tokens.refreshToken)
+            putString(KEY_PHONE_MASKED, user?.phoneMasked ?: getPhoneMasked().orEmpty())
+        }
     }
 
     fun clear() {
-        prefs.edit().clear().apply()
+        prefs.edit { clear() }
     }
 
     companion object {

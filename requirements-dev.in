@@ -2,3 +2,4 @@
 pytest
 playwright
 pip-tools
+pip-audit
