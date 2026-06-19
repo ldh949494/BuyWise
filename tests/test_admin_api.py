@@ -94,7 +94,7 @@ def admin_headers(client: TestClient) -> dict[str, str]:
 
 def test_admin_routes_are_registered() -> None:
     app = create_app()
-    paths = {route.path for route in app.routes}
+    paths = set(app.openapi().get("paths", {}))
 
     assert "/api/v1/admin/auth/login" in paths
     assert "/api/v1/admin/products" in paths

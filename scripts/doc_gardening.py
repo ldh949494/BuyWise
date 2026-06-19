@@ -166,6 +166,18 @@ def apply_updates(output: str) -> list[Path]:
     return changed
 
 
+def resolve_output_path(path_text: str) -> Path:
+    output_path = Path(path_text)
+    if not output_path.is_absolute():
+        output_path = ROOT / output_path
+    return output_path
+
+
+def write_report(output_path: Path, report: str) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(report, encoding="utf-8")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate a repository memory maintenance report.")
     parser.add_argument("--model", default=os.getenv("DOC_GARDENING_MODEL", DEFAULT_MODEL))
@@ -190,11 +202,8 @@ def main() -> int:
         else:
             print("No doc-gardening updates were needed.")
     else:
-        output_path = Path(args.output)
-        if not output_path.is_absolute():
-            output_path = ROOT / output_path
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(output.strip() + "\n", encoding="utf-8")
+        output_path = resolve_output_path(args.output)
+        write_report(output_path, output.strip() + "\n")
         print(f"Doc-gardening report written to {output_path}")
     return 0
 

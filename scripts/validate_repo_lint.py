@@ -105,51 +105,73 @@ def check_kotlin_filename(path: Path, diagnostics: list[Diagnostic]) -> None:
         )
 
 
+def append_python_diagnostic(
+    path: Path,
+    line: int,
+    error: str,
+    fix: str,
+    diagnostics: list[Diagnostic],
+) -> None:
+    diagnostics.append(Diagnostic(path, line, error, fix))
+
+
+def check_python_function_name(path: Path, node: ast.FunctionDef | ast.AsyncFunctionDef, diagnostics: list[Diagnostic]) -> None:
+    if not SNAKE_CASE_RE.match(node.name):
+        append_python_diagnostic(
+            path,
+            node.lineno,
+            f"Function name '{node.name}' does not use snake_case.",
+            "Rename the function to snake_case and update all call sites.",
+            diagnostics,
+        )
+
+
+def check_python_argument_names(path: Path, node: ast.FunctionDef | ast.AsyncFunctionDef, diagnostics: list[Diagnostic]) -> None:
+    for arg in [*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs]:
+        if arg.arg in {"self", "cls"}:
+            continue
+        if not SNAKE_CASE_RE.match(arg.arg):
+            append_python_diagnostic(
+                path,
+                arg.lineno,
+                f"Argument name '{arg.arg}' does not use snake_case.",
+                "Rename the argument to snake_case and update callers that pass it by keyword.",
+                diagnostics,
+            )
+
+
+def check_python_local_names(path: Path, node: ast.FunctionDef | ast.AsyncFunctionDef, diagnostics: list[Diagnostic]) -> None:
+    for child in ast.walk(node):
+        if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Store):
+            if not (SNAKE_CASE_RE.match(child.id) or CONSTANT_RE.match(child.id)):
+                append_python_diagnostic(
+                    path,
+                    child.lineno,
+                    f"Variable name '{child.id}' does not use snake_case or CONSTANT_CASE.",
+                    "Rename local variables to snake_case and module constants to CONSTANT_CASE.",
+                    diagnostics,
+                )
+
+
+def check_python_class_name(path: Path, node: ast.ClassDef, diagnostics: list[Diagnostic]) -> None:
+    if not PASCAL_CASE_RE.match(node.name):
+        append_python_diagnostic(
+            path,
+            node.lineno,
+            f"Class name '{node.name}' does not use PascalCase.",
+            "Rename the class to PascalCase and update imports and type references.",
+            diagnostics,
+        )
+
+
 def check_python_names(path: Path, tree: ast.AST, diagnostics: list[Diagnostic]) -> None:
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            if not SNAKE_CASE_RE.match(node.name):
-                diagnostics.append(
-                    Diagnostic(
-                        path,
-                        node.lineno,
-                        f"Function name '{node.name}' does not use snake_case.",
-                        "Rename the function to snake_case and update all call sites.",
-                    )
-                )
-            for arg in [*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs]:
-                if arg.arg in {"self", "cls"}:
-                    continue
-                if not SNAKE_CASE_RE.match(arg.arg):
-                    diagnostics.append(
-                        Diagnostic(
-                            path,
-                            arg.lineno,
-                            f"Argument name '{arg.arg}' does not use snake_case.",
-                            "Rename the argument to snake_case and update callers that pass it by keyword.",
-                    )
-                )
-            for child in ast.walk(node):
-                if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Store):
-                    if not (SNAKE_CASE_RE.match(child.id) or CONSTANT_RE.match(child.id)):
-                        diagnostics.append(
-                            Diagnostic(
-                                path,
-                                child.lineno,
-                                f"Variable name '{child.id}' does not use snake_case or CONSTANT_CASE.",
-                                "Rename local variables to snake_case and module constants to CONSTANT_CASE.",
-                            )
-                        )
+            check_python_function_name(path, node, diagnostics)
+            check_python_argument_names(path, node, diagnostics)
+            check_python_local_names(path, node, diagnostics)
         elif isinstance(node, ast.ClassDef):
-            if not PASCAL_CASE_RE.match(node.name):
-                diagnostics.append(
-                    Diagnostic(
-                        path,
-                        node.lineno,
-                        f"Class name '{node.name}' does not use PascalCase.",
-                        "Rename the class to PascalCase and update imports and type references.",
-                    )
-                )
+            check_python_class_name(path, node, diagnostics)
 
 
 def check_python_logging(path: Path, tree: ast.AST, diagnostics: list[Diagnostic]) -> None:
@@ -185,6 +207,43 @@ def imported_app_layer(module: str | None) -> str | None:
     return parts[1]
 
 
+def add_layer_violation(path: Path, line: int, source_layer: str, target_layer: str, diagnostics: list[Diagnostic]) -> None:
+    diagnostics.append(
+        Diagnostic(
+            path,
+            line,
+            f"Layer '{source_layer}' imports forbidden layer '{target_layer}'.",
+            "Move the dependency behind the next allowed layer. API code should call services; "
+            "services should call repositories or integrations. See docs/conventions/imports.md.",
+        )
+    )
+
+
+def check_import_from_layer(
+    path: Path,
+    node: ast.ImportFrom,
+    source_layer: str,
+    allowed_layers: set[str],
+    diagnostics: list[Diagnostic],
+) -> None:
+    target_layer = imported_app_layer(node.module)
+    if target_layer and target_layer not in allowed_layers:
+        add_layer_violation(path, node.lineno, source_layer, target_layer, diagnostics)
+
+
+def check_import_alias_layers(
+    path: Path,
+    node: ast.Import,
+    source_layer: str,
+    allowed_layers: set[str],
+    diagnostics: list[Diagnostic],
+) -> None:
+    for alias in node.names:
+        target_layer = imported_app_layer(alias.name)
+        if target_layer and target_layer not in allowed_layers:
+            add_layer_violation(path, node.lineno, source_layer, target_layer, diagnostics)
+
+
 def check_import_layers(path: Path, tree: ast.AST, diagnostics: list[Diagnostic]) -> None:
     source_layer = layer_for(path)
     if source_layer not in LAYER_RULES:
@@ -192,35 +251,11 @@ def check_import_layers(path: Path, tree: ast.AST, diagnostics: list[Diagnostic]
 
     allowed_layers = LAYER_RULES[source_layer]
     for node in ast.walk(tree):
-        module: str | None = None
         if isinstance(node, ast.ImportFrom):
-            module = node.module
-        elif isinstance(node, ast.Import):
-            for alias in node.names:
-                target_layer = imported_app_layer(alias.name)
-                if target_layer and target_layer not in allowed_layers:
-                    diagnostics.append(
-                        Diagnostic(
-                            path,
-                            node.lineno,
-                            f"Layer '{source_layer}' imports forbidden layer '{target_layer}'.",
-                            "Move the dependency behind the next allowed layer. API code should call services; "
-                            "services should call repositories or integrations. See docs/conventions/imports.md.",
-                        )
-                    )
+            check_import_from_layer(path, node, source_layer, allowed_layers, diagnostics)
             continue
-
-        target_layer = imported_app_layer(module)
-        if target_layer and target_layer not in allowed_layers:
-            diagnostics.append(
-                Diagnostic(
-                    path,
-                    node.lineno,
-                    f"Layer '{source_layer}' imports forbidden layer '{target_layer}'.",
-                    "Move the dependency behind the next allowed layer. API code should call services; "
-                    "services should call repositories or integrations. See docs/conventions/imports.md.",
-                )
-            )
+        if isinstance(node, ast.Import):
+            check_import_alias_layers(path, node, source_layer, allowed_layers, diagnostics)
 
 
 def check_runtime_framework_imports(path: Path, tree: ast.AST, diagnostics: list[Diagnostic]) -> None:

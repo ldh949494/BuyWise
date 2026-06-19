@@ -3,15 +3,14 @@ package com.buywise.android
 import android.content.Context
 import android.content.Intent
 import android.content.ActivityNotFoundException
-import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.net.toUri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -406,6 +405,14 @@ private fun BuyWiseRoot(
                 }
             }
             if (showCompareBasket) {
+                val basketModifier = when (compareBasketDockMode) {
+                    CompareBasketDockMode.SideDocked -> Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(bottom = 48.dp)
+                    CompareBasketDockMode.BottomFloating -> Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 18.dp, bottom = 88.dp)
+                }
                 FloatingCompareBasket(
                     state = viewModel.compareBasketState,
                     onExpandedChange = viewModel::setCompareBasketExpanded,
@@ -420,22 +427,12 @@ private fun BuyWiseRoot(
                         viewModel.setCompareBasketExpanded(false)
                     },
                     mode = compareBasketDockMode,
-                    modifier = compareBasketDockModifier(compareBasketDockMode),
+                    modifier = basketModifier,
                 )
             }
         }
     }
 }
-
-private fun BoxScope.compareBasketDockModifier(mode: CompareBasketDockMode): Modifier =
-    when (mode) {
-        CompareBasketDockMode.SideDocked -> Modifier
-            .align(Alignment.CenterEnd)
-            .padding(bottom = 48.dp)
-        CompareBasketDockMode.BottomFloating -> Modifier
-            .align(Alignment.BottomEnd)
-            .padding(end = 18.dp, bottom = 88.dp)
-    }
 
 private fun NavHostController.navigateHomeFromLanding() {
     navigate("home") {
@@ -466,7 +463,7 @@ private fun String.topLevelRoute(): String =
 
 private fun Context.openExternalUrl(url: String): Boolean {
     return try {
-        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
         true
     } catch (_: ActivityNotFoundException) {
         false

@@ -28,6 +28,8 @@
 ```powershell
 cd android-app
 .\gradlew.bat :app:assembleDebug
+.\gradlew.bat :app:lintDebug
 ```
 
 后端或文档单独改动时，仓库验证脚本可以跳过 Android 构建。
+常规 lint 不启用联网依赖查新；依赖安全风险由仓库安全审计脚本覆盖，功能性依赖升级应作为独立兼容性任务处理。

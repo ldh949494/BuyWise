@@ -7,6 +7,7 @@ import sys
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,20 +22,31 @@ DEFAULT_MODEL = "openai/gpt-4.1"
 
 def render_deterministic_report() -> str:
     issues = collect_issues()
-    counts = Counter(issue.rule for issue in issues)
-    lines = [
+    lines = build_report_header()
+    append_summary(lines, issues)
+    append_cleanup_candidates(lines, issues)
+    append_operating_notes(lines)
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def build_report_header() -> list[str]:
+    return [
         "# Entropy GC Report",
         "",
         f"Generated at: {datetime.now(UTC).isoformat()}",
         f"Baseline: {BASELINE_PATH.relative_to(ROOT).as_posix()}",
         "",
-        "## Summary",
-        "",
-        f"- Total detected entropy issues: {len(issues)}",
     ]
+
+
+def append_summary(lines: list[str], issues: list[Any]) -> None:
+    counts = Counter(issue.rule for issue in issues)
+    lines.extend(["## Summary", "", f"- Total detected entropy issues: {len(issues)}"])
     for rule, count in sorted(counts.items()):
         lines.append(f"- {rule}: {count}")
 
+
+def append_cleanup_candidates(lines: list[str], issues: list[Any]) -> None:
     lines.extend(["", "## Cleanup Candidates", ""])
     if not issues:
         lines.append("- No entropy issues detected.")
@@ -51,6 +63,8 @@ def render_deterministic_report() -> str:
             ]
         )
 
+
+def append_operating_notes(lines: list[str]) -> None:
     lines.extend(
         [
             "## Operating Notes",
@@ -59,7 +73,6 @@ def render_deterministic_report() -> str:
             "- After intentionally paying down or accepting debt, run `python scripts/validate_entropy.py --refresh-baseline`.",
         ]
     )
-    return "\n".join(lines).rstrip() + "\n"
 
 
 def build_ai_prompt() -> str:

@@ -64,8 +64,8 @@ fun FloatingCompareBasket(
     onClear: () -> Unit,
     onStartCompare: () -> Unit,
     onContinueShopping: () -> Unit,
-    mode: CompareBasketDockMode = CompareBasketDockMode.BottomFloating,
     modifier: Modifier = Modifier,
+    mode: CompareBasketDockMode = CompareBasketDockMode.BottomFloating,
 ) {
     if (state.products.isEmpty()) {
         return

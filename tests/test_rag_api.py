@@ -92,7 +92,7 @@ def test_rag_search_route_falls_back_to_product_table_filters() -> None:
 
 def test_rag_search_route_is_registered() -> None:
     app = create_app()
-    paths = {route.path for route in app.routes}
+    paths = set(app.openapi().get("paths", {}))
 
     assert "/api/v1/rag/search" in paths
 

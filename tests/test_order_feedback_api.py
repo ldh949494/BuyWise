@@ -64,7 +64,7 @@ def make_client() -> TestClient:
 
 def test_order_feedback_routes_are_registered() -> None:
     app = create_app()
-    paths = {route.path for route in app.routes}
+    paths = set(app.openapi().get("paths", {}))
 
     assert "/api/v1/orders" in paths
     assert "/api/v1/orders/{order_id}/advance" in paths
