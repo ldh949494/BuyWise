@@ -13,6 +13,7 @@ import androidx.compose.material.icons.outlined.DesktopWindows
 import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.Headphones
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.ImageSearch
 import androidx.compose.material.icons.outlined.Inventory2
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material.icons.outlined.SmartToy
+import androidx.compose.material.icons.outlined.AddComment
 import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material.icons.outlined.Tune
@@ -47,12 +49,14 @@ object BuyWiseIcons {
     val Favorite = Icons.Outlined.Favorite
     val Guide = Icons.Outlined.AutoAwesome
     val Headphones = Icons.Outlined.Headphones
+    val History = Icons.Outlined.History
     val Image = Icons.Outlined.Image
     val Inventory = Icons.Outlined.Inventory2
     val Keyboard = Icons.Outlined.Keyboard
     val Laptop = Icons.Outlined.LaptopMac
     val Menu = Icons.Outlined.Menu
     val More = Icons.Outlined.MoreHoriz
+    val NewChat = Icons.Outlined.AddComment
     val Notifications = Icons.Outlined.Notifications
     val PhotoLibrary = Icons.Outlined.PhotoLibrary
     val Search = Icons.Outlined.Search

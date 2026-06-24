@@ -55,6 +55,8 @@ fun GuideScreen(
     onQueryChange: (String) -> Unit,
     onSubmit: () -> Unit,
     onOpenChat: () -> Unit,
+    onNewConversation: () -> Unit,
+    onOpenHistory: () -> Unit,
     onProductClick: (String) -> Unit,
     isInCompareBasket: (String) -> Boolean,
     onToggleCompare: (Product, String?) -> Unit,
@@ -75,7 +77,7 @@ fun GuideScreen(
         contentPadding = PaddingValues(18.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        item { GuideDecisionHeader() }
+        item { GuideDecisionHeader(onNewConversation = onNewConversation, onOpenHistory = onOpenHistory) }
         item { GuideInputPanel(state = state, onQueryChange = onQueryChange, onSubmit = onSubmit, onOpenChat = onOpenChat) }
         item {
             PreferenceUsagePanel(
@@ -210,7 +212,7 @@ private fun preferenceSummaryText(appliedPreferences: AppliedPreferences, ignore
 }
 
 @Composable
-private fun GuideDecisionHeader() {
+private fun GuideDecisionHeader(onNewConversation: () -> Unit, onOpenHistory: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -224,13 +226,10 @@ private fun GuideDecisionHeader() {
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
-        TactileIconTile(
-            icon = BuyWiseIcons.Guide,
-            contentDescription = null,
-            size = 58.dp,
-            iconSize = 28.dp,
-            tone = TactileIconTone.Primary,
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TactileIconTile(icon = BuyWiseIcons.History, contentDescription = "历史记录", size = 46.dp, iconSize = 22.dp, onClick = onOpenHistory)
+            TactileIconTile(icon = BuyWiseIcons.NewChat, contentDescription = "新建对话", size = 46.dp, iconSize = 22.dp, tone = TactileIconTone.Primary, onClick = onNewConversation)
+        }
     }
 }
 

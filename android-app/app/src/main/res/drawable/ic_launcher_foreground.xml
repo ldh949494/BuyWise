@@ -1,44 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <path
-        android:fillColor="#7CCB67"
-        android:pathData="M70,34 C80,21 94,26 92,42 C90,56 78,64 64,63 C64,51 65,42 70,34 Z" />
-    <path
-        android:fillColor="#A6DD78"
-        android:pathData="M76,54 C86,47 96,51 95,62 C94,73 83,78 70,75 C71,66 71,60 76,54 Z" />
-    <path
-        android:fillColor="#345DDB"
-        android:pathData="M52,25 C66,25 76,35 76,49 C76,63 66,73 52,73 C38,73 28,63 28,49 C28,35 38,25 52,25 Z" />
-    <path
-        android:fillColor="#233A9E"
-        android:pathData="M45,39 C47.8,39 50,41.8 50,45 C50,48.2 47.8,51 45,51 C42.2,51 40,48.2 40,45 C40,41.8 42.2,39 45,39 Z" />
-    <path
-        android:fillColor="#233A9E"
-        android:pathData="M63,45 C66,41 72,42 74,46 C70,45 68,47 67,51 C64,50 62,48 63,45 Z" />
-    <path
-        android:strokeColor="#1F3189"
-        android:strokeLineCap="round"
-        android:strokeWidth="4"
-        android:fillColor="@android:color/transparent"
-        android:pathData="M48,55 C52,61 60,61 64,55" />
-    <path
-        android:fillColor="#4E70E7"
-        android:pathData="M36,52 L80,52 L72,75 L43,75 Z" />
-    <path
-        android:strokeColor="#FFFFFF"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="8"
-        android:fillColor="@android:color/transparent"
-        android:pathData="M24,43 H34 L42,80 H75" />
-    <path
-        android:fillColor="#3655C8"
-        android:pathData="M46,84 m-7,0 a7,7 0,1 0,14 0 a7,7 0,1 0,-14 0" />
-    <path
-        android:fillColor="#3655C8"
-        android:pathData="M73,84 m-7,0 a7,7 0,1 0,14 0 a7,7 0,1 0,-14 0" />
-</vector>
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:gravity="fill"
+    android:src="@drawable/ic_launcher_foreground_image" />

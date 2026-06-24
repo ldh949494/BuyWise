@@ -170,6 +170,7 @@ class ChatStreamRunner(ChatStreamGuideTurnMixin, ChatStreamFastPathMixin):
         session_id = context["session_id"]
         text = await self.chat_service._build_user_text(request)
         image_info = await self.chat_service._build_image_info(request)
+        context["active_user_text"] = text
         history_context = self.chat_service._load_history_context(chat_repo, session_id)
         self._save_user_message_once(context, request, text, image_info)
         return await self.chat_service.intent_service.extract(
@@ -215,6 +216,7 @@ class ChatStreamRunner(ChatStreamGuideTurnMixin, ChatStreamFastPathMixin):
     ) -> AsyncIterator[dict[str, Any]]:
         yield self._event("status", ChatStreamStatusEventData(stage="retrieval", message="retrieval"))
         top_products, bundle_plans = await self._recommendation_products(need, db)
+        bundle_plans = self.chat_service.guide_pairing_service.build_pairing_plans_from_context(context, top_products, bundle_plans)
         fallback_meta = self._record_fallback_meta(context, "full_rag")
         if not top_products and not bundle_plans:
             top_products, fallback_meta = self._final_empty_products_fallback(context, fallback_meta)

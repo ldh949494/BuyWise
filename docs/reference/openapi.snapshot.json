@@ -1860,6 +1860,205 @@
         "title": "GuidePreferencesUpdate",
         "type": "object"
       },
+      "GuideSessionCreateResponse": {
+        "properties": {
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "session_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Token"
+          }
+        },
+        "required": [
+          "session_id"
+        ],
+        "title": "GuideSessionCreateResponse",
+        "type": "object"
+      },
+      "GuideSessionDetail": {
+        "properties": {
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/GuideSessionMessage"
+            },
+            "title": "Messages",
+            "type": "array"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "session_id"
+        ],
+        "title": "GuideSessionDetail",
+        "type": "object"
+      },
+      "GuideSessionListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/GuideSessionSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "GuideSessionListResponse",
+        "type": "object"
+      },
+      "GuideSessionMessage": {
+        "properties": {
+          "applied_preferences": {
+            "additionalProperties": true,
+            "title": "Applied Preferences",
+            "type": "object"
+          },
+          "bundle_plans": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Bundle Plans",
+            "type": "array"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "products": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Products",
+            "type": "array"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "turn_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turn Type"
+          }
+        },
+        "title": "GuideSessionMessage",
+        "type": "object"
+      },
+      "GuideSessionSummary": {
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "last_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Message"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "session_id"
+        ],
+        "title": "GuideSessionSummary",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -4941,6 +5140,126 @@
           }
         },
         "summary": "Stream Guide Follow Up",
+        "tags": [
+          "chat"
+        ]
+      }
+    },
+    "/api/v1/ai/guide/sessions": {
+      "get": {
+        "operationId": "list_guide_sessions_api_v1_ai_guide_sessions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuideSessionListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Guide Sessions",
+        "tags": [
+          "chat"
+        ]
+      },
+      "post": {
+        "operationId": "create_guide_session_api_v1_ai_guide_sessions_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuideSessionCreateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Create Guide Session",
+        "tags": [
+          "chat"
+        ]
+      }
+    },
+    "/api/v1/ai/guide/sessions/{session_id}": {
+      "get": {
+        "operationId": "get_guide_session_api_v1_ai_guide_sessions__session_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "session_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuideSessionDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Guide Session",
         "tags": [
           "chat"
         ]

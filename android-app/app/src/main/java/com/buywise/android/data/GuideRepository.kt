@@ -6,10 +6,11 @@ import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
 import org.json.JSONArray
 import org.json.JSONObject
+import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
 sealed interface ChatStreamEvent {
-    data class Meta(val sessionId: String) : ChatStreamEvent
+    data class Meta(val sessionId: String, val sessionToken: String? = null) : ChatStreamEvent
     data class Status(val message: String) : ChatStreamEvent
     data class Token(val text: String) : ChatStreamEvent
     data class Products(
@@ -49,12 +50,14 @@ class GuideRepository internal constructor(
     fun streamGuide(
         query: String,
         sessionId: String?,
+        sessionToken: String? = null,
         ignoreSavedPreferences: Boolean = false,
         onEvent: (ChatStreamEvent) -> Unit,
     ): EventSource = streamGuideRequest(
         request = apiClient.guideStreamRequest(
             GuideStreamRequestDto(
                 sessionId = sessionId,
+                sessionToken = sessionToken,
                 message = query,
                 ignoreSavedPreferences = ignoreSavedPreferences,
             )
@@ -65,12 +68,14 @@ class GuideRepository internal constructor(
     fun streamGuideFollowUp(
         query: String,
         sessionId: String?,
+        sessionToken: String? = null,
         ignoreSavedPreferences: Boolean = false,
         onEvent: (ChatStreamEvent) -> Unit,
     ): EventSource = streamGuideRequest(
         request = apiClient.guideFollowUpStreamRequest(
             GuideStreamRequestDto(
                 sessionId = sessionId,
+                sessionToken = sessionToken,
                 message = query,
                 ignoreSavedPreferences = ignoreSavedPreferences,
             )
@@ -96,6 +101,39 @@ class GuideRepository internal constructor(
         onEvent = onEvent,
     )
 
+    fun createSession(): GuideSessionIdentity {
+        val response: GuideSessionCreateResponseDto = apiClient.post("/api/v1/ai/guide/sessions", EmptyRequestDto())
+        return GuideSessionIdentity(response.sessionId, response.sessionToken)
+    }
+
+    fun fetchSessions(localSessions: List<GuideSessionSummary> = emptyList()): List<GuideSessionSummary> {
+        val response: GuideSessionListResponseDto = apiClient.get("/api/v1/ai/guide/sessions")
+        val remote = response.items.map { item ->
+            GuideSessionSummary(
+                sessionId = item.sessionId,
+                title = item.title,
+                updatedAt = item.updatedAt ?: item.createdAt,
+                lastMessage = item.lastMessage,
+            )
+        }
+        val remoteIds = remote.map { it.sessionId }.toSet()
+        return remote + localSessions.filterNot { it.sessionId in remoteIds }
+    }
+
+    fun fetchSessionDetail(sessionId: String, sessionToken: String? = null): GuideSessionDetail {
+        val suffix = sessionToken?.let { "?session_token=${URLEncoder.encode(it, "UTF-8")}" }.orEmpty()
+        val json = apiClient.getJson("/api/v1/ai/guide/sessions/$sessionId$suffix")
+        val messagesJson = json.optJSONArray("messages") ?: JSONArray()
+        val messages = (0 until messagesJson.length()).mapNotNull { index ->
+            messagesJson.optJSONObject(index)?.let { parseHistoryMessage(index, it) }
+        }
+        return GuideSessionDetail(
+            sessionId = json.optString("session_id", sessionId),
+            title = json.optStringOrNull("title"),
+            messages = messages,
+        )
+    }
+
     private fun streamGuideRequest(
         request: okhttp3.Request,
         onEvent: (ChatStreamEvent) -> Unit,
@@ -117,7 +155,7 @@ class GuideRepository internal constructor(
     private fun parseStreamEvent(type: String?, data: String): ChatStreamEvent {
         val json = JSONObject(data)
         return when (type) {
-            "meta" -> ChatStreamEvent.Meta(json.optString("session_id"))
+            "meta" -> ChatStreamEvent.Meta(json.optString("session_id"), json.optStringOrNull("session_token"))
             "status" -> ChatStreamEvent.Status(json.optString("message", json.optString("stage")))
             "token" -> ChatStreamEvent.Token(json.optString("text"))
             "products" -> parseProductsEvent(json)
@@ -228,8 +266,34 @@ class GuideRepository internal constructor(
             else -> null
         }
 
-    private fun JSONObject.optStringOrNull(name: String): String? =
-        if (has(name) && !isNull(name)) optString(name).takeIf { it.isNotBlank() } else null
+}
+
+private fun JSONObject.optStringOrNull(name: String): String? =
+    if (has(name) && !isNull(name)) optString(name).takeIf { it.isNotBlank() } else null
+
+private fun parseHistoryMessage(index: Int, json: JSONObject): GuideChatMessage {
+    val products = json.optJSONArray("products") ?: JSONArray()
+    val bundlePlansJson = json.optJSONArray("bundle_plans") ?: JSONArray()
+    val recommendations = (0 until products.length()).mapNotNull { productIndex ->
+        val item = products.optJSONObject(productIndex) ?: return@mapNotNull null
+        val reason = item.optStringOrNull("reason") ?: item.optStringOrNull("description") ?: item.optString("name")
+        Recommendation(product = parseProductCard(item, item.optStringOrNull("category").orEmpty(), reason), reason = reason)
+    }
+    val bundlePlans = (0 until bundlePlansJson.length()).mapNotNull { planIndex ->
+        bundlePlansJson.optJSONObject(planIndex)?.let(::parseBundlePlan)
+    }
+    return GuideChatMessage(
+        id = "history-${index}-${json.optString("created_at", "")}",
+        role = when (json.optString("role")) {
+            "user" -> GuideChatRole.USER
+            "system" -> GuideChatRole.SYSTEM
+            else -> GuideChatRole.ASSISTANT
+        },
+        text = json.optString("content"),
+        recommendations = recommendations,
+        bundlePlans = bundlePlans,
+        appliedPreferences = parseAppliedPreferences(json.optJSONObject("applied_preferences")),
+    )
 }
 
 private fun JSONArray?.toStringList(): List<String> {

@@ -200,6 +200,8 @@ data class GuideState(
     val isStreaming: Boolean = false,
     val errorMessage: String? = null,
     val sessionId: String? = null,
+    val sessionToken: String? = null,
+    val sessionHistory: GuideSessionHistoryState = GuideSessionHistoryState(),
     val compareChatContext: CompareChatContext? = null,
 )
 

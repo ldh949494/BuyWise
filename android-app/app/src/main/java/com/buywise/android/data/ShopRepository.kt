@@ -15,6 +15,7 @@ class ShopRepository(
     private val uploadToken = betaToken ?: BuildConfig.BUYWISE_UPLOAD_TOKEN.takeIf { it.isNotBlank() }
     private val apiClient = BuyWiseApiClient(httpClient, baseUrl, betaToken, uploadToken)
     private val tokenStore = context?.let { AuthTokenStore(it) }
+    val guideSessionStore = context?.let { GuideSessionStore(it) }
 
     val betaCapability: BetaCapability
         get() = apiClient.betaCapability
@@ -87,18 +88,20 @@ class ShopRepository(
     fun streamGuide(
         query: String,
         sessionId: String?,
+        sessionToken: String? = null,
         ignoreSavedPreferences: Boolean = false,
         onEvent: (ChatStreamEvent) -> Unit,
     ): EventSource =
-        guideRepository.streamGuide(query, sessionId, ignoreSavedPreferences, onEvent)
+        guideRepository.streamGuide(query, sessionId, sessionToken, ignoreSavedPreferences, onEvent)
 
     fun streamGuideFollowUp(
         query: String,
         sessionId: String?,
+        sessionToken: String? = null,
         ignoreSavedPreferences: Boolean = false,
         onEvent: (ChatStreamEvent) -> Unit,
     ): EventSource =
-        guideRepository.streamGuideFollowUp(query, sessionId, ignoreSavedPreferences, onEvent)
+        guideRepository.streamGuideFollowUp(query, sessionId, sessionToken, ignoreSavedPreferences, onEvent)
 
     fun streamCompareFollowUp(
         query: String,

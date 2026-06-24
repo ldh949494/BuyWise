@@ -17,6 +17,7 @@ from app.models.agent_action import AgentAction
 from app.repositories.agent_action_repo import AgentActionRepository
 from app.schemas.cart import CartItemCreate, CheckoutCreate
 from app.services.cart_service import CartService
+from app.services.guide_memory_service import GuideMemoryService
 
 
 @dataclass
@@ -58,6 +59,7 @@ class ChatActionService:
         "第3",
         "第4",
         "第5",
+        "优先推荐",
     ]
     EXPLICIT_PLAN_REFERENCE_MARKERS = ["整套", "这套", "第一套", "第二套", "第三套", "第1套", "第2套", "第3套", "方案一", "方案二", "方案三"]
     ORDINALS = {
@@ -65,6 +67,8 @@ class ChatActionService:
         "第1": 1,
         "1": 1,
         "刚才": 1,
+        "首推": 1,
+        "优先推荐": 1,
         "这款": 1,
         "那个": 1,
         "第二": 2,
@@ -213,7 +217,7 @@ class ChatActionService:
             return ChatActionResult(reply="需要先完成一次导购推荐，我才能知道要把哪款加入购物车。", action="cart.add.needs_context")
         if self._requires_clearer_product_reference(text, snapshot):
             return ChatActionResult(reply="我没能确定要加哪款。可以说“把第一款加到购物车”。", action="cart.add.needs_reference")
-        product_refs = self._resolve_product_refs(text, snapshot)
+        product_refs = self._resolve_product_refs_from_memory(text, chat_repo, context.session_id, snapshot)
         if not product_refs:
             return ChatActionResult(reply="我没能确定要加哪款。可以说“把第一款加到购物车”。", action="cart.add.needs_reference")
         return self._add_products(text, product_refs, db, context)
@@ -326,6 +330,20 @@ class ChatActionService:
         product = products[index]
         return [product] if isinstance(product, dict) and product.get("id") is not None else []
 
+    def _resolve_product_refs_from_memory(
+        self,
+        text: str,
+        chat_repo: Any,
+        session_id: str,
+        snapshot: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        if self._contains(text, self.PLAN_MARKERS) and snapshot.get("bundle_plans"):
+            return self._product_refs_from_plan(text, snapshot)
+        resolved = GuideMemoryService(chat_repo).get_product_reference(session_id, text)
+        if resolved is not None and resolved.product.get("id") is not None:
+            return [resolved.product]
+        return self._resolve_product_refs(text, snapshot)
+
     def _product_refs_from_plan(self, text: str, snapshot: dict[str, Any]) -> list[dict[str, Any]]:
         plan = self._plan_at(snapshot.get("bundle_plans") or [], self._ordinal(text))
         if plan is None:
@@ -339,11 +357,7 @@ class ChatActionService:
         ]
 
     def _latest_recommendation_snapshot(self, chat_repo: Any, session_id: str) -> dict[str, Any] | None:
-        for message in reversed(chat_repo.list_messages(session_id, limit=20)):
-            structured_data = getattr(message, "structured_data", None) or {}
-            if structured_data.get("products") or structured_data.get("bundle_plans"):
-                return structured_data
-        return None
+        return GuideMemoryService(chat_repo).get_latest_snapshot(session_id)
 
     def _requires_clearer_product_reference(self, text: str, snapshot: dict[str, Any]) -> bool:
         if self._has_explicit_plan_reference(text):
@@ -391,6 +405,8 @@ class ChatActionService:
         return bool(re.search(r"第\s*\d+\s*套", text))
 
     def _has_ordinal_reference(self, text: str) -> bool:
+        if self._contains(text, ["首推", "优先推荐"]):
+            return True
         return bool(re.search(r"第\s*\d+\s*(?:个|款|项|件)?", text))
 
     def _quantity(self, text: str) -> int:

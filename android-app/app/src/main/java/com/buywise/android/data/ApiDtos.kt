@@ -159,8 +159,32 @@ data class FeedbackSubmitRequestDto(
 @Serializable
 data class GuideStreamRequestDto(
     @SerialName("session_id") val sessionId: String? = null,
+    @SerialName("session_token") val sessionToken: String? = null,
     val message: String,
     @SerialName("ignore_saved_preferences") val ignoreSavedPreferences: Boolean = false,
+)
+
+@Serializable
+data class EmptyRequestDto(val value: String? = null)
+
+@Serializable
+data class GuideSessionCreateResponseDto(
+    @SerialName("session_id") val sessionId: String,
+    @SerialName("session_token") val sessionToken: String? = null,
+)
+
+@Serializable
+data class GuideSessionListResponseDto(
+    val items: List<GuideSessionSummaryDto> = emptyList(),
+)
+
+@Serializable
+data class GuideSessionSummaryDto(
+    @SerialName("session_id") val sessionId: String,
+    val title: String? = null,
+    @SerialName("updated_at") val updatedAt: String? = null,
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("last_message") val lastMessage: String? = null,
 )
 
 @Serializable

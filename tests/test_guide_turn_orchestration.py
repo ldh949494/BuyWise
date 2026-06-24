@@ -41,6 +41,14 @@ def make_client() -> TestClient:
                     suitable_scene=["日常使用"],
                     stock_status="in_stock",
                 ),
+                Product(
+                    name="DormLite 静音鼠标",
+                    category="鼠标",
+                    price=Decimal("89.00"),
+                    tags=["静音", "无线"],
+                    suitable_scene=["宿舍", "日常使用"],
+                    stock_status="in_stock",
+                ),
             ]
         )
         db.commit()
@@ -114,3 +122,23 @@ def test_follow_up_question_keeps_snapshot_answer_path() -> None:
     assert response.status_code == 200
     assert '"turn_type":"answer_snapshot"' in response.text
     assert '"should_refresh":true' not in response.text
+
+
+def test_follow_up_related_category_recommendation_refreshes_snapshot() -> None:
+    client = make_client()
+    session_id = "guide-turn-related-category"
+
+    first = client.post(
+        "/api/v1/ai/guide/stream",
+        json={"session_id": session_id, "message": "推荐一个300以内适合宿舍的低噪音无线机械键盘"},
+    )
+    second = client.post(
+        "/api/v1/ai/guide/stream",
+        json={"session_id": session_id, "message": "再为我推荐跟它比较搭配的鼠标"},
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert '"turn_type":"refresh_recommendation"' in second.text
+    assert '"category":"鼠标"' in second.text
+    assert "DormLite 静音鼠标" in second.text

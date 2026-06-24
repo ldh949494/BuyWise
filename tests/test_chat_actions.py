@@ -106,6 +106,28 @@ def test_chat_adds_recommendation_with_add_to_cart_synonym() -> None:
     assert client.get("/api/v1/cart").json()["items"][0]["product_id"] == 1
 
 
+def test_chat_adds_top_recommendation_with_featured_reference() -> None:
+    client = make_client()
+    session_id = "chat-action-featured-reference"
+
+    recommend = client.post(
+        "/api/v1/ai/chat",
+        json={"session_id": session_id, "message": "推荐两个300以内的无线机械键盘"},
+    )
+    assert recommend.status_code == 200
+    assert [product["id"] for product in recommend.json()["products"][:2]] == [1, 3]
+
+    add = client.post(
+        "/api/v1/ai/chat",
+        json={"session_id": session_id, "message": "把你首推的这款添加到购物车"},
+    )
+
+    assert add.status_code == 200
+    assert add.json()["extra"]["action"] == "cart.add"
+    assert add.json()["extra"]["product_ids"] == [1]
+    assert client.get("/api/v1/cart").json()["items"][0]["product_id"] == 1
+
+
 def test_chat_adds_second_recommended_product_with_quantity() -> None:
     client = make_client()
     session_id = "chat-action-second-product"
