@@ -57,8 +57,8 @@ android {
         applicationId = "com.buywise.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 6
-        versionName = "0.1.5"
+        versionCode = 7
+        versionName = "0.1.6"
         val apiBaseUrl = configValue("ANDROID_API_BASE_URL", "http://10.0.2.2:8000")
         buildConfigField("String", "BUYWISE_API_BASE_URL", "\"${apiBaseUrl.get()}\"")
         val uploadToken = configValue("BUYWISE_UPLOAD_TOKEN", "upload-token")
