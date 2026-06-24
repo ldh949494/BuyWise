@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.buywise.android.data.BundlePlan
 import com.buywise.android.data.CartState
 import com.buywise.android.data.CompareChatContext
@@ -14,14 +15,19 @@ import com.buywise.android.data.GuideChatRole
 import com.buywise.android.data.ChatStreamEvent
 import com.buywise.android.data.GuideRepository
 import com.buywise.android.data.GuideResultStatus
+import com.buywise.android.data.GuideSessionStore
 import com.buywise.android.data.GuideState
 import com.buywise.android.data.AppliedPreferences
 import com.buywise.android.data.Recommendation
 import com.buywise.android.data.ShopRepository
 import okhttp3.sse.EventSource
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class GuideViewModel(
     private val repository: GuideRepository,
+    private val sessionStore: GuideSessionStore?,
     initialState: GuideState,
     private val onCartUpdated: (CartState, String?) -> Unit = { _, _ -> },
     private val onCartRefreshRequested: () -> Unit = {},
@@ -120,10 +126,15 @@ class GuideViewModel(
         )
         activeAssistantMessageId = assistantMessage.id
         activeUserMessageText = query
+        val nextMessages = if (state.sessionId != null && state.chatMessages.isNotEmpty()) {
+            state.chatMessages + userMessage + assistantMessage
+        } else {
+            listOf(userMessage, assistantMessage)
+        }
         state = state.copy(
             query = query,
             chatDraft = "",
-            chatMessages = listOf(userMessage, assistantMessage),
+            chatMessages = nextMessages,
             intentSummary = "正在理解预算、场景和偏好...",
             recommendations = emptyList(),
             bundlePlans = emptyList(),
@@ -136,12 +147,12 @@ class GuideViewModel(
             partialReply = "",
             isStreaming = true,
             errorMessage = null,
-            sessionId = null,
             compareChatContext = null,
         )
         guideStream = repository.streamGuide(
             query = query,
             sessionId = state.sessionId,
+            sessionToken = state.sessionToken,
             ignoreSavedPreferences = state.ignoreSavedPreferences,
             onEvent = { event -> mainHandler.post { applyChatEvent(event) } },
         )
@@ -194,6 +205,7 @@ class GuideViewModel(
             repository.streamGuide(
                 query = message,
                 sessionId = state.sessionId,
+                sessionToken = state.sessionToken,
                 ignoreSavedPreferences = state.ignoreSavedPreferences,
                 onEvent = { event -> mainHandler.post { applyChatEvent(event) } },
             )
@@ -222,6 +234,42 @@ class GuideViewModel(
         submitQuery()
     }
 
+    fun startNewConversation() {
+        guideStream?.cancel()
+        activeAssistantMessageId = null
+        activeUserMessageText = null
+        state = state.newGuideConversationState()
+    }
+
+    fun loadSessionHistory() {
+        state = state.copy(sessionHistory = state.sessionHistory.copy(isLoading = true, errorMessage = null))
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    repository.fetchSessions(sessionStore?.load().orEmpty())
+                }
+            }.onSuccess { sessions ->
+                state = state.copy(sessionHistory = state.sessionHistory.copy(items = sessions, isLoading = false))
+            }.onFailure { throwable ->
+                state = state.copy(sessionHistory = state.sessionHistory.copy(isLoading = false, errorMessage = throwable.userMessage("历史记录加载失败")))
+            }
+        }
+    }
+
+    fun openSession(sessionId: String) {
+        val token = state.sessionHistory.items.firstOrNull { it.sessionId == sessionId }?.sessionToken
+        state = state.copy(sessionHistory = state.sessionHistory.copy(isLoading = true, errorMessage = null))
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) { repository.fetchSessionDetail(sessionId, token) }
+            }.onSuccess { detail ->
+                state = state.restoreGuideSessionState(detail, token)
+            }.onFailure { throwable ->
+                state = state.copy(sessionHistory = state.sessionHistory.copy(isLoading = false, errorMessage = throwable.userMessage("历史会话打开失败")))
+            }
+        }
+    }
+
     fun clearStream() {
         guideStream?.cancel()
     }
@@ -237,7 +285,10 @@ class GuideViewModel(
 
     private fun applyChatEvent(event: ChatStreamEvent) {
         state = when (event) {
-            is ChatStreamEvent.Meta -> state.copy(sessionId = event.sessionId)
+            is ChatStreamEvent.Meta -> {
+                rememberSession(event.sessionId, event.sessionToken)
+                state.copy(sessionId = event.sessionId, sessionToken = event.sessionToken ?: state.sessionToken)
+            }
             is ChatStreamEvent.Status -> state.copy(intentSummary = event.message)
             is ChatStreamEvent.Token -> applyToken(event.text)
             is ChatStreamEvent.Products -> applyProducts(
@@ -374,6 +425,10 @@ class GuideViewModel(
         }
     }
 
+    private fun rememberSession(sessionId: String, sessionToken: String?) {
+        sessionStore?.remember(sessionId, sessionToken ?: state.sessionToken, activeUserMessageText ?: state.query)
+    }
+
     private fun applyError(message: String): GuideState {
         activeAssistantMessageId = null
         activeUserMessageText = null
@@ -424,6 +479,6 @@ class GuideViewModel(
 
     companion object {
         fun from(shopRepository: ShopRepository): GuideViewModel =
-            GuideViewModel(shopRepository.guideRepository, shopRepository.guideState(""))
+            GuideViewModel(shopRepository.guideRepository, shopRepository.guideSessionStore, shopRepository.guideState(""))
     }
 }

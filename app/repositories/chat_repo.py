@@ -62,6 +62,24 @@ class ChatRepository:
         session.expires_at = expires_at
         self.db.flush()
 
+    def list_sessions(
+        self,
+        *,
+        owner_subject: str | None,
+        owner_auth_type: str | None,
+        limit: int = 20,
+    ) -> list[ChatSession]:
+        statement = (
+            select(ChatSession)
+            .where(
+                ChatSession.owner_subject == owner_subject,
+                ChatSession.owner_auth_type == owner_auth_type,
+            )
+            .order_by(ChatSession.updated_at.desc(), ChatSession.id.desc())
+            .limit(limit)
+        )
+        return list(self.db.scalars(statement).all())
+
     def create_message(
         self,
         session_id: str,

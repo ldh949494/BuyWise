@@ -28,6 +28,7 @@ class BuyWiseViewModel(
     private val cartViewModel = CartViewModel.from(repository)
     private val guideViewModel = GuideViewModel(
         repository.guideRepository,
+        repository.guideSessionStore,
         repository.guideState(""),
         onCartUpdated = { cart, message -> cartViewModel.applyServerCart(cart, message) },
         onCartRefreshRequested = { cartViewModel.refresh() },
@@ -209,6 +210,18 @@ class BuyWiseViewModel(
 
     fun sendGuideChatMessage() {
         guideViewModel.sendChatMessage()
+    }
+
+    fun startNewGuideConversation() {
+        guideViewModel.startNewConversation()
+    }
+
+    fun loadGuideSessionHistory() {
+        guideViewModel.loadSessionHistory()
+    }
+
+    fun openGuideSession(sessionId: String) {
+        guideViewModel.openSession(sessionId)
     }
 
     fun runPendingGuideRefresh() {

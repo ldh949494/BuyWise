@@ -60,6 +60,8 @@ fun GuideChatScreen(
     state: GuideState,
     isRecordingAudio: Boolean,
     onBack: () -> Unit,
+    onNewConversation: () -> Unit,
+    onOpenHistory: () -> Unit,
     onDraftChange: (String) -> Unit,
     onSend: () -> Unit,
     onPickImage: () -> Unit,
@@ -78,7 +80,7 @@ fun GuideChatScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        GuideChatTopBar(onBack = onBack)
+        GuideChatTopBar(onBack = onBack, onNewConversation = onNewConversation, onOpenHistory = onOpenHistory)
         LazyColumn(
             state = listState,
             modifier = Modifier.weight(1f),
@@ -138,13 +140,24 @@ private fun RefreshGuideActionPanel(onRunPendingRefresh: () -> Unit) {
 }
 
 @Composable
-private fun GuideChatTopBar(onBack: () -> Unit) {
+private fun GuideChatTopBar(onBack: () -> Unit, onNewConversation: () -> Unit, onOpenHistory: () -> Unit) {
     ShowcaseTopBar(
         title = "AI 导购",
         modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
         onBack = onBack,
-        actionIcon = BuyWiseIcons.Guide,
-        actionDescription = "导购助手",
+        actionIcon = BuyWiseIcons.NewChat,
+        actionDescription = "新建对话",
+        onAction = onNewConversation,
+        extraAction = {
+            TactileIconTile(
+                icon = BuyWiseIcons.History,
+                contentDescription = "历史记录",
+                size = 42.dp,
+                iconSize = 21.dp,
+                rounded = true,
+                onClick = onOpenHistory,
+            )
+        },
     )
 }
 

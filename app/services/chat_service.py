@@ -36,6 +36,8 @@ from app.services.chat_response_builders import (
 from app.services.chat_session_security import ChatSessionContext, ChatSessionSecurityService
 from app.services.chat_visual_search import handle_visual_search_request, validate_visual_search_request
 from app.services.guide_preferences_service import GuidePreferencesService
+from app.services.guide_memory_service import GuideMemoryService
+from app.services.guide_pairing_service import GuidePairingService
 from app.services.guide_turn_service import GuideConversationStateBuilder, GuideTurnClassifier
 from app.services.intent_service import IntentService
 from app.services.media_url_policy import MediaUrlPolicy
@@ -77,11 +79,15 @@ class ChatService(ChatRecommendationMixin):
             recommend_service=self.recommend_service,
         )
         self.chat_action_service = chat_action_service or ChatActionService()
+        self._configure_support_services()
+
+    def _configure_support_services(self) -> None:
         self.chat_session_security = ChatSessionSecurityService()
         self.media_url_policy = MediaUrlPolicy()
         self.chat_context_service = ChatContextService()
         self.guide_state_builder = GuideConversationStateBuilder()
         self.guide_turn_classifier = GuideTurnClassifier(self.intent_service)
+        self.guide_pairing_service = GuidePairingService()
 
     async def handle_chat(
         self,
@@ -311,8 +317,7 @@ class ChatService(ChatRecommendationMixin):
         return await self.vision_service.extract_image_info(request.image_url)
 
     def _load_history_context(self, chat_repo: Any, session_id: str) -> dict[str, Any]:
-        prior_messages = chat_repo.list_messages(session_id)
-        return self.chat_context_service.build_history_context(prior_messages)
+        return GuideMemoryService(chat_repo).build_history_context(session_id)
 
     def _save_user_message(
         self,

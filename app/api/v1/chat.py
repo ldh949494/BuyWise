@@ -21,11 +21,37 @@ from app.core.traffic import check_chat_session_rate_limit
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.schemas.chat_stream import ChatStreamDoneEventData, ChatStreamErrorEventData
 from app.schemas.compare import CompareFollowUpRequest
+from app.schemas.guide_session import GuideSessionCreateResponse, GuideSessionDetail, GuideSessionListResponse
 from app.services.chat_service import ChatService
 from app.services.compare_service import CompareService
+from app.services.guide_session_service import GuideSessionService
 
 
 router = APIRouter(prefix="/ai")
+
+
+@router.post("/guide/sessions", response_model=GuideSessionCreateResponse)
+def create_guide_session(http_request: Request, db: Session = Depends(get_db)) -> GuideSessionCreateResponse:
+    return GuideSessionService(db).create(_optional_principal(http_request))
+
+
+@router.get("/guide/sessions", response_model=GuideSessionListResponse)
+def list_guide_sessions(
+    http_request: Request,
+    limit: int = 20,
+    db: Session = Depends(get_db),
+) -> GuideSessionListResponse:
+    return GuideSessionService(db).list_for_principal(_optional_principal(http_request), max(1, min(limit, 50)))
+
+
+@router.get("/guide/sessions/{session_id}", response_model=GuideSessionDetail)
+def get_guide_session(
+    session_id: str,
+    http_request: Request,
+    session_token: str | None = None,
+    db: Session = Depends(get_db),
+) -> GuideSessionDetail:
+    return GuideSessionService(db).get_detail(session_id, _optional_principal(http_request), session_token)
 
 
 @router.post("/chat", response_model=ChatResponse)

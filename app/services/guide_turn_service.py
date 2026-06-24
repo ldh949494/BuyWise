@@ -67,6 +67,7 @@ class GuideConversationStateBuilder:
 
 
 class GuideTurnClassifier:
+    BUNDLE_INTENTS = {"bundle_recommend", "场景化组合推荐"}
     CHANGE_MARKERS = [
         "重新推荐",
         "重新生成推荐",
@@ -117,12 +118,25 @@ class GuideTurnClassifier:
         normalized = text.strip().lower()
         if any(marker in normalized for marker in self.CHANGE_MARKERS):
             return True
+        if self._bundle_condition_changed(need, snapshot):
+            return True
         if self._changed_structured_fields(need, snapshot.need):
             return True
         snapshot_category = str(snapshot.need.get("category") or "").strip()
         if any(marker in normalized for marker in self.RECOMMENDATION_MARKERS):
             return bool(need.category and need.category != snapshot_category)
         return False
+
+    def _bundle_condition_changed(self, need: StructuredNeed, snapshot: GuideSnapshot) -> bool:
+        if need.intent not in self.BUNDLE_INTENTS:
+            return False
+        requested_categories = set(list_string_values(need.must_have_categories))
+        if not requested_categories:
+            return False
+        prior_categories = set(list_string_values(snapshot.need.get("must_have_categories")))
+        if requested_categories != prior_categories:
+            return True
+        return snapshot.need.get("intent") not in self.BUNDLE_INTENTS
 
     def _changed_structured_fields(self, need: StructuredNeed, snapshot_need: dict[str, Any]) -> bool:
         for field_name in ["category", "budget_max", "scenario"]:

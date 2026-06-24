@@ -49,6 +49,7 @@ import com.buywise.android.ui.screens.CompareScreen
 import com.buywise.android.ui.screens.AccountScreen
 import com.buywise.android.ui.screens.GuidePreferencesScreen
 import com.buywise.android.ui.screens.GuideChatScreen
+import com.buywise.android.ui.screens.GuideHistoryDialogHost
 import com.buywise.android.ui.screens.GuideScreen
 import com.buywise.android.ui.screens.HomeScreen
 import com.buywise.android.ui.screens.LandingScreen
@@ -101,6 +102,7 @@ private fun BuyWiseRoot(
     val basketMessage = viewModel.compareBasketState.message
     val scope = rememberCoroutineScope()
     var multimodalTarget by remember { mutableStateOf(MultimodalTarget.VisionTab) }
+    var showGuideHistory by remember { mutableStateOf(false) }
     val audioInputController = rememberAudioInputController(
         isBusy = viewModel.visionState.isLoading,
         snackbarHostState = snackbarHostState,
@@ -255,6 +257,11 @@ private fun BuyWiseRoot(
                             viewModel.prepareGuideChatDraft()
                             navController.navigate("guide/chat")
                         },
+                        onNewConversation = viewModel::startNewGuideConversation,
+                        onOpenHistory = {
+                            showGuideHistory = true
+                            viewModel.loadGuideSessionHistory()
+                        },
                         onProductClick = { navController.navigate("detail/$it") },
                         isInCompareBasket = viewModel::isInCompareBasket,
                         onToggleCompare = viewModel::toggleCompareBasket,
@@ -267,6 +274,11 @@ private fun BuyWiseRoot(
                         state = viewModel.guideState,
                         isRecordingAudio = audioInputController.isRecording(MultimodalTarget.GuideChat),
                         onBack = navController::popBackStack,
+                        onNewConversation = viewModel::startNewGuideConversation,
+                        onOpenHistory = {
+                            showGuideHistory = true
+                            viewModel.loadGuideSessionHistory()
+                        },
                         onDraftChange = viewModel::updateGuideChatDraft,
                         onSend = viewModel::sendGuideChatMessage,
                         onPickImage = {
@@ -430,6 +442,7 @@ private fun BuyWiseRoot(
                     modifier = basketModifier,
                 )
             }
+            GuideHistoryDialogHost(showGuideHistory, viewModel, navController) { showGuideHistory = false }
         }
     }
 }

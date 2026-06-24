@@ -9,13 +9,16 @@ from app.core.config import settings
 from app.core.metrics import count_llm_failure
 from app.core.traffic import is_capacity_limited
 from app.ai.safety import AgentSafetyService
-from app.schemas.chat import ChatRequest
+from app.schemas.chat import ChatRequest, StructuredNeed
 from app.schemas.chat_stream import (
     ChatStreamDoneEventData,
+    ChatStreamProductsEventData,
     ChatStreamStatusEventData,
     ChatStreamTokenEventData,
 )
+from app.schemas.guide_preferences import AppliedPreferences
 from app.utils.guide_turn import build_turn_extra, list_string_values
+from app.services.guide_memory_service import GuideMemoryService
 
 
 class GuideFollowUpStreamService:
@@ -33,14 +36,9 @@ class GuideFollowUpStreamService:
         recommendation_handler: Callable[[Any], AsyncIterator[dict[str, Any]]] | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         yield self._event("status", ChatStreamStatusEventData(stage="context", message="follow_up_context"))
-        text = (request.message or "").strip()
-        if reason := self._missing_context_reason(request, text):
+        text, snapshot, reason = self._prepare_follow_up(context, request)
+        if reason is not None:
             async for event in self._stream_refresh_signal(context, reason):
-                yield event
-            return
-        snapshot = self._latest_recommendation_snapshot(context)
-        if snapshot is None:
-            async for event in self._stream_refresh_signal(context, "missing_recommendation_snapshot"):
                 yield event
             return
         self.chat_service._save_user_message(context["chat_repo"], context["session_id"], request, text, None)
@@ -67,9 +65,33 @@ class GuideFollowUpStreamService:
             async for event in early_events:
                 yield event
             return
+        if self._is_incomplete_pairing_request(context, text):
+            async for event in self._stream_pairing_clarification(context):
+                yield event
+            return
         decision = self._classify_turn(context, text)
         context["turn_type"] = decision.turn_type
         context["turn_reason"] = decision.reason
+        async for event in self._route_decision(
+            context,
+            text,
+            snapshot,
+            decision,
+            allow_recommendation=allow_recommendation,
+            recommendation_handler=recommendation_handler,
+        ):
+            yield event
+
+    async def _route_decision(
+        self,
+        context: dict[str, Any],
+        text: str,
+        snapshot: dict[str, Any],
+        decision: Any,
+        *,
+        allow_recommendation: bool,
+        recommendation_handler: Callable[[Any], AsyncIterator[dict[str, Any]]] | None,
+    ) -> AsyncIterator[dict[str, Any]]:
         if decision.get_should_recommend() and allow_recommendation and recommendation_handler is not None:
             async for event in recommendation_handler(decision.need):
                 yield event
@@ -102,14 +124,25 @@ class GuideFollowUpStreamService:
     def _classify_turn(self, context: dict[str, Any], text: str) -> Any:
         messages = context["chat_repo"].list_messages(context["session_id"], limit=20)
         state = self.chat_service.guide_state_builder.build(messages)
-        history_context = self.chat_service.chat_context_service.build_history_context(messages)
+        history_context = GuideMemoryService(context["chat_repo"]).build_history_context(context["session_id"])
         need = self.chat_service.intent_service.extract_by_rules(text, image_info=None, history_context=history_context)
+        self._record_pairing_anchor(context, text)
         return self.chat_service.guide_turn_classifier.build_decision_for_need(text=text, need=need, state=state)
 
     def _missing_context_reason(self, request: ChatRequest, text: str) -> str | None:
         if not request.session_id or not text:
             return "missing_context"
         return None
+
+    def _prepare_follow_up(self, context: dict[str, Any], request: ChatRequest) -> tuple[str, dict[str, Any] | None, str | None]:
+        text = (request.message or "").strip()
+        context["active_user_text"] = text
+        if reason := self._missing_context_reason(request, text):
+            return text, None, reason
+        snapshot = self._latest_recommendation_snapshot(context)
+        if snapshot is None:
+            return text, None, "missing_recommendation_snapshot"
+        return text, snapshot, None
 
     def _execute_action_if_present(self, context: dict[str, Any], text: str) -> Any:
         chat_repo = context["chat_repo"]
@@ -247,13 +280,58 @@ class GuideFollowUpStreamService:
         self.chat_service._commit(context["chat_repo"])
 
     def _latest_recommendation_snapshot(self, context: dict[str, Any]) -> dict[str, Any] | None:
-        for message in reversed(context["chat_repo"].list_messages(context["session_id"], limit=20)):
-            structured_data = getattr(message, "structured_data", None) or {}
-            products = structured_data.get("products") or []
-            bundle_plans = structured_data.get("bundle_plans") or []
-            if structured_data.get("need") and (products or bundle_plans):
-                return structured_data
-        return None
+        return GuideMemoryService(context["chat_repo"]).get_latest_snapshot(context["session_id"])
+
+    def _record_pairing_anchor(self, context: dict[str, Any], text: str) -> None:
+        if not any(marker in text for marker in ["搭配", "适配", "配套", "匹配"]):
+            return
+        anchor = GuideMemoryService(context["chat_repo"]).get_product_reference(context["session_id"], text)
+        if anchor is None:
+            return
+        context["pairing_anchor_product"] = anchor.product
+
+    def _is_incomplete_pairing_request(self, context: dict[str, Any], text: str) -> bool:
+        if not any(marker in text for marker in ["搭配", "适配", "配套", "匹配", "跟它", "配一个", "配一款"]):
+            return False
+        try:
+            need = self.chat_service.intent_service.extract_by_rules(text, image_info=None, history_context={})
+        except AttributeError:
+            return False
+        if need.category is not None:
+            return False
+        anchor = GuideMemoryService(context["chat_repo"]).get_product_reference(context["session_id"], text)
+        return anchor is not None
+
+    async def _stream_pairing_clarification(self, context: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+        context["stream_path"] = "follow_up_clarify"
+        context["turn_type"] = "clarify"
+        context["turn_reason"] = "missing_pairing_category"
+        reply = "想搭配哪类商品？例如可以说“推荐一款跟它适配的鼠标”。"
+        need = StructuredNeed(intent="商品推荐", need_clarify=True, missing_fields=["category"])
+        context["chat_repo"].create_message(
+            context["session_id"],
+            "assistant",
+            reply,
+            structured_data={
+                "need": need.model_dump(mode="json"),
+                "need_clarify": True,
+                **build_turn_extra(context),
+            },
+        )
+        self.chat_service._commit(context["chat_repo"])
+        yield self._event("status", ChatStreamStatusEventData(stage="clarify", message="missing_pairing_category"))
+        yield self._event("token", ChatStreamTokenEventData(text=reply))
+        yield self._event(
+            "products",
+            ChatStreamProductsEventData(
+                need_clarify=True,
+                structured_need=need,
+                items=[],
+                bundle_plans=[],
+                applied_preferences=context.get("applied_preferences") or AppliedPreferences(),
+            ),
+        )
+        yield self._event("done", ChatStreamDoneEventData(reply=reply, extra=build_turn_extra(context)))
 
     def _should_refresh_follow_up(self, text: str, snapshot: dict[str, Any]) -> bool:
         normalized = text.strip().lower()

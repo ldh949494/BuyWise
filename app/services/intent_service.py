@@ -222,6 +222,8 @@ class IntentService:
     def _extract_intent(self, text: str) -> str:
         if self._is_bundle_intent(text):
             return "bundle_recommend"
+        if self._is_recommendation_intent(text):
+            return "\u5546\u54c1\u63a8\u8350"
         if self._is_compare_intent(text):
             return "\u5546\u54c1\u5bf9\u6bd4"
         if self._is_alternative_intent(text):
@@ -232,27 +234,18 @@ class IntentService:
             return "\u53c2\u6570\u54a8\u8be2"
         return "\u5546\u54c1\u63a8\u8350"
 
+    def _is_recommendation_intent(self, text: str) -> bool:
+        return self._contains_keyword(text, ["\u63a8\u8350", "\u60f3\u4e70", "\u51c6\u5907\u4e70", "\u6211\u8981", "\u9700\u8981\u4e00\u4e2a", "\u9700\u8981\u4e00\u6b3e"])
+
     def _is_compare_intent(self, text: str) -> bool:
         return self._contains_keyword(text, ["\u5bf9\u6bd4", "\u6bd4\u8f83", "\u54ea\u4e2a\u597d", "\u54ea\u6b3e\u597d"])
 
     def _is_bundle_intent(self, text: str) -> bool:
-        return self._contains_keyword(
-            text,
-            [
-                "\u642d\u914d",
-                "\u4e00\u5957",
-                "\u5957\u88c5",
-                "\u7ec4\u5408",
-                "\u65b9\u6848",
-                "\u6e05\u5355",
-                "\u914d\u9f50",
-                "\u5168\u5957",
-                "\u684c\u9762\u88c5\u5907",
-                "\u7535\u8111\u5916\u8bbe",
-                "\u4ece",
-                "\u7a7f\u642d",
-            ],
-        )
+        if self._contains_keyword(text, ["\u4e00\u5957", "\u5957\u88c5", "\u7ec4\u5408", "\u65b9\u6848", "\u6e05\u5355", "\u914d\u9f50", "\u5168\u5957", "\u684c\u9762\u88c5\u5907", "\u7535\u8111\u5916\u8bbe", "\u4ece", "\u7a7f\u642d"]):
+            return True
+        if "\u642d\u914d" not in text:
+            return False
+        return self._extract_category(text) is None and self._extract_shopping_target(text) is None
 
     def _is_alternative_intent(self, text: str) -> bool:
         return self._contains_keyword(text, ["\u5e73\u66ff", "\u66ff\u4ee3", "\u7c7b\u4f3c\u6b3e"])
@@ -282,9 +275,28 @@ class IntentService:
         return "consider"
 
     def _extract_category(self, text: str) -> str | None:
+        scoped = self._extract_scoped_category(text)
+        if scoped is not None:
+            return scoped
         for category, keywords in self.CATEGORY_KEYWORDS.items():
             if any(keyword in text for keyword in keywords):
                 return category
+        return None
+
+    def _extract_scoped_category(self, text: str) -> str | None:
+        for marker in ["推荐", "找", "买", "要", "需要"]:
+            marker_index = text.rfind(marker)
+            if marker_index < 0:
+                continue
+            tail = text[marker_index:]
+            matches = []
+            for category, keywords in self.CATEGORY_KEYWORDS.items():
+                for keyword in keywords:
+                    keyword_index = tail.rfind(keyword)
+                    if keyword_index >= 0:
+                        matches.append((keyword_index, category))
+            if matches:
+                return max(matches, key=lambda item: item[0])[1]
         return None
 
     def _extract_shopping_target(self, text: str) -> str | None:
