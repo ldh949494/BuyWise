@@ -91,8 +91,14 @@ jobs:
           docker compose -f docker-compose.prod.yml exec -T mysql sh -c 'MYSQL_PWD="$MYSQL_PASSWORD" mysqldump --no-tablespaces -u"$MYSQL_USER" "$MYSQL_DATABASE"' > "$backup_file"
           test -s "$backup_file"
           docker compose -f docker-compose.prod.yml build backend
+          expected_image_id="$(docker image inspect buywise-backend:latest --format '{{.Id}}')"
           docker compose -f docker-compose.prod.yml run --rm backend python -m app.scripts.migrate_database
-          docker compose -f docker-compose.prod.yml up -d backend
+          docker compose -f docker-compose.prod.yml up -d --no-deps --force-recreate backend
+          actual_image_id="$(docker inspect buywise-backend-1 --format '{{.Image}}')"
+          if [ "$actual_image_id" != "$expected_image_id" ]; then
+            printf 'Backend container is not running the freshly built image. expected=%s actual=%s\n' "$expected_image_id" "$actual_image_id"
+            exit 1
+          fi
           docker compose -f docker-compose.prod.yml exec -T backend python -m alembic current
           docker compose -f docker-compose.prod.yml exec -T backend python -m app.scripts.readiness_check --expected-active-products "$EXPECTED_ACTIVE_PRODUCTS"
           REMOTE
