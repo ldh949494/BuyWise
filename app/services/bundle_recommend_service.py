@@ -19,6 +19,7 @@ from app.services.bundle_templates import (
     ScenarioTemplate,
 )
 from app.services.recommend_service import RecommendService
+from app.utils.taxonomy import normalize_category_keyword
 
 
 class BundleRecommendService:
@@ -145,7 +146,7 @@ class BundleRecommendService:
         category_by_id = {product.id: getattr(product, "category", None) for product in products}
         grouped: dict[str, list[ProductCard]] = {}
         for card in cards:
-            category = category_by_id.get(card.id) or self._category_from_name(card.name)
+            category = self._normalize_category(category_by_id.get(card.id) or self._category_from_name(card.name))
             if not category:
                 continue
             grouped.setdefault(category, []).append(card)
@@ -161,8 +162,8 @@ class BundleRecommendService:
         need: Any,
         template: ScenarioTemplate,
     ) -> list[BundlePlanItem]:
-        owned_categories = set(self._string_list(self._get_value(need, "owned_categories")))
-        excluded_categories = set(self._string_list(self._get_value(need, "excluded_categories")))
+        owned_categories = set(self._normalized_categories(self._get_value(need, "owned_categories")))
+        excluded_categories = set(self._normalized_categories(self._get_value(need, "excluded_categories")))
         items = self._required_plan_items(category_cards, tier_budget, tier_index, template, owned_categories, excluded_categories)
         remaining_budget = tier_budget - sum(item.product.price for item in items)
         items.extend(self._optional_plan_items(category_cards, remaining_budget, tier_budget, tier_index, template, excluded_categories))
@@ -351,7 +352,7 @@ class BundleRecommendService:
         return self._generic_template(category_cards)
 
     def _explicit_template(self, need: Any, category_cards: dict[str, list[ProductCard]]) -> ScenarioTemplate | None:
-        required = self._string_list(self._get_value(need, "must_have_categories"))
+        required = self._normalized_categories(self._get_value(need, "must_have_categories"))
         if not required:
             return None
         optional = [category for category in category_cards if category not in required]
@@ -390,6 +391,20 @@ class BundleRecommendService:
             categories.extend(template.required_categories)
             categories.extend(template.optional_categories)
         return categories
+
+    def _normalized_categories(self, value: Any) -> list[str]:
+        categories = []
+        seen = set()
+        for item in self._string_list(value):
+            category = self._normalize_category(item)
+            if not category or category in seen:
+                continue
+            seen.add(category)
+            categories.append(category)
+        return categories
+
+    def _normalize_category(self, value: Any) -> str | None:
+        return normalize_category_keyword(value)
 
     def _select_bundle_cards(
         self,

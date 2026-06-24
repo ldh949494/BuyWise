@@ -81,6 +81,8 @@ def build_query_from_need(need: Any) -> str:
         ("场景", _get_value(need, "scenario")),
         ("偏好", _get_value(need, "preferences")),
         ("避免", _get_value(need, "avoid")),
+        ("必选品类", _get_value(need, "must_have_categories")),
+        ("排除品类", _get_value(need, "excluded_categories")),
     ]
 
     parts = []
