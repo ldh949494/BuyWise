@@ -129,3 +129,6 @@ jobs:
             $validationArgs += "-SkipAdminWebBuild"
           }
           ./scripts/auto_validate.ps1 @validationArgs
+
+      - name: Run security audit
+        run: ./scripts/security_audit.ps1 -SkipAdminWeb

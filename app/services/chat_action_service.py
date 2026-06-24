@@ -40,6 +40,26 @@ class ChatActionService:
     CHECKOUT_MARKERS = ["下单", "结算", "提交订单"]
     CONFIRM_MARKERS = ["确认", "确认执行"]
     PLAN_MARKERS = ["整套", "这套", "方案", "清单"]
+    EXPLICIT_PRODUCT_REFERENCE_MARKERS = [
+        "刚才",
+        "这款",
+        "这件",
+        "这个",
+        "这一个",
+        "它",
+        "首推",
+        "第一",
+        "第二",
+        "第三",
+        "第四",
+        "第五",
+        "第1",
+        "第2",
+        "第3",
+        "第4",
+        "第5",
+    ]
+    EXPLICIT_PLAN_REFERENCE_MARKERS = ["整套", "这套", "第一套", "第二套", "第三套", "第1套", "第2套", "第3套", "方案一", "方案二", "方案三"]
     ORDINALS = {
         "第一": 1,
         "第1": 1,
@@ -88,6 +108,8 @@ class ChatActionService:
         context: ChatActionContext,
     ) -> ChatActionResult | None:
         if self._contains(text, self.ADD_MARKERS):
+            if not self._has_explicit_add_reference(text):
+                return None
             return self._guarded_action("cart.add", lambda: self._add(text, chat_repo, db, context), db, context)
         if self._contains(text, self.REMOVE_MARKERS):
             payload = {"position": self._ordinal(text)}
@@ -183,6 +205,8 @@ class ChatActionService:
         snapshot = self._latest_recommendation_snapshot(chat_repo, context.session_id)
         if snapshot is None:
             return ChatActionResult(reply="需要先完成一次导购推荐，我才能知道要把哪款加入购物车。", action="cart.add.needs_context")
+        if self._requires_clearer_product_reference(text, snapshot):
+            return ChatActionResult(reply="我没能确定要加哪款。可以说“把第一款加到购物车”。", action="cart.add.needs_reference")
         product_refs = self._resolve_product_refs(text, snapshot)
         if not product_refs:
             return ChatActionResult(reply="我没能确定要加哪款。可以说“把第一款加到购物车”。", action="cart.add.needs_reference")
@@ -310,6 +334,17 @@ class ChatActionService:
                 return structured_data
         return None
 
+    def _requires_clearer_product_reference(self, text: str, snapshot: dict[str, Any]) -> bool:
+        if self._has_explicit_plan_reference(text):
+            return False
+        products = snapshot.get("products") or self._products_from_bundle(snapshot)
+        if len(products) <= 1:
+            return False
+        weak_markers = ["这款", "这件", "这个", "这一个", "它"]
+        if not self._contains(text, weak_markers):
+            return False
+        return not self._has_ordinal_reference(text)
+
     def _products_from_bundle(self, snapshot: dict[str, Any]) -> list[dict[str, Any]]:
         products = []
         for plan in snapshot.get("bundle_plans") or []:
@@ -330,6 +365,22 @@ class ChatActionService:
                 return value
         match = re.search(r"第?\s*(\d+)\s*(?:个|款|项|件|套)?", text)
         return int(match.group(1)) if match else 1
+
+    def _has_explicit_add_reference(self, text: str) -> bool:
+        return self._has_explicit_product_reference(text) or self._has_explicit_plan_reference(text)
+
+    def _has_explicit_product_reference(self, text: str) -> bool:
+        if self._contains(text, self.EXPLICIT_PRODUCT_REFERENCE_MARKERS):
+            return True
+        return self._has_ordinal_reference(text)
+
+    def _has_explicit_plan_reference(self, text: str) -> bool:
+        if self._contains(text, self.EXPLICIT_PLAN_REFERENCE_MARKERS):
+            return True
+        return bool(re.search(r"第\s*\d+\s*套", text))
+
+    def _has_ordinal_reference(self, text: str) -> bool:
+        return bool(re.search(r"第\s*\d+\s*(?:个|款|项|件)?", text))
 
     def _quantity(self, text: str) -> int:
         match = re.search(r"(\d+)\s*(?:个|件|台|套)", text)

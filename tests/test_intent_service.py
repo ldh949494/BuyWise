@@ -220,6 +220,68 @@ async def test_extract_merges_image_info_and_history_context() -> None:
 
 
 @pytest.mark.anyio
+async def test_extract_multiturn_budget_update_inherits_prior_need() -> None:
+    service = IntentService()
+
+    need = await service.extract(
+        "预算改到500",
+        history_context={
+            "category": "机械键盘",
+            "budget_max": 300,
+            "scenario": "宿舍",
+            "preferences": ["低噪音", "无线"],
+        },
+    )
+
+    assert need.category == "机械键盘"
+    assert need.budget_max == 500
+    assert need.scenario == "宿舍"
+    assert need.preferences == ["低噪音", "无线"]
+    assert need.purchase_stage == "buy_ready"
+
+
+@pytest.mark.anyio
+async def test_extract_multiturn_scenario_update_inherits_budget_and_preferences() -> None:
+    service = IntentService()
+
+    need = await service.extract(
+        "换成办公用",
+        history_context={
+            "category": "机械键盘",
+            "budget_max": 300,
+            "scenario": "宿舍",
+            "preferences": ["低噪音", "无线"],
+        },
+    )
+
+    assert need.category == "机械键盘"
+    assert need.budget_max == 300
+    assert need.scenario == "办公"
+    assert need.preferences == ["低噪音", "无线"]
+
+
+@pytest.mark.anyio
+async def test_extract_multiturn_negative_preference_removes_inherited_preference() -> None:
+    service = IntentService()
+
+    need = await service.extract(
+        "不要无线",
+        history_context={
+            "category": "机械键盘",
+            "budget_max": 300,
+            "scenario": "宿舍",
+            "preferences": ["低噪音", "无线"],
+        },
+    )
+
+    assert need.category == "机械键盘"
+    assert need.budget_max == 300
+    assert need.scenario == "宿舍"
+    assert need.preferences == ["低噪音"]
+    assert need.avoid == ["无线"]
+
+
+@pytest.mark.anyio
 async def test_extract_prefers_llm_structured_need_when_available() -> None:
     llm = FakeLLMClient(
         """

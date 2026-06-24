@@ -29,6 +29,11 @@ class IntentService:
     PREFERENCE_KEYWORDS = PREFERENCE_KEYWORDS
     BUDGET_PATTERNS = [
         re.compile(
+            r"(?:\u9884\u7b97)?\s*(?:\u6539\u5230|\u6539\u6210|\u6362\u5230|"
+            r"\u63d0\u9ad8\u5230|\u964d\u5230|\u964d\u4f4e\u5230|\u63a7\u5236\u5230)"
+            r"\s*(\d+(?:\.\d+)?)\s*(?:\u5143|\u5757)?"
+        ),
+        re.compile(
             r"(?:\u9884\u7b97|\u4e0d\u8d85\u8fc7|\u4e0d\u8d85|"
             r"\u63a7\u5236\u5728|\u4f4e\u4e8e|\u5c11\u4e8e)"
             r"\s*(\d+(?:\.\d+)?)\s*(?:\u5143|\u5757)?"
@@ -110,7 +115,8 @@ class IntentService:
         category = self._rule_category(intent, normalized_text, image_info, history_context)
         budget_max = self._rule_budget(normalized_text, history_context)
         scenario = self._extract_scenario(normalized_text) or history_context.get("scenario")
-        preferences = self._rule_preferences(normalized_text, image_info, history_context)
+        avoid = self._rule_avoid(normalized_text, history_context)
+        preferences = self._rule_preferences(normalized_text, image_info, history_context, avoid)
         purchase_stage = self._purchase_stage(normalized_text, budget_max, scenario, preferences)
         return {
             "intent": intent,
@@ -122,10 +128,10 @@ class IntentService:
             "duration_days": self._extract_duration_days(normalized_text),
             "occasion": self._extract_occasion(normalized_text),
             "preferences": preferences,
-            "avoid": self._extract_avoid(normalized_text),
-            "style_preferences": self._extract_style_preferences(normalized_text),
+            "avoid": avoid,
+            "style_preferences": self._rule_style_preferences(normalized_text, history_context),
             "must_have_categories": self._extract_must_have_categories(normalized_text) if intent == "bundle_recommend" else [],
-            "excluded_categories": self._extract_excluded_categories(normalized_text),
+            "excluded_categories": self._rule_excluded_categories(normalized_text, history_context),
             "purchase_stage": purchase_stage,
             "retrieval_strategy": retrieval_strategy_for(intent, purchase_stage),
         }
@@ -157,11 +163,40 @@ class IntentService:
         normalized_text: str,
         image_info: dict,
         history_context: dict,
+        avoid: list[str],
     ) -> list[str]:
-        preferences = self._extract_preferences(normalized_text)
+        current_preferences = self._extract_preferences(normalized_text)
+        preferences = list(current_preferences)
         preferences.extend(self._coerce_list(image_info.get("features")))
-        preferences.extend(self._coerce_list(history_context.get("preferences")))
-        return dedupe_strings(preferences)
+        preferences.extend(self._history_preferences(normalized_text, history_context, current_preferences))
+        return [preference for preference in dedupe_strings(preferences) if preference not in set(avoid)]
+
+    def _history_preferences(
+        self,
+        normalized_text: str,
+        history_context: dict,
+        current_preferences: list[str],
+    ) -> list[str]:
+        if current_preferences and self._has_replacement_marker(normalized_text):
+            return []
+        return self._coerce_list(history_context.get("preferences"))
+
+    def _rule_avoid(self, normalized_text: str, history_context: dict) -> list[str]:
+        return dedupe_strings([*self._coerce_list(history_context.get("avoid")), *self._extract_avoid(normalized_text)])
+
+    def _rule_style_preferences(self, normalized_text: str, history_context: dict) -> list[str]:
+        current_styles = self._extract_style_preferences(normalized_text)
+        if current_styles and self._has_replacement_marker(normalized_text):
+            return dedupe_strings(current_styles)
+        return dedupe_strings([*current_styles, *self._coerce_list(history_context.get("style_preferences"))])
+
+    def _rule_excluded_categories(self, normalized_text: str, history_context: dict) -> list[str]:
+        return dedupe_strings(
+            [
+                *self._coerce_list(history_context.get("excluded_categories")),
+                *self._extract_excluded_categories(normalized_text),
+            ]
+        )
 
     def _extract_intent(self, text: str) -> str:
         if self._is_bundle_intent(text):
@@ -329,14 +364,21 @@ class IntentService:
     def _extract_avoid(self, text: str) -> list[str]:
         if not self._contains_keyword(text, ["\u4e0d\u8981", "\u4e0d\u60f3\u8981", "\u907f\u514d", "\u6392\u9664"]):
             return []
-        return [
+        avoid = [
             preference
             for preference in self.PREFERENCE_KEYWORDS
             if self._contains_any_negative_context(text, preference)
         ]
+        for keyword, preference in RULE_PREFERENCE_ALIASES.items():
+            if self._contains_any_negative_context(text, keyword):
+                avoid.append(preference)
+        return dedupe_strings(avoid)
 
     def _contains_any_negative_context(self, text: str, value: str) -> bool:
         return any(marker in text for marker in [f"\u4e0d\u8981{value}", f"\u4e0d\u60f3\u8981{value}", f"\u907f\u514d{value}", f"\u6392\u9664{value}"])
+
+    def _has_replacement_marker(self, text: str) -> bool:
+        return self._contains_keyword(text, ["\u6539\u6210", "\u6362\u6210", "\u6539\u4e3a", "\u6362\u4e3a"])
 
     def _missing_fields(
         self,

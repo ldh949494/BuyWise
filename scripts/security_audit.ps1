@@ -30,7 +30,12 @@ if (-not $SkipPython) {
 
     Write-Host "========== Python Dependency Audit =========="
     Write-Host "Ignoring CVE-2026-45829 only after verifying BuyWise does not expose the vulnerable Chroma HTTP API."
-    & $python -m pip_audit -r requirements-dev.txt --ignore-vuln CVE-2026-45829
+    & $python -m pip_audit `
+        -r requirements.txt `
+        -r requirements-dev.txt `
+        --disable-pip `
+        --no-deps `
+        --ignore-vuln CVE-2026-45829
     Assert-LastExitCode "Python dependency audit"
 }
 

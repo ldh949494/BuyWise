@@ -53,12 +53,12 @@ class GuideFollowUpStreamService:
             async for event in self._stream_action_result(context, action_result):
                 yield event
             return
-        if self._should_refresh_follow_up(text, snapshot):
-            async for event in self._stream_refresh_signal(context, "needs_new_recommendation"):
-                yield event
-            return
         if self._is_realtime_or_platform_claim_question(text):
             async for event in self._stream_policy_limited_answer(context, snapshot):
+                yield event
+            return
+        if self._should_refresh_follow_up(text, snapshot):
+            async for event in self._stream_refresh_signal(context, "needs_new_recommendation"):
                 yield event
             return
         async for event in self._stream_follow_up_answer(context, text, snapshot):
@@ -203,7 +203,7 @@ class GuideFollowUpStreamService:
         self.chat_service._commit(context["chat_repo"])
 
     def _latest_recommendation_snapshot(self, context: dict[str, Any]) -> dict[str, Any] | None:
-        for message in context["chat_repo"].list_messages(context["session_id"], limit=20):
+        for message in reversed(context["chat_repo"].list_messages(context["session_id"], limit=20)):
             structured_data = getattr(message, "structured_data", None) or {}
             products = structured_data.get("products") or []
             bundle_plans = structured_data.get("bundle_plans") or []
@@ -228,9 +228,38 @@ class GuideFollowUpStreamService:
         if any(marker in normalized for marker in refresh_markers):
             return True
         need = snapshot.get("need") or {}
+        if self._has_structured_condition_change(text, need):
+            return True
         category = str(need.get("category") or "").strip()
         recommendation_request_markers = ["推荐一个", "推荐一款", "推荐一下", "帮我推荐", "再推荐"]
         return bool(category and any(marker in normalized for marker in recommendation_request_markers) and category not in normalized)
+
+    def _has_structured_condition_change(self, text: str, snapshot_need: dict[str, Any]) -> bool:
+        if not snapshot_need:
+            return False
+        try:
+            current_need = self.chat_service.intent_service.extract_by_rules(text, history_context=snapshot_need)
+        except AttributeError:
+            return False
+        changed_fields = ["category", "budget_max", "scenario"]
+        if any(self._field_changed(snapshot_need, current_need, field) for field in changed_fields):
+            return True
+        for field in ["preferences", "avoid", "style_preferences", "excluded_categories"]:
+            if set(self._list_value(getattr(current_need, field, []))) != set(self._list_value(snapshot_need.get(field))):
+                return True
+        return False
+
+    def _field_changed(self, snapshot_need: dict[str, Any], current_need: Any, field: str) -> bool:
+        before = snapshot_need.get(field)
+        after = getattr(current_need, field, None)
+        return before not in (None, [], "") and after not in (None, [], "") and before != after
+
+    def _list_value(self, value: Any) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return [str(item) for item in value if str(item)]
+        return [str(value)] if str(value) else []
 
     def _is_realtime_or_platform_claim_question(self, text: str) -> bool:
         markers = [

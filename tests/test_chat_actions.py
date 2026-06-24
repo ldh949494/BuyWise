@@ -39,6 +39,14 @@ def make_client() -> TestClient:
                     suitable_scene=["宿舍"],
                     stock_status="in_stock",
                 ),
+                Product(
+                    name="Office68 轻薄无线机械键盘",
+                    category="机械键盘",
+                    price=Decimal("259.00"),
+                    tags=["无线", "轻薄"],
+                    suitable_scene=["办公"],
+                    stock_status="in_stock",
+                ),
             ]
         )
         db.commit()
@@ -77,6 +85,111 @@ def test_chat_adds_latest_recommendation_to_cart_and_removes_by_position() -> No
     assert remove.status_code == 200
     assert remove.json()["extra"]["action"] == "cart.remove"
     assert client.get("/api/v1/cart").json()["items"] == []
+
+
+def test_chat_adds_second_recommended_product_with_quantity() -> None:
+    client = make_client()
+    session_id = "chat-action-second-product"
+
+    recommend = client.post(
+        "/api/v1/ai/chat",
+        json={"session_id": session_id, "message": "推荐两个300以内的无线机械键盘"},
+    )
+    assert recommend.status_code == 200
+    assert [product["id"] for product in recommend.json()["products"][:2]] == [1, 3]
+
+    add = client.post(
+        "/api/v1/ai/chat",
+        json={"session_id": session_id, "message": "把第二款加到购物车，两件"},
+    )
+
+    assert add.status_code == 200
+    assert add.json()["extra"]["action"] == "cart.add"
+    assert add.json()["extra"]["product_ids"] == [3]
+    cart_items = client.get("/api/v1/cart").json()["items"]
+    assert len(cart_items) == 1
+    assert cart_items[0]["product_id"] == 3
+    assert cart_items[0]["quantity"] == 2
+
+
+def test_chat_add_to_cart_requires_recommendation_context() -> None:
+    client = make_client()
+
+    add = client.post(
+        "/api/v1/ai/chat",
+        json={"session_id": "chat-action-no-context", "message": "把刚才那款加到购物车"},
+    )
+
+    assert add.status_code == 200
+    assert add.json()["extra"]["action"] == "cart.add.needs_context"
+    assert client.get("/api/v1/cart").json()["items"] == []
+
+
+def test_chat_does_not_add_ambiguous_product_request_to_cart() -> None:
+    client = make_client()
+    session_id = "chat-action-ambiguous-add"
+
+    recommend = client.post(
+        "/api/v1/ai/chat",
+        json={"session_id": session_id, "message": "推荐一个300以内适合宿舍的低噪音无线机械键盘"},
+    )
+    assert recommend.status_code == 200
+    assert recommend.json()["products"]
+
+    follow_up = client.post(
+        "/api/v1/ai/chat",
+        json={"session_id": session_id, "message": "帮我加购一副合适的键盘到购物车"},
+    )
+
+    assert follow_up.status_code == 200
+    assert follow_up.json()["extra"].get("action") != "cart.add"
+    assert follow_up.json()["products"]
+    assert client.get("/api/v1/cart").json()["items"] == []
+
+
+def test_chat_add_to_cart_requires_clear_reference_when_multiple_products_match() -> None:
+    client = make_client()
+    session_id = "chat-action-weak-reference"
+
+    recommend = client.post(
+        "/api/v1/ai/chat",
+        json={"session_id": session_id, "message": "推荐两个300以内的无线机械键盘"},
+    )
+    assert recommend.status_code == 200
+    assert len(recommend.json()["products"]) >= 2
+
+    add = client.post("/api/v1/ai/chat", json={"session_id": session_id, "message": "把它加到购物车"})
+
+    assert add.status_code == 200
+    assert add.json()["extra"]["action"] == "cart.add.needs_reference"
+    assert client.get("/api/v1/cart").json()["items"] == []
+
+
+def test_chat_adds_bundle_plan_products_to_cart() -> None:
+    client = make_client()
+    session_id = "chat-action-bundle-plan"
+
+    recommend = client.post(
+        "/api/v1/ai/chat",
+        json={"session_id": session_id, "message": "帮我搭配一套宿舍桌面外设方案，预算700以内"},
+    )
+    assert recommend.status_code == 200
+    recommended_plan_ids = {
+        item["product"]["id"]
+        for item in recommend.json()["bundle_plans"][0]["items"]
+    }
+    assert recommended_plan_ids
+
+    add = client.post(
+        "/api/v1/ai/chat",
+        json={"session_id": session_id, "message": "把这套方案加入购物车"},
+    )
+
+    assert add.status_code == 200
+    assert add.json()["extra"]["action"] == "cart.add"
+    assert set(add.json()["extra"]["product_ids"]) == recommended_plan_ids
+    cart_items = client.get("/api/v1/cart").json()["items"]
+    assert {item["product_id"] for item in cart_items} == recommended_plan_ids
 
 
 def test_chat_checkout_uses_default_address() -> None:
