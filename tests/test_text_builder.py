@@ -97,11 +97,16 @@ def test_build_query_from_structured_need() -> None:
         scenario="宿舍写代码",
         preferences=["静音", "红轴"],
         avoid=["灯效太亮"],
+        must_have_categories=["机械键盘", "鼠标"],
+        excluded_categories=["显示器"],
     )
 
     query = build_query_from_need(need)
 
-    assert query == "意图：recommend 类别：机械键盘 预算上限：400 场景：宿舍写代码 偏好：静音、红轴 避免：灯效太亮"
+    assert query == (
+        "意图：recommend 类别：机械键盘 预算上限：400 场景：宿舍写代码 偏好：静音、红轴 "
+        "避免：灯效太亮 必选品类：机械键盘、鼠标 排除品类：显示器"
+    )
 
 
 def test_build_query_from_dict_need_skips_empty_values() -> None:

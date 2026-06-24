@@ -57,6 +57,8 @@ CATEGORY_ALIASES = {
     "headphone": "蓝牙耳机",
     "bluetooth earbuds": "蓝牙耳机",
     "bluetooth headphones": "蓝牙耳机",
+    "mouse": "鼠标",
+    "mice": "鼠标",
     "desk lamp": "台灯",
     "lamp": "台灯",
     "power bank": "充电宝",
@@ -67,6 +69,22 @@ CATEGORY_ALIASES = {
     "refrigerator": "冰箱",
     "fridge": "冰箱",
 }
+
+
+def normalize_category_keyword(value: object) -> str | None:
+    """Normalize a category label using the shared shopping taxonomy."""
+    text = str(value or "").strip()
+    if not text:
+        return None
+    alias = CATEGORY_ALIASES.get(text.lower())
+    if alias:
+        return alias
+    if text in CATEGORY_KEYWORDS:
+        return text
+    for category, keywords in CATEGORY_KEYWORDS.items():
+        if text in keywords or any(keyword in text for keyword in keywords):
+            return category
+    return text
 
 SCENARIO_KEYWORDS = [
     "宿舍",

@@ -243,6 +243,8 @@ class IntentService:
     def _is_bundle_intent(self, text: str) -> bool:
         if self._contains_keyword(text, ["\u4e00\u5957", "\u5957\u88c5", "\u7ec4\u5408", "\u65b9\u6848", "\u6e05\u5355", "\u914d\u9f50", "\u5168\u5957", "\u684c\u9762\u88c5\u5907", "\u7535\u8111\u5916\u8bbe", "\u4ece", "\u7a7f\u642d"]):
             return True
+        if re.search(r"(?:\d+|[\u4e00\u4e8c\u4e24\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341])\s*\u4ef6\u5957", text):
+            return True
         if "\u642d\u914d" not in text:
             return False
         return self._extract_category(text) is None and self._extract_shopping_target(text) is None
@@ -479,4 +481,9 @@ class IntentService:
             and not rule_need.need_clarify
         ):
             return rule_need
+        if rule_need.intent == "bundle_recommend" and rule_need.must_have_categories:
+            llm_need.intent = "bundle_recommend"
+            llm_need.must_have_categories = dedupe_strings(
+                [*rule_need.must_have_categories, *llm_need.must_have_categories]
+            )
         return llm_need

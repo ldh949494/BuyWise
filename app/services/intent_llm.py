@@ -8,8 +8,6 @@ from typing import Any, Callable
 from app.core.providers import AppError
 from app.schemas.chat import StructuredNeed
 from app.services.intent_taxonomy import (
-    CATEGORY_ALIASES,
-    CATEGORY_KEYWORDS,
     CORE_MISSING_FIELDS,
     INTENT_ALIASES,
     PREFERENCE_ALIASES,
@@ -19,6 +17,7 @@ from app.services.intent_taxonomy import (
 )
 from app.utils.intent_strategy import retrieval_strategy_for
 from app.utils.list_values import dedupe_strings
+from app.utils.taxonomy import normalize_category_keyword
 
 
 MissingFieldsFn = Callable[[str, str | None, float | None, str | None, list[str], str], list[str]]
@@ -164,8 +163,8 @@ class LlmIntentExtractor:
         return {
             "avoid": dedupe_strings(self._text_list(payload.get("avoid"))),
             "style_preferences": dedupe_strings(self._text_list(payload.get("style_preferences"))),
-            "must_have_categories": dedupe_strings(self._text_list(payload.get("must_have_categories"))),
-            "excluded_categories": dedupe_strings(self._text_list(payload.get("excluded_categories"))),
+            "must_have_categories": self._normalize_category_list(payload.get("must_have_categories")),
+            "excluded_categories": self._normalize_category_list(payload.get("excluded_categories")),
         }
 
     def _payload_retrieval_strategy(self, payload: dict[str, Any], intent: str, purchase_stage: str) -> str:
@@ -179,16 +178,15 @@ class LlmIntentExtractor:
         return INTENT_ALIASES.get(intent, intent)
 
     def _normalize_category(self, value: Any) -> str | None:
-        category = self._optional_text(value)
-        if category is None:
-            return None
-        alias = CATEGORY_ALIASES.get(category.lower())
-        if alias:
-            return alias
-        for normalized, keywords in CATEGORY_KEYWORDS.items():
-            if any(keyword in category for keyword in keywords):
-                return normalized
-        return category
+        return normalize_category_keyword(value)
+
+    def _normalize_category_list(self, value: Any) -> list[str]:
+        categories = []
+        for item in self._text_list(value):
+            category = normalize_category_keyword(item)
+            if category:
+                categories.append(category)
+        return dedupe_strings(categories)
 
     def _normalize_scenario(self, value: Any) -> str | None:
         scenario = self._optional_text(value)

@@ -1,7 +1,11 @@
 from decimal import Decimal
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
+from app.core.database import Base
 from app.models import Product
 from app.schemas.chat import ChatRequest, ProductCard, StructuredNeed
 from app.services.chat_service import ChatService
@@ -84,3 +88,104 @@ async def test_handle_chat_builds_bundle_recommendation_from_existing_chat_contr
     assert {item.category for item in response.bundle_plans[1].items} >= {"电脑", "显示器", "机械键盘", "鼠标", "蓝牙耳机"}
     assert response.products
     assert rag_pipeline.calls[0]["top_k"] == 30
+
+
+@pytest.mark.anyio
+async def test_explicit_three_item_bundle_backfills_missing_categories_from_db() -> None:
+    need = StructuredNeed(
+        intent="bundle_recommend",
+        must_have_categories=["蓝牙耳机", "机械键盘", "鼠标"],
+        preferences=["性价比"],
+    )
+    keyboard = make_bundle_product(1, "Campus75 三模静音机械键盘", "机械键盘", 289)
+    earbuds = make_bundle_product(2, "MetroBuds Lite 通勤降噪耳机", "蓝牙耳机", 299)
+    mouse = make_bundle_product(3, "QuietMouse M1 静音办公鼠标", "鼠标", 89)
+    rag_pipeline = FakeRAGPipeline([keyboard])
+    service = ChatService(
+        intent_service=FakeIntentService(need),
+        rag_pipeline=rag_pipeline,
+        recommend_service=FakeRecommendService(),
+        llm_client=FakeLLMClient(),
+    )
+    db = _sqlite_session_with_products([keyboard, earbuds, mouse])
+
+    try:
+        response = await service.handle_chat(ChatRequest(message="给我推荐耳机，键盘，鼠标三件套，预算不多，要求性价比"), db=db)
+    finally:
+        db.close()
+
+    assert response.bundle_plans
+    assert len(response.bundle_plans) == 3
+    for plan in response.bundle_plans:
+        categories = {item.category for item in plan.items if item.required}
+        assert categories == {"蓝牙耳机", "机械键盘", "鼠标"}
+        assert plan.completeness.included_required == 3
+        assert plan.completeness.expected_required == 3
+        assert plan.completeness.missing == []
+
+
+@pytest.mark.anyio
+async def test_explicit_three_item_bundle_reports_missing_category_without_fake_completion() -> None:
+    need = StructuredNeed(
+        intent="bundle_recommend",
+        must_have_categories=["蓝牙耳机", "机械键盘", "鼠标"],
+        preferences=["性价比"],
+    )
+    keyboard = make_bundle_product(1, "Campus75 三模静音机械键盘", "机械键盘", 289)
+    earbuds = make_bundle_product(2, "MetroBuds Lite 通勤降噪耳机", "蓝牙耳机", 299)
+    service = ChatService(
+        intent_service=FakeIntentService(need),
+        rag_pipeline=FakeRAGPipeline([keyboard]),
+        recommend_service=FakeRecommendService(),
+        llm_client=FakeLLMClient(),
+    )
+    db = _sqlite_session_with_products([keyboard, earbuds])
+
+    try:
+        response = await service.handle_chat(ChatRequest(message="给我推荐耳机，键盘，鼠标三件套"), db=db)
+    finally:
+        db.close()
+
+    assert response.bundle_plans
+    for plan in response.bundle_plans:
+        categories = {item.category for item in plan.items if item.required}
+        assert categories == {"蓝牙耳机", "机械键盘"}
+        assert plan.completeness.included_required == 2
+        assert plan.completeness.expected_required == 3
+        assert plan.completeness.missing == ["鼠标"]
+
+
+@pytest.mark.anyio
+async def test_explicit_bundle_normalizes_excluded_category_aliases() -> None:
+    need = StructuredNeed(
+        intent="bundle_recommend",
+        must_have_categories=["headphones", "keyboard", "mouse"],
+        excluded_categories=["mouse"],
+    )
+    keyboard = make_bundle_product(1, "Campus75 三模静音机械键盘", "机械键盘", 289)
+    earbuds = make_bundle_product(2, "MetroBuds Lite 通勤降噪耳机", "蓝牙耳机", 299)
+    mouse = make_bundle_product(3, "QuietMouse M1 静音办公鼠标", "鼠标", 89)
+    service = ChatService(
+        intent_service=FakeIntentService(need),
+        rag_pipeline=FakeRAGPipeline([keyboard, earbuds, mouse]),
+        recommend_service=FakeRecommendService(),
+        llm_client=FakeLLMClient(),
+    )
+
+    response = await service.handle_chat(ChatRequest(message="推荐耳机键盘鼠标三件套，不要 mouse"), db=object())
+
+    assert response.bundle_plans
+    for plan in response.bundle_plans:
+        categories = {item.category for item in plan.items if item.required}
+        assert categories == {"蓝牙耳机", "机械键盘"}
+        assert plan.completeness.missing == ["鼠标"]
+
+
+def _sqlite_session_with_products(products: list[Product]):
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    Base.metadata.create_all(bind=engine)
+    session_factory = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    db = session_factory()
+    db.add_all(products)
+    db.commit()
+    return db
