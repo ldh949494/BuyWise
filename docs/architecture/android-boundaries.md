@@ -22,6 +22,8 @@ Android 客户端位于 `android-app/`，是原生 Kotlin 应用。
 
 当前 Android 集成覆盖商品浏览、场景筛选、首页轻量导购入口、商品详情、商品对比、AI 导购流式输出、图片/语音多模态联调、商品详情记录购买、首页购买后反馈提示和内联反馈表单。
 
+AI 导购页不在客户端判断“追问、刷新、换品类或重新推荐”。`GuideViewModel` 对非对比消息统一调用 guide stream，由后端返回商品、回复、刷新兜底或 action 事件；Android 只负责展示和同步购物车状态。对比页 follow-up 仍走 compare 专用接口。
+
 用户侧主路径以首页为默认入口：搜索服务已知目标，首页导购输入服务需要决策的需求；带 query 进入导购页时由 `BuyWiseViewModel.startGuideFromHome` 自动提交。商品卡、导购结果和详情页优先展示商品名、价格、库存、风险点和证据标签，不把 BuyWise 表达成交易平台。
 
 对比能力由 `CompareBasketState` 和 `FloatingCompareBasket` 承接，用户加入商品后继续停留在当前浏览或导购上下文；悬浮篮显示已选数量，至少 2 件后进入对比页。对比页先展示决策摘要和关键适配，再展示规格矩阵。

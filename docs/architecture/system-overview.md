@@ -16,7 +16,9 @@ BuyWise 是一个多模态电商导购项目，仓库包含 FastAPI 后端和原
 
 ## 当前端到端链路
 
-AI 导购链路为：Android 输入需求 -> `/api/v1/ai/chat/stream` -> 后端抽取结构化需求 -> 合并本次输入、临时偏好和账号级导购偏好 -> RAG 检索商品 -> 推荐排序或组合方案生成 -> LLM 生成回复 -> SSE 分块返回 -> Android 展示回复、商品卡片、组合方案卡片和已应用偏好摘要。
+AI 导购链路为：Android 输入需求 -> `/api/v1/ai/guide/stream` -> 后端读取会话状态并判定本轮 turn 类型 -> 抽取或继承结构化需求 -> 合并本次输入、临时偏好和账号级导购偏好 -> 按需基于 active snapshot 回答，或重新 RAG 检索商品 -> 推荐排序或组合方案生成 -> LLM 生成回复 -> SSE 分块返回 -> Android 展示回复、商品卡片、组合方案卡片和已应用偏好摘要。
+
+导购会话的业务路由由后端统一负责。Android 不判断“追问还是重新推荐”，只发送用户消息并按 SSE 事件更新 UI；`/api/v1/ai/guide/follow-up/stream` 保留兼容，但内部与 guide stream 共用同一套 turn 编排。
 
 非流式 JSON 聊天接口 `/api/v1/ai/chat` 仍保留，用于测试、兼容和调试。
 

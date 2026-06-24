@@ -12,6 +12,7 @@ from app.main import create_app
 from app.models import Product
 from app.schemas.chat import ChatRequest, ProductCard, StructuredNeed
 from app.services.chat_service import ChatService
+from app.services.intent_service import IntentService
 
 
 KEYBOARD_CATEGORY = "机械键盘"
@@ -226,6 +227,47 @@ async def test_generate_follow_up_stream_uses_saved_snapshot_without_rag() -> No
     assert rag_pipeline.calls == []
     assert any(event["event"] == "token" for event in events)
     assert events[-1]["data"]["should_refresh"] is False
+    assert KEYBOARD_NAME in llm_client.chat_messages[0][1]["content"]
+
+
+@pytest.mark.anyio
+async def test_generate_follow_up_stream_explanation_keeps_snapshot_context() -> None:
+    need = StructuredNeed(intent="商品推荐", category=KEYBOARD_CATEGORY, budget_max=300)
+    llm_client = FakeLLMClient()
+    service = ChatService(
+        intent_service=FakeIntentService(need),
+        rag_pipeline=FakeRAGPipeline([]),
+        recommend_service=FakeRecommendService(),
+        llm_client=llm_client,
+    )
+    db = _sqlite_session_with_products([])
+    snapshot = {
+        "need": need.model_dump(mode="json"),
+        "products": [
+            ProductCard(id=1, name=KEYBOARD_NAME, price=299, score=90, reason="价格符合预算").model_dump(mode="json")
+        ],
+        "applied_preferences": {},
+    }
+
+    try:
+        chat_repo = service._chat_repo(ChatRequest(session_id="follow-explain-snapshot"), db)
+        chat_repo.get_or_create_session("follow-explain-snapshot")
+        chat_repo.create_message("follow-explain-snapshot", "assistant", "推荐：" + KEYBOARD_NAME, structured_data=snapshot)
+        service._commit(chat_repo)
+        events = [
+            event
+            async for event in service.generate_follow_up_stream(
+                ChatRequest(session_id="follow-explain-snapshot", message="为什么推荐它？"),
+                db=db,
+            )
+        ]
+    finally:
+        db.close()
+
+    assert [event["event"] for event in events][:2] == ["meta", "status"]
+    assert events[-1]["event"] == "done"
+    assert events[-1]["data"]["should_refresh"] is False
+    assert llm_client.chat_messages
     assert KEYBOARD_NAME in llm_client.chat_messages[0][1]["content"]
 
 

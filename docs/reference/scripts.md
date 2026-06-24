@@ -4,7 +4,7 @@
 
 - `scripts/auto_validate.ps1`：仓库提交前和 CI 验证入口。它会运行文档校验、provider lint、仓库 lint、熵债校验、OpenAPI contract、后端 smoke check、使用仓库内 basetemp 且禁用 cache 的 pytest，并默认构建 `admin-web`；可用 `-SkipAdminWebBuild` 跳过后台前端构建，可用 `-SkipAndroidBuild` 跳过 Android 构建。
 - `scripts/release_check.ps1`：发版前聚合验证入口。默认调用 `auto_validate.ps1`、Android lint 和 Android debug build；传入 `-CheckIndex` 时运行 `app.scripts.check_vector_index`，传入 `-RunRagEval` 时运行 RAG 质量阈值门禁，传入 `-RunRealDependencySmoke` 时运行 MySQL 与 COS 真实或沙箱依赖 smoke，传入 `-Token` 与 `-ReadinessToken` 时运行 closed beta readiness 和 smoke。可用 `-ExpectedActiveProducts <count>` 把固定目录规模门禁传给 readiness；可用 `-RagEvalProfile android-contract|demo|beta-fixture`、`-RagEvalRetrieval fallback|vector`、`-MinRagRecall`、`-MinRagTop1`、`-MinRagMrr`、`-MaxRagFallbackRate`、`-MaxRagEmptyResultRate` 和 `-RagEvalOutputJson` 配置 RAG 门禁；可用 `-SmokeMySql`、`-SmokeCos` 和 `-RealDependencySmokeOutputJson` 配置真实依赖 smoke；可用 `-SkipAndroidBuild`、`-SkipAndroidAnalyze` 和 `-SkipDependencyInstall` 控制本地耗时。
-- `scripts/security_audit.ps1`：显式依赖安全审计入口。它会先运行 `scripts/validate_chroma_boundary.py` 确认项目没有使用或部署 Chroma HTTP API，再用 `pip-audit -r requirements-dev.txt` 审计 Python 依赖，并在存在 `admin-web/package.json` 时运行 `npm audit`；可用 `-SkipPython` 或 `-SkipAdminWeb` 跳过单侧审计。ChromaDB 当前无上游修复版本的 HTTP API CVE 只在边界校验通过后按 CVE ID 单项忽略。
+- `scripts/security_audit.ps1`：显式依赖安全审计入口。它会先运行 `scripts/validate_chroma_boundary.py` 确认项目没有使用或部署 Chroma HTTP API，再用 `pip-audit` 审计 `requirements.txt` 和 `requirements-dev.txt` 中锁定的 Python 依赖，并在存在 `admin-web/package.json` 时运行 `npm audit`；可用 `-SkipPython` 或 `-SkipAdminWeb` 跳过单侧审计。ChromaDB 当前无上游修复版本的 HTTP API CVE 只在边界校验通过后按 CVE ID 单项忽略。
 - `scripts/validate_docs.py`：校验 `AGENTS.md` 和 `docs/`。
 - `scripts/validate_providers.py`：校验后端模块是否通过统一 Provider 入口访问横切能力。
 - `scripts/validate_repo_lint.py`：自定义仓库 linter，覆盖结构化日志、命名、文件大小和导入边界。
@@ -33,6 +33,7 @@
 - `scripts/start_demo.ps1`：本地演示启动脚本。它检查 `.env` 的 LLM 配置，执行迁移、`seed_products --profile demo`、向量索引构建，并启动 Uvicorn。可用 `-SkipIndex` 跳过索引、`-Port <port>` 切换端口、`-AllowMockLlm` 做离线 smoke。
 - `scripts/browser_check.py`：通过 Playwright/CDP 验证运行中的后端。
 - `scripts/demo_api_check.py`：验证演示备用 API 路径，依次请求 health、商品列表、商品对比和 AI 导购，并确认固定演示问题首推 demo 键盘。
+- `scripts/chat_multiturn_probe.py`：通过 HTTP/SSE 探测 AI 导购多轮准确性，覆盖预算更新、场景覆盖、否定偏好、泛指加购不写购物车、明确加购、追问刷新和快照解释追问；可对本地 prod Compose 或 beta API 运行，输出每个场景的 checks、failed_checks 和 actual 诊断。示例：`python scripts/chat_multiturn_probe.py --base-url http://127.0.0.1:8000 --token <smoke-token>`。
 - `scripts/closed_beta_smoke.py`：closed beta HTTP smoke。依次检查 health、ready、商品列表、RAG search、外部购买记录、待评价和提交评价；使用 `--include-ai` 时额外验证真实导购返回商品且未降级。
 - `scripts/closed_beta_verify.ps1`：发布后验证薄入口。先打印非敏感 runtime config summary，再运行 `app.scripts.readiness_check` 和 `scripts/closed_beta_smoke.py`；可用 `-ExpectedActiveProducts <count>` 检查 active 商品数，可用 `-IncludeAi` 打开真实 AI 检查。
 

@@ -41,7 +41,7 @@
 - 流式聊天不长期暴露 `fallback` 事件；降级通过 `status.stage=fallback` 和 `done.degraded=true` 表达。
 - 聊天商品卡片包含解释字段：`budget_match`、`scenario_match`、`conflicts` 和 `alternatives`。
 - AI 导购会在组合场景中返回 `bundle_plans`；结构化需求包含日期、地点、时长、场合、风格偏好、必选品类和排除品类，用于跨类目检索和方案编排。
-- AI 导购追问支持会话内购物车动作，如“把刚才那款加到购物车”“删掉第二个”“下单吧，地址用默认的”；动作结果会作为普通回复或 SSE token/done 返回。
+- AI 导购追问支持会话内购物车动作，如“把刚才那款加到购物车”“删掉第二个”“下单吧，地址用默认的”；动作结果会作为普通回复或 SSE token/done 返回。加购类写操作必须明确指向已有推荐商品或方案，像“帮我加购一副合适的键盘到购物车”这类泛指请求只继续推荐，不直接修改购物车。
 - AI 对比追问基于客户端传入的当前对比商品、摘要和 winner 回答，不依赖导购 `session_id` 或推荐快照。
 - 拍照找货接口返回 `recognized` 视觉特征、相似商品 `products` 和 `fallback_used`，视觉索引为空时会退回文本/RAG 候选。
 - RAG 搜索响应的 `items` 使用强类型 `RagItem`，只承诺 `product_id`、`name`、`price`、`score`、`reason`、`category`、`platform`、`product_url` 和 `stock_status`。

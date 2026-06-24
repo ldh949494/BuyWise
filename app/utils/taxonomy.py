@@ -111,6 +111,7 @@ SCENARIO_ALIASES = {
 PREFERENCE_KEYWORDS = [
     "低噪音",
     "无线",
+    "有线",
     "降噪",
     "护眼",
     "轻便",
