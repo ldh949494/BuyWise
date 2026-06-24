@@ -41,6 +41,7 @@ import com.buywise.android.ui.components.FloatingAssetBadge
 import com.buywise.android.ui.components.FloatingGlassCard
 import com.buywise.android.ui.components.FloatingGlassTone
 import com.buywise.android.ui.components.ProductCard
+import com.buywise.android.ui.components.ProvisionalProductCard
 import com.buywise.android.ui.components.SectionTitle
 import com.buywise.android.ui.components.TactileIconTile
 import com.buywise.android.ui.components.TactileIconTone
@@ -67,6 +68,10 @@ fun GuideScreen(
     val coroutineScope = rememberCoroutineScope()
     val isClarifying = state.resultStatus == GuideResultStatus.Clarifying
     val hasResults = state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty()
+    val isShowingProvisionalProducts = state.isStreaming &&
+        state.hasProvisionalResults &&
+        state.bundlePlans.isEmpty() &&
+        state.recommendations.isNotEmpty()
     val shouldShowDemandPanel = state.query.isNotBlank() &&
         (state.intentSummary.isNotBlank() || state.recommendations.isNotEmpty())
     val shouldShowResultsSection = !isClarifying
@@ -100,8 +105,16 @@ fun GuideScreen(
         if (shouldShowResultsSection) {
             item {
                 SectionTitle(
-                    title = if (state.bundlePlans.isNotEmpty()) "组合方案" else "首推与备选",
-                    subtitle = "先看商品候选，再核对理由、风险和证据。",
+                    title = when {
+                        state.bundlePlans.isNotEmpty() -> "组合方案"
+                        isShowingProvisionalProducts -> "方案生成中"
+                        else -> "首推与备选"
+                    },
+                    subtitle = if (isShowingProvisionalProducts) {
+                        "先看看以下相关商品，完整推荐理由还在生成。"
+                    } else {
+                        "先看商品候选，再核对理由、风险和证据。"
+                    },
                 )
             }
             if (state.appliedPreferences.hasVisibleSummary) {
@@ -117,8 +130,8 @@ fun GuideScreen(
             if (!state.isStreaming && !hasResults) {
                 item { RecommendationEmptyState(resultStatus = state.resultStatus) }
             }
-            if (state.hasProvisionalResults && hasResults) {
-                item { ResultQualityNotice(message = "先返回候选，正在复核商品证据。") }
+            if (isShowingProvisionalProducts) {
+                item { ResultQualityNotice(message = "方案生成中，先看看以下商品吧。") }
             }
             if (state.fallbackMessage != null && hasResults) {
                 item { ResultQualityNotice(message = state.fallbackMessage) }
@@ -129,22 +142,29 @@ fun GuideScreen(
                 }
             } else {
                 itemsIndexed(state.recommendations) { index, recommendation ->
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        if (index == 0) {
-                            TopRecommendationStrip(
-                                product = recommendation.product,
-                                onClick = { onProductClick(recommendation.product.id) },
-                            )
-                            EvidenceConfidenceNotice(product = recommendation.product)
-                        }
-                        ProductCard(
+                    if (isShowingProvisionalProducts) {
+                        ProvisionalProductCard(
                             product = recommendation.product,
                             onClick = { onProductClick(recommendation.product.id) },
-                            isInCompareBasket = isInCompareBasket(recommendation.product.id),
-                            onToggleCompare = { onToggleCompare(recommendation.product, state.query) },
-                            recommendationReason = recommendation.reason,
-                            isFeatured = index == 0,
                         )
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            if (index == 0) {
+                                TopRecommendationStrip(
+                                    product = recommendation.product,
+                                    onClick = { onProductClick(recommendation.product.id) },
+                                )
+                                EvidenceConfidenceNotice(product = recommendation.product)
+                            }
+                            ProductCard(
+                                product = recommendation.product,
+                                onClick = { onProductClick(recommendation.product.id) },
+                                isInCompareBasket = isInCompareBasket(recommendation.product.id),
+                                onToggleCompare = { onToggleCompare(recommendation.product, state.query) },
+                                recommendationReason = recommendation.reason,
+                                isFeatured = index == 0,
+                            )
+                        }
                     }
                 }
             }
