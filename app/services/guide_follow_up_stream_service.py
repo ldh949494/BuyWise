@@ -15,6 +15,7 @@ from app.schemas.chat_stream import (
     ChatStreamStatusEventData,
     ChatStreamTokenEventData,
 )
+from app.utils.guide_turn import build_turn_extra, list_string_values
 
 
 class GuideFollowUpStreamService:
@@ -27,6 +28,9 @@ class GuideFollowUpStreamService:
         self,
         context: dict[str, Any],
         request: ChatRequest,
+        *,
+        allow_recommendation: bool = False,
+        recommendation_handler: Callable[[Any], AsyncIterator[dict[str, Any]]] | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         yield self._event("status", ChatStreamStatusEventData(stage="context", message="follow_up_context"))
         text = (request.message or "").strip()
@@ -40,7 +44,13 @@ class GuideFollowUpStreamService:
                 yield event
             return
         self.chat_service._save_user_message(context["chat_repo"], context["session_id"], request, text, None)
-        async for event in self._stream_follow_up_with_snapshot(context, text, snapshot):
+        async for event in self._stream_follow_up_with_snapshot(
+            context,
+            text,
+            snapshot,
+            allow_recommendation=allow_recommendation,
+            recommendation_handler=recommendation_handler,
+        ):
             yield event
 
     async def _stream_follow_up_with_snapshot(
@@ -48,21 +58,53 @@ class GuideFollowUpStreamService:
         context: dict[str, Any],
         text: str,
         snapshot: dict[str, Any],
+        *,
+        allow_recommendation: bool,
+        recommendation_handler: Callable[[Any], AsyncIterator[dict[str, Any]]] | None,
     ) -> AsyncIterator[dict[str, Any]]:
-        if action_result := self._execute_action_if_present(context, text):
-            async for event in self._stream_action_result(context, action_result):
+        early_events = self._build_early_route(context, text, snapshot)
+        if early_events is not None:
+            async for event in early_events:
                 yield event
             return
-        if self._is_realtime_or_platform_claim_question(text):
-            async for event in self._stream_policy_limited_answer(context, snapshot):
+        decision = self._classify_turn(context, text)
+        context["turn_type"] = decision.turn_type
+        context["turn_reason"] = decision.reason
+        if decision.get_should_recommend() and allow_recommendation and recommendation_handler is not None:
+            async for event in recommendation_handler(decision.need):
                 yield event
             return
-        if self._should_refresh_follow_up(text, snapshot):
+        if decision.get_should_recommend() or self._should_refresh_follow_up(text, snapshot):
             async for event in self._stream_refresh_signal(context, "needs_new_recommendation"):
                 yield event
             return
+        context["turn_type"] = "answer_snapshot"
+        context["turn_reason"] = decision.reason
         async for event in self._stream_follow_up_answer(context, text, snapshot):
             yield event
+
+    def _build_early_route(
+        self,
+        context: dict[str, Any],
+        text: str,
+        snapshot: dict[str, Any],
+    ) -> AsyncIterator[dict[str, Any]] | None:
+        if action_result := self._execute_action_if_present(context, text):
+            context["turn_type"] = "action"
+            context["turn_reason"] = action_result.action
+            return self._stream_action_result(context, action_result)
+        if self._is_realtime_or_platform_claim_question(text):
+            context["turn_type"] = "policy_limited"
+            context["turn_reason"] = "platform_claim"
+            return self._stream_policy_limited_answer(context, snapshot)
+        return None
+
+    def _classify_turn(self, context: dict[str, Any], text: str) -> Any:
+        messages = context["chat_repo"].list_messages(context["session_id"], limit=20)
+        state = self.chat_service.guide_state_builder.build(messages)
+        history_context = self.chat_service.chat_context_service.build_history_context(messages)
+        need = self.chat_service.intent_service.extract_by_rules(text, image_info=None, history_context=history_context)
+        return self.chat_service.guide_turn_classifier.build_decision_for_need(text=text, need=need, state=state)
 
     def _missing_context_reason(self, request: ChatRequest, text: str) -> str | None:
         if not request.session_id or not text:
@@ -110,11 +152,12 @@ class GuideFollowUpStreamService:
                     reply=reply["text"],
                     degraded=True,
                     degraded_reason=reply["degraded_reason"],
+                    extra=build_turn_extra(context),
                 ),
             )
             return
         self._save_follow_up_assistant(context, reply["text"], snapshot)
-        yield self._event("done", ChatStreamDoneEventData(reply=reply["text"]))
+        yield self._event("done", ChatStreamDoneEventData(reply=reply["text"], extra=build_turn_extra(context)))
 
     async def _stream_follow_up_chunks(
         self,
@@ -151,7 +194,7 @@ class GuideFollowUpStreamService:
         self._save_follow_up_assistant(context, reply, snapshot)
         yield self._event("status", ChatStreamStatusEventData(stage="fallback", message="policy_limited"))
         yield self._event("token", ChatStreamTokenEventData(text=reply))
-        yield self._event("done", ChatStreamDoneEventData(reply=reply, extra={"policy_limited": True}))
+        yield self._event("done", ChatStreamDoneEventData(reply=reply, extra={"policy_limited": True, **build_turn_extra(context)}))
 
     async def _stream_action_result(self, context: dict[str, Any], action_result: Any) -> AsyncIterator[dict[str, Any]]:
         context["stream_path"] = "follow_up_action"
@@ -165,7 +208,7 @@ class GuideFollowUpStreamService:
         self.chat_service._commit(context["chat_repo"])
         yield self._event("status", ChatStreamStatusEventData(stage="action", message=action_result.action))
         yield self._event("token", ChatStreamTokenEventData(text=action_result.reply))
-        yield self._event("done", ChatStreamDoneEventData(reply=action_result.reply, extra=structured_data))
+        yield self._event("done", ChatStreamDoneEventData(reply=action_result.reply, extra={**structured_data, **build_turn_extra(context)}))
 
     async def _stream_refresh_signal(
         self,
@@ -184,7 +227,7 @@ class GuideFollowUpStreamService:
         yield self._event("status", ChatStreamStatusEventData(stage="refresh", message=reason))
         yield self._event(
             "done",
-            ChatStreamDoneEventData(reply=reply, should_refresh=True, refresh_reason=reason),
+            ChatStreamDoneEventData(reply=reply, should_refresh=True, refresh_reason=reason, extra=build_turn_extra(context)),
         )
 
     def _save_follow_up_assistant(self, context: dict[str, Any], reply: str, snapshot: dict[str, Any]) -> None:
@@ -198,6 +241,7 @@ class GuideFollowUpStreamService:
                 "products": snapshot.get("products") or [],
                 "bundle_plans": snapshot.get("bundle_plans") or [],
                 "applied_preferences": snapshot.get("applied_preferences") or {},
+                **build_turn_extra(context),
             },
         )
         self.chat_service._commit(context["chat_repo"])
@@ -215,11 +259,17 @@ class GuideFollowUpStreamService:
         normalized = text.strip().lower()
         refresh_markers = [
             "重新推荐",
+            "重新生成推荐",
+            "重新生成",
             "重新导购",
             "换一个",
             "换一批",
             "换品类",
             "换预算",
+            "提高预算",
+            "降低预算",
+            "预算提高",
+            "预算降低",
             "再推荐",
             "重新选",
             "不要这些",
@@ -245,7 +295,7 @@ class GuideFollowUpStreamService:
         if any(self._field_changed(snapshot_need, current_need, field) for field in changed_fields):
             return True
         for field in ["preferences", "avoid", "style_preferences", "excluded_categories"]:
-            if set(self._list_value(getattr(current_need, field, []))) != set(self._list_value(snapshot_need.get(field))):
+            if set(list_string_values(getattr(current_need, field, []))) != set(list_string_values(snapshot_need.get(field))):
                 return True
         return False
 
@@ -253,13 +303,6 @@ class GuideFollowUpStreamService:
         before = snapshot_need.get(field)
         after = getattr(current_need, field, None)
         return before not in (None, [], "") and after not in (None, [], "") and before != after
-
-    def _list_value(self, value: Any) -> list[str]:
-        if value is None:
-            return []
-        if isinstance(value, list):
-            return [str(item) for item in value if str(item)]
-        return [str(value)] if str(value) else []
 
     def _is_realtime_or_platform_claim_question(self, text: str) -> bool:
         markers = [

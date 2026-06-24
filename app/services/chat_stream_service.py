@@ -29,14 +29,15 @@ from app.schemas.chat_stream import (
 )
 from app.services.chat_response_builders import build_fallback_recommendation_reply
 from app.services.chat_stream_fast_path import ChatStreamFastPathMixin
-from app.services.guide_follow_up_stream_service import GuideFollowUpStreamService
+from app.services.chat_stream_guide_turns import ChatStreamGuideTurnMixin
+from app.utils.guide_turn import build_turn_extra
 from app.utils.logging import get_logger
 
 
 logger = get_logger(__name__)
 
 
-class ChatStreamRunner(ChatStreamFastPathMixin):
+class ChatStreamRunner(ChatStreamGuideTurnMixin, ChatStreamFastPathMixin):
     def __init__(self, chat_service: Any) -> None:
         self.chat_service = chat_service
 
@@ -130,6 +131,8 @@ class ChatStreamRunner(ChatStreamFastPathMixin):
             "session_token": security_context.session_token,
             "started_at": time.perf_counter(),
             "stream_path": "full_rag",
+            "turn_type": None,
+            "turn_reason": None,
             "user_id": security_context.user_id,
             "owner_subject": security_context.owner_subject,
             "owner_auth_type": security_context.owner_auth_type,
@@ -162,43 +165,6 @@ class ChatStreamRunner(ChatStreamFastPathMixin):
         async for event in self._stream_recommendation(context, need, db):
             yield event
 
-    async def _generate_guide_from_context(
-        self,
-        context: dict[str, Any],
-        request: ChatRequest,
-        db: Session,
-    ) -> AsyncIterator[dict[str, Any]]:
-        yield self._event("meta", self._meta_payload(context))
-        yield self._event("status", ChatStreamStatusEventData(stage="intent", message="intent"))
-        if self._can_use_fast_products(request, db):
-            async for event in self._stream_guide_fast_first(context, request, db):
-                yield event
-            return
-
-        need = await self._extract_need(context, request)
-        if need.need_clarify:
-            context["stream_path"] = "guide_clarify"
-            async for event in self._stream_clarify(context, need):
-                yield event
-            return
-        if self.chat_service._is_out_of_scope_need(need):
-            async for event in self._stream_out_of_scope(context, need):
-                yield event
-            return
-        self._apply_preferences(context, request, need, db)
-        async for event in self._stream_recommendation(context, need, db):
-            yield event
-
-    async def _generate_follow_up_from_context(
-        self,
-        context: dict[str, Any],
-        request: ChatRequest,
-        db: Session,
-    ) -> AsyncIterator[dict[str, Any]]:
-        yield self._event("meta", self._meta_payload(context))
-        async for event in GuideFollowUpStreamService(self.chat_service, self._event).generate_events(context, request):
-            yield event
-
     async def _extract_need(self, context: dict[str, Any], request: ChatRequest) -> Any:
         chat_repo = context["chat_repo"]
         session_id = context["session_id"]
@@ -226,7 +192,7 @@ class ChatStreamRunner(ChatStreamFastPathMixin):
         self._save_assistant(context, reply, need, [], need_clarify=True)
         self._observe_first_products(context, context["stream_path"])
         yield self._event("products", self._products_payload(context, need, [], need_clarify=True))
-        yield self._event("done", ChatStreamDoneEventData(reply=reply))
+        yield self._event("done", ChatStreamDoneEventData(reply=reply, extra=build_turn_extra(context)))
 
     async def _stream_out_of_scope(
         self,
@@ -310,7 +276,7 @@ class ChatStreamRunner(ChatStreamFastPathMixin):
             return
         reply = "".join(chunks)
         self._save_assistant(context, reply, need, top_products, need_clarify=False, bundle_plans=bundle_plans)
-        yield self._event("done", ChatStreamDoneEventData(reply=reply))
+        yield self._event("done", ChatStreamDoneEventData(reply=reply, extra=build_turn_extra(context)))
 
     async def _stream_recommendation_reply(
         self,
@@ -359,7 +325,12 @@ class ChatStreamRunner(ChatStreamFastPathMixin):
         yield self._event("status", ChatStreamStatusEventData(stage="fallback", message=degraded_reason))
         yield self._event(
             "done",
-            ChatStreamDoneEventData(reply=reply, degraded=True, degraded_reason=degraded_reason),
+            ChatStreamDoneEventData(
+                reply=reply,
+                degraded=True,
+                degraded_reason=degraded_reason,
+                extra=build_turn_extra(context),
+            ),
         )
 
     async def _rank_products(self, need: Any, db: Session) -> list[Any]:
@@ -395,12 +366,50 @@ class ChatStreamRunner(ChatStreamFastPathMixin):
         bundle_plans: list[BundlePlan] | None = None,
     ) -> None:
         chat_repo = context["chat_repo"]
-        structured_data = {"need": self.chat_service._dump(need), "need_clarify": need_clarify}
-        structured_data["applied_preferences"] = self.chat_service._dump(context.get("applied_preferences") or AppliedPreferences())
+        structured_data = self._assistant_structured_data(
+            context,
+            need,
+            products,
+            need_clarify=need_clarify,
+            degraded_reason=degraded_reason,
+            bundle_plans=bundle_plans,
+        )
+        chat_repo.create_message(context["session_id"], "assistant", reply, structured_data=structured_data)
+        chat_repo.create_recommendations(context["session_id"], products)
+        self.chat_service._commit(chat_repo)
+
+    def _assistant_structured_data(
+        self,
+        context: dict[str, Any],
+        need: Any,
+        products: list[Any],
+        *,
+        need_clarify: bool,
+        degraded_reason: str | None,
+        bundle_plans: list[BundlePlan] | None,
+    ) -> dict[str, Any]:
+        structured_data = self._assistant_base_data(context, need, need_clarify)
         if products:
             structured_data["products"] = [self.chat_service._dump(product) for product in products]
         if bundle_plans:
             structured_data["bundle_plans"] = [self.chat_service._dump(plan) for plan in bundle_plans]
+        self._add_assistant_result_meta(structured_data, context, need_clarify, degraded_reason)
+        return structured_data
+
+    def _assistant_base_data(self, context: dict[str, Any], need: Any, need_clarify: bool) -> dict[str, Any]:
+        return {
+            "need": self.chat_service._dump(need),
+            "need_clarify": need_clarify,
+            "applied_preferences": self.chat_service._dump(context.get("applied_preferences") or AppliedPreferences()),
+        }
+
+    def _add_assistant_result_meta(
+        self,
+        structured_data: dict[str, Any],
+        context: dict[str, Any],
+        need_clarify: bool,
+        degraded_reason: str | None,
+    ) -> None:
         fallback_meta = None if need_clarify else context.get("fallback_meta")
         if fallback_meta is None and not need_clarify:
             fallback_meta = self.chat_service._rag_fallback_meta()
@@ -410,9 +419,9 @@ class ChatStreamRunner(ChatStreamFastPathMixin):
         if degraded_reason:
             structured_data["degraded"] = True
             structured_data["degraded_reason"] = degraded_reason
-        chat_repo.create_message(context["session_id"], "assistant", reply, structured_data=structured_data)
-        chat_repo.create_recommendations(context["session_id"], products)
-        self.chat_service._commit(chat_repo)
+        if context.get("turn_type"):
+            structured_data["turn_type"] = context["turn_type"]
+            structured_data["turn_reason"] = context.get("turn_reason")
 
     def _products_payload(
         self,

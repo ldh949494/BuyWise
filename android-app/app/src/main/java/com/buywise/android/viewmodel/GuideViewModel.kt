@@ -153,13 +153,13 @@ class GuideViewModel(
             return
         }
         val compareContext = state.compareChatContext
+        val hasGuideResults = state.recommendations.isNotEmpty() || state.bundlePlans.isNotEmpty()
         val shouldRunFullGuide = compareContext == null &&
-            (state.resultStatus == GuideResultStatus.Clarifying || (state.recommendations.isEmpty() && state.bundlePlans.isEmpty()))
+            (state.resultStatus == GuideResultStatus.Clarifying || !hasGuideResults)
         guideStream?.cancel()
         streamMode = when {
             compareContext != null -> StreamMode.Compare
-            shouldRunFullGuide -> StreamMode.Workbench
-            else -> StreamMode.Chat
+            else -> StreamMode.Workbench
         }
         val userMessage = GuideChatMessage(
             id = newMessageId(),
@@ -190,15 +190,8 @@ class GuideViewModel(
             isStreaming = true,
             errorMessage = null,
         )
-        guideStream = if (shouldRunFullGuide) {
+        guideStream = if (compareContext == null) {
             repository.streamGuide(
-                query = message,
-                sessionId = state.sessionId,
-                ignoreSavedPreferences = state.ignoreSavedPreferences,
-                onEvent = { event -> mainHandler.post { applyChatEvent(event) } },
-            )
-        } else if (compareContext == null) {
-            repository.streamGuideFollowUp(
                 query = message,
                 sessionId = state.sessionId,
                 ignoreSavedPreferences = state.ignoreSavedPreferences,

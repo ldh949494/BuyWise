@@ -35,7 +35,7 @@ class ChatActionContext:
 
 
 class ChatActionService:
-    ADD_MARKERS = ["加到购物车", "加入购物车", "加购", "放进购物车"]
+    ADD_MARKERS = ["加到购物车", "加入购物车", "添加到购物车", "添加购物车", "加进购物车", "加购", "放进购物车"]
     REMOVE_MARKERS = ["删掉", "删除", "移除", "去掉"]
     CHECKOUT_MARKERS = ["下单", "结算", "提交订单"]
     CONFIRM_MARKERS = ["确认", "确认执行"]
@@ -109,7 +109,9 @@ class ChatActionService:
     ) -> ChatActionResult | None:
         if self._contains(text, self.ADD_MARKERS):
             if not self._has_explicit_add_reference(text):
-                return None
+                if self._is_open_ended_add_request(text):
+                    return None
+                return self._guarded_action("cart.add", lambda: self._unresolved_add(chat_repo, context), db, context)
             return self._guarded_action("cart.add", lambda: self._add(text, chat_repo, db, context), db, context)
         if self._contains(text, self.REMOVE_MARKERS):
             payload = {"position": self._ordinal(text)}
@@ -117,6 +119,10 @@ class ChatActionService:
         if self._contains(text, self.CHECKOUT_MARKERS):
             return self._guarded_action("checkout.confirm", lambda: self._checkout(db, context), db, context)
         return None
+
+    def _is_open_ended_add_request(self, text: str) -> bool:
+        open_ended_markers = ["合适", "推荐", "找", "挑", "选", "一副", "一个", "一款"]
+        return self._contains(text, open_ended_markers)
 
     def _guarded_action(
         self,
@@ -211,6 +217,11 @@ class ChatActionService:
         if not product_refs:
             return ChatActionResult(reply="我没能确定要加哪款。可以说“把第一款加到购物车”。", action="cart.add.needs_reference")
         return self._add_products(text, product_refs, db, context)
+
+    def _unresolved_add(self, chat_repo: Any, context: ChatActionContext) -> ChatActionResult:
+        if self._latest_recommendation_snapshot(chat_repo, context.session_id) is None:
+            return ChatActionResult(reply="需要先完成一次导购推荐，我才能知道要把哪款加入购物车。", action="cart.add.needs_context")
+        return ChatActionResult(reply="我没能确定要加哪款。可以说“把第一款加到购物车”。", action="cart.add.needs_reference")
 
     def _add_products(self, text: str, product_refs: list[dict[str, Any]], db: Session, context: ChatActionContext) -> ChatActionResult:
         cart = None

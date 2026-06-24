@@ -36,6 +36,7 @@ from app.services.chat_response_builders import (
 from app.services.chat_session_security import ChatSessionContext, ChatSessionSecurityService
 from app.services.chat_visual_search import handle_visual_search_request, validate_visual_search_request
 from app.services.guide_preferences_service import GuidePreferencesService
+from app.services.guide_turn_service import GuideConversationStateBuilder, GuideTurnClassifier
 from app.services.intent_service import IntentService
 from app.services.media_url_policy import MediaUrlPolicy
 from app.services.noop_chat_repo import NoopChatRepository
@@ -79,6 +80,8 @@ class ChatService(ChatRecommendationMixin):
         self.chat_session_security = ChatSessionSecurityService()
         self.media_url_policy = MediaUrlPolicy()
         self.chat_context_service = ChatContextService()
+        self.guide_state_builder = GuideConversationStateBuilder()
+        self.guide_turn_classifier = GuideTurnClassifier(self.intent_service)
 
     async def handle_chat(
         self,

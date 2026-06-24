@@ -20,6 +20,7 @@ from app.services.intent_taxonomy import (
     UNSUPPORTED_PLATFORM_CLAIMS,
 )
 from app.utils.intent_strategy import retrieval_strategy_for
+from app.utils.chinese_number import parse_chinese_number
 from app.utils.list_values import dedupe_strings
 
 
@@ -30,7 +31,8 @@ class IntentService:
     BUDGET_PATTERNS = [
         re.compile(
             r"(?:\u9884\u7b97)?\s*(?:\u6539\u5230|\u6539\u6210|\u6362\u5230|"
-            r"\u63d0\u9ad8\u5230|\u964d\u5230|\u964d\u4f4e\u5230|\u63a7\u5236\u5230)"
+            r"\u63d0\u9ad8\u5230|\u63d0\u9ad8\u9884\u7b97\u5230|\u964d\u5230|\u964d\u4f4e\u5230|"
+            r"\u964d\u4f4e\u9884\u7b97\u5230|\u63a7\u5236\u5230)"
             r"\s*(\d+(?:\.\d+)?)\s*(?:\u5143|\u5757)?"
         ),
         re.compile(
@@ -41,6 +43,25 @@ class IntentService:
         re.compile(
             r"(\d+(?:\.\d+)?)\s*(?:\u5143|\u5757)?\s*"
             r"(?:\u4ee5\u5185|\u4ee5\u4e0b|\u4e4b\u5185)"
+        ),
+    ]
+    CHINESE_BUDGET_PATTERNS = [
+        re.compile(
+            r"(?:\u9884\u7b97)?\s*(?:\u6539\u5230|\u6539\u6210|\u6362\u5230|"
+            r"\u63d0\u9ad8\u5230|\u63d0\u9ad8\u9884\u7b97\u5230|\u964d\u5230|\u964d\u4f4e\u5230|"
+            r"\u964d\u4f4e\u9884\u7b97\u5230|\u63a7\u5236\u5230)"
+            r"\s*([\u96f6\u3007\u4e00\u4e8c\u4e24\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\u767e\u5343\u4e07]+)"
+            r"\s*(?:\u5143|\u5757)?"
+        ),
+        re.compile(
+            r"(?:\u9884\u7b97|\u4e0d\u8d85\u8fc7|\u4e0d\u8d85|"
+            r"\u63a7\u5236\u5728|\u4f4e\u4e8e|\u5c11\u4e8e)"
+            r"\s*([\u96f6\u3007\u4e00\u4e8c\u4e24\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\u767e\u5343\u4e07]+)"
+            r"\s*(?:\u5143|\u5757)?"
+        ),
+        re.compile(
+            r"([\u96f6\u3007\u4e00\u4e8c\u4e24\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\u767e\u5343\u4e07]+)"
+            r"\s*(?:\u5143|\u5757)?\s*(?:\u4ee5\u5185|\u4ee5\u4e0b|\u4e4b\u5185|\u9884\u7b97)"
         ),
     ]
     BROWSE_KEYWORDS = BROWSE_KEYWORDS
@@ -296,6 +317,12 @@ class IntentService:
             if match:
                 value = float(match.group(1))
                 return int(value) if value.is_integer() else value
+        for pattern in self.CHINESE_BUDGET_PATTERNS:
+            match = pattern.search(text)
+            if match:
+                value = parse_chinese_number(match.group(1))
+                if value is not None:
+                    return value
         return None
 
     def _extract_scenario(self, text: str) -> str | None:
@@ -307,6 +334,8 @@ class IntentService:
     def _extract_location(self, text: str) -> str | None:
         match = re.search(r"(?:\u53bb|\u5230|\u5728)([\u4e00-\u9fa5A-Za-z]{2,16})(?:\u65c5\u884c|\u5ea6\u5047|\u51fa\u5dee|\u65c5\u6e38|\u73a9|\u7a7f\u642d|\u4e0b\u5468|\uff0c|,|\u3002|$)", text)
         if match:
+            if re.fullmatch(r"[\u96f6\u3007\u4e00\u4e8c\u4e24\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\u767e\u5343\u4e07]+\u5143?", match.group(1)):
+                return None
             return match.group(1)
         return None
 

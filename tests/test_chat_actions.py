@@ -87,6 +87,25 @@ def test_chat_adds_latest_recommendation_to_cart_and_removes_by_position() -> No
     assert client.get("/api/v1/cart").json()["items"] == []
 
 
+def test_chat_adds_recommendation_with_add_to_cart_synonym() -> None:
+    client = make_client()
+    session_id = "chat-action-add-synonym"
+
+    recommend = client.post(
+        "/api/v1/ai/chat",
+        json={"session_id": session_id, "message": "推荐一个300以内适合宿舍的低噪音无线机械键盘"},
+    )
+    assert recommend.status_code == 200
+    assert recommend.json()["products"][0]["id"] == 1
+
+    add = client.post("/api/v1/ai/chat", json={"session_id": session_id, "message": "把刚才那款添加到购物车"})
+
+    assert add.status_code == 200
+    assert add.json()["extra"]["action"] == "cart.add"
+    assert add.json()["extra"]["product_ids"] == [1]
+    assert client.get("/api/v1/cart").json()["items"][0]["product_id"] == 1
+
+
 def test_chat_adds_second_recommended_product_with_quantity() -> None:
     client = make_client()
     session_id = "chat-action-second-product"
@@ -162,6 +181,24 @@ def test_chat_add_to_cart_requires_clear_reference_when_multiple_products_match(
 
     assert add.status_code == 200
     assert add.json()["extra"]["action"] == "cart.add.needs_reference"
+    assert client.get("/api/v1/cart").json()["items"] == []
+
+
+def test_chat_add_to_cart_synonym_requires_clear_reference_when_multiple_products_match() -> None:
+    client = make_client()
+    session_id = "chat-action-add-synonym-weak-reference"
+
+    recommend = client.post(
+        "/api/v1/ai/chat",
+        json={"session_id": session_id, "message": "推荐两个300以内的无线机械键盘"},
+    )
+    assert recommend.status_code == 200
+    assert len(recommend.json()["products"]) >= 2
+
+    add = client.post("/api/v1/ai/chat", json={"session_id": session_id, "message": "帮我添加到购物车"})
+
+    assert add.status_code == 200
+    assert add.json()["extra"].get("action") != "cart.add"
     assert client.get("/api/v1/cart").json()["items"] == []
 
 

@@ -272,50 +272,6 @@ async def test_generate_follow_up_stream_explanation_keeps_snapshot_context() ->
 
 
 @pytest.mark.anyio
-async def test_generate_follow_up_stream_refreshes_when_budget_changes() -> None:
-    need = StructuredNeed(
-        intent="商品推荐",
-        category=KEYBOARD_CATEGORY,
-        budget_max=300,
-        scenario=DORM_SCENE,
-        preferences=[QUIET_TAG],
-    )
-    service = ChatService(
-        intent_service=IntentService(),
-        rag_pipeline=FakeRAGPipeline([]),
-        recommend_service=FakeRecommendService(),
-        llm_client=FakeLLMClient(),
-    )
-    db = _sqlite_session_with_products([make_product()])
-    snapshot = {
-        "need": need.model_dump(mode="json"),
-        "products": [
-            ProductCard(id=1, name=KEYBOARD_NAME, price=299, score=90, reason="价格符合预算").model_dump(mode="json")
-        ],
-        "applied_preferences": {},
-    }
-
-    try:
-        chat_repo = service._chat_repo(ChatRequest(session_id="follow-budget-refresh"), db)
-        chat_repo.get_or_create_session("follow-budget-refresh")
-        chat_repo.create_message("follow-budget-refresh", "assistant", "推荐：" + KEYBOARD_NAME, structured_data=snapshot)
-        service._commit(chat_repo)
-        events = [
-            event
-            async for event in service.generate_follow_up_stream(
-                ChatRequest(session_id="follow-budget-refresh", message="预算改到500"),
-                db=db,
-            )
-        ]
-    finally:
-        db.close()
-
-    assert events[-1]["event"] == "done"
-    assert events[-1]["data"]["should_refresh"] is True
-    assert events[-1]["data"]["refresh_reason"] == "needs_new_recommendation"
-
-
-@pytest.mark.anyio
 async def test_generate_follow_up_stream_returns_refresh_signal_without_snapshot() -> None:
     service = ChatService(llm_client=FakeLLMClient())
     db = _sqlite_session_with_products([])

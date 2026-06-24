@@ -14,6 +14,10 @@
 - `app/integrations/`：外部服务客户端，例如 COS、视觉模型、语音识别。
 - `app/core/`：配置、数据库、provider、日志、错误和请求上下文。
 
+## 导购会话编排
+
+AI 导购的多轮 turn 决策归后端服务层。`app/services/guide_turn_service.py` 负责从历史消息构建 active snapshot，并分类本轮是快照追问、条件变更重新推荐、新推荐、安全 action、澄清还是能力边界回答。流式 guide 和 follow-up 入口必须复用这套编排，避免客户端和后端各自维护关键词路由。
+
 ## 依赖方向
 
 路由调用服务；服务组合 repository、AI、vector store 和 integrations；repository 只依赖模型和数据库 session。低层模块不得反向导入 API 路由。
