@@ -185,6 +185,77 @@ fun ProductCard(
 }
 
 @Composable
+fun ProvisionalProductCard(
+    product: Product,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    compact: Boolean = false,
+) {
+    FloatingGlassCard(
+        modifier = modifier,
+        tone = FloatingGlassTone.Neutral,
+        radius = 12.dp,
+        elevated = false,
+        fillMaxWidth = !compact,
+        contentPadding = if (compact) 10.dp else 14.dp,
+        onClick = onClick,
+    ) {
+        if (compact) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                ProductImagePreview(product = product, modifier = Modifier.size(width = 72.dp, height = 60.dp))
+                EvidenceTag("相关商品", tone = EvidenceTone.Info)
+                Text(
+                    product.name,
+                    color = BuyWiseTheme.colors.ink,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(product.price.displayPrice(), color = BuyWiseTheme.colors.primary, fontWeight = FontWeight.Bold)
+                    Text("评分 ${product.rating.displayRating()}", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
+                }
+                ProvisionalEvidenceTags(product = product, maxTags = 1)
+            }
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    ProductImagePreview(
+                        product = product,
+                        modifier = Modifier.size(width = 82.dp, height = 88.dp),
+                    )
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        EvidenceTag("相关商品", tone = EvidenceTone.Info)
+                        Text(
+                            product.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = BuyWiseTheme.colors.ink,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(product.price.displayPrice(), color = BuyWiseTheme.colors.primary, style = MaterialTheme.typography.titleMedium)
+                            Text("评分 ${product.rating.displayRating()}", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+                Text(
+                    "方案生成中，推荐理由稍后补齐。",
+                    color = BuyWiseTheme.colors.muted,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                ProvisionalEvidenceTags(product = product, maxTags = 2)
+            }
+        }
+    }
+}
+
+@Composable
 private fun ProductDecisionSignals(product: Product) {
     val caution = product.cautions.firstOrNull { it.isNotBlank() }
     val hasEvidence = product.productUrl?.isNotBlank() == true ||
@@ -219,6 +290,32 @@ private fun ProductDecisionSignals(product: Product) {
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
+    }
+}
+
+@Composable
+private fun ProvisionalEvidenceTags(product: Product, maxTags: Int) {
+    val labels = buildList {
+        if (product.price != null || product.stockStatus?.isNotBlank() == true) {
+            add("价格/库存快照" to EvidenceTone.Success)
+        }
+        product.productUrl?.takeIf { it.isNotBlank() }?.let {
+            add("真实商品页" to EvidenceTone.Info)
+        }
+        product.reviewSummary?.takeIf { it.isNotBlank() }?.let {
+            add("评价摘要" to EvidenceTone.Info)
+        }
+        product.tags.take(2).forEach { tag ->
+            add(tag to EvidenceTone.Info)
+        }
+    }.take(maxTags)
+    if (labels.isEmpty()) {
+        return
+    }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        labels.forEach { (label, tone) ->
+            EvidenceTag(label, tone = tone)
+        }
     }
 }
 

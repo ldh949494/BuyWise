@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -31,7 +32,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.buywise.android.data.BundlePlan
@@ -44,13 +44,10 @@ import com.buywise.android.data.cleanMarkdownText
 import com.buywise.android.ui.BuyWiseIcons
 import com.buywise.android.ui.BuyWiseTheme
 import com.buywise.android.ui.BuyWiseVisualAssets
-import com.buywise.android.ui.displayPrice
-import com.buywise.android.ui.displayRating
 import com.buywise.android.ui.components.ChatBundlePlanCard
 import com.buywise.android.ui.components.ChatBundleSummary
 import com.buywise.android.ui.components.ChatRecommendationCard
-import com.buywise.android.ui.components.EvidenceTag
-import com.buywise.android.ui.components.EvidenceTone
+import com.buywise.android.ui.components.ProvisionalProductCard
 import com.buywise.android.ui.components.ShowcaseTopBar
 import com.buywise.android.ui.components.TactileIconTile
 import com.buywise.android.ui.components.TactileIconTone
@@ -90,7 +87,13 @@ fun GuideChatScreen(
             item { OpeningAssistantMessage(state = state) }
             item { GuideProcessingCard(state = state, onIgnoreSavedPreferencesChange = onIgnoreSavedPreferencesChange) }
             items(state.chatMessages) { message ->
-                ChatMessageRow(message = message, onProductClick = onProductClick)
+                ChatMessageRow(
+                    message = message,
+                    useProvisionalProducts = state.isStreaming &&
+                        state.hasProvisionalResults &&
+                        state.chatMessages.lastOrNull { it.role == GuideChatRole.ASSISTANT }?.id == message.id,
+                    onProductClick = onProductClick,
+                )
             }
             if (state.errorMessage != null) {
                 item { ErrorPanel(message = state.errorMessage) }
@@ -172,7 +175,11 @@ private fun OpeningAssistantMessage(state: GuideState) {
 }
 
 @Composable
-private fun ChatMessageRow(message: GuideChatMessage, onProductClick: (String) -> Unit) {
+private fun ChatMessageRow(
+    message: GuideChatMessage,
+    useProvisionalProducts: Boolean,
+    onProductClick: (String) -> Unit,
+) {
     if (message.role == GuideChatRole.USER) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             Surface(color = BuyWiseTheme.colors.primary, shape = RoundedCornerShape(18.dp, 18.dp, 4.dp, 18.dp)) {
@@ -201,6 +208,7 @@ private fun ChatMessageRow(message: GuideChatMessage, onProductClick: (String) -
             recommendations = message.recommendations,
             bundlePlans = message.bundlePlans,
             appliedPreferences = message.appliedPreferences,
+            useProvisionalProducts = useProvisionalProducts,
             onProductClick = onProductClick,
         )
     }
@@ -212,6 +220,7 @@ private fun AssistantBubble(
     recommendations: List<Recommendation>,
     bundlePlans: List<BundlePlan>,
     appliedPreferences: AppliedPreferences,
+    useProvisionalProducts: Boolean = false,
     onProductClick: (String) -> Unit,
 ) {
     val displayText = text.cleanMarkdownText().ifBlank { text }
@@ -246,7 +255,11 @@ private fun AssistantBubble(
                 } else {
                     Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         AppliedPreferenceLine(appliedPreferences)
-                        ChatDecisionSummary(text = displayText, recommendations = recommendations)
+                        if (useProvisionalProducts) {
+                            ChatProvisionalSummary(text = displayText)
+                        } else {
+                            ChatDecisionSummary(text = displayText, recommendations = recommendations)
+                        }
                     }
                 }
             }
@@ -258,10 +271,19 @@ private fun AssistantBubble(
                 contentPadding = PaddingValues(start = 44.dp, end = 18.dp),
             ) {
                 items(recommendations) { recommendation ->
-                    ChatRecommendationCard(
-                        recommendation = recommendation,
-                        onClick = { onProductClick(recommendation.product.id) },
-                    )
+                    if (useProvisionalProducts) {
+                        ProvisionalProductCard(
+                            product = recommendation.product,
+                            compact = true,
+                            modifier = Modifier.width(166.dp),
+                            onClick = { onProductClick(recommendation.product.id) },
+                        )
+                    } else {
+                        ChatRecommendationCard(
+                            recommendation = recommendation,
+                            onClick = { onProductClick(recommendation.product.id) },
+                        )
+                    }
                 }
             }
         }
@@ -289,118 +311,6 @@ private fun AppliedPreferenceLine(appliedPreferences: AppliedPreferences) {
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
     )
-}
-
-@Composable
-private fun ChatDecisionSummary(
-    text: String,
-    recommendations: List<Recommendation>,
-    modifier: Modifier = Modifier,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val topRecommendation = recommendations.first()
-    val product = topRecommendation.product
-    val alternatives = recommendations.drop(1).take(2)
-
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            EvidenceTag("首推", tone = EvidenceTone.Success)
-            Text(
-                product.price.displayPrice(),
-                color = BuyWiseTheme.colors.primary,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                "评分 ${product.rating.displayRating()}",
-                color = BuyWiseTheme.colors.muted,
-                style = MaterialTheme.typography.labelMedium,
-            )
-        }
-        Text(
-            product.name,
-            color = BuyWiseTheme.colors.ink,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-        ChatReasonBlock(
-            title = "为什么先看它",
-            lines = listOf(topRecommendation.reason, product.headline)
-                .map { it.cleanMarkdownText() }
-                .filter { it.isNotBlank() }
-                .distinct()
-                .take(2),
-        )
-        if (alternatives.isNotEmpty()) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("备选", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
-                alternatives.forEach { recommendation ->
-                    AlternativeProductLine(recommendation = recommendation)
-                }
-            }
-        }
-        if (text.isNotBlank()) {
-            Surface(color = BuyWiseTheme.colors.panelAlt, shape = RoundedCornerShape(14.dp)) {
-                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("补充说明", color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
-                    Text(
-                        text,
-                        color = BuyWiseTheme.colors.ink,
-                        style = MaterialTheme.typography.bodyMedium,
-                        maxLines = if (expanded) Int.MAX_VALUE else 3,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    TextButton(onClick = { expanded = !expanded }) {
-                        Text(if (expanded) "收起说明" else "展开完整说明")
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ChatReasonBlock(title: String, lines: List<String>) {
-    if (lines.isEmpty()) return
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(title, color = BuyWiseTheme.colors.muted, style = MaterialTheme.typography.labelMedium)
-        lines.forEach { line ->
-            Text(
-                "- $line",
-                color = BuyWiseTheme.colors.ink,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-}
-
-@Composable
-private fun AlternativeProductLine(recommendation: Recommendation) {
-    val product = recommendation.product
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            product.name,
-            modifier = Modifier.weight(1f),
-            color = BuyWiseTheme.colors.ink,
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            product.price.displayPrice(),
-            color = BuyWiseTheme.colors.primary,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-        )
-    }
 }
 
 @Composable
