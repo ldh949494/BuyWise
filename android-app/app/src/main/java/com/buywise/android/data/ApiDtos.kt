@@ -232,7 +232,7 @@ data class SpeechResponseDto(
 
 @Serializable
 data class OtpRequestDto(
-    val phone: String,
+    @SerialName("phone") val phone: String,
 )
 
 @Serializable
@@ -243,14 +243,14 @@ data class OtpRequestResponseDto(
 
 @Serializable
 data class OtpVerifyRequestDto(
-    val phone: String,
-    val code: String,
+    @SerialName("phone") val phone: String,
+    @SerialName("code") val code: String,
     @SerialName("device_name") val deviceName: String? = null,
 )
 
 @Serializable
 data class AuthUser(
-    val id: Int,
+    @SerialName("id") val id: Int,
     @SerialName("phone_masked") val phoneMasked: String,
 )
 
@@ -259,7 +259,7 @@ data class AuthTokenResponseDto(
     @SerialName("access_token") val accessToken: String,
     @SerialName("refresh_token") val refreshToken: String,
     @SerialName("expires_in") val expiresIn: Int,
-    val user: AuthUser,
+    @SerialName("user") val user: AuthUser,
 ) {
     fun toTokens(): AuthTokens = AuthTokens(accessToken, refreshToken)
 }

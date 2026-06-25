@@ -5,6 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base, get_db
+from app.core.config import settings
 from app.main import create_app
 from app.models import Product
 
@@ -64,3 +65,74 @@ def test_guide_session_list_returns_recent_sessions() -> None:
 
     assert listed.status_code == 200
     assert listed.json()["items"][0]["session_id"] == "history-list-session"
+
+
+def test_anonymous_guide_session_list_does_not_expose_remote_sessions_when_tokens_enabled(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "chat_session_tokens_enabled", True)
+    client = make_client()
+
+    first = client.post("/api/v1/ai/guide/stream", json={"message": "推荐一个键盘"})
+    listed = client.get("/api/v1/ai/guide/sessions")
+
+    assert first.status_code == 200
+    assert listed.status_code == 200
+    assert listed.json()["items"] == []
+
+
+def test_anonymous_guide_session_detail_requires_token_when_tokens_enabled(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "chat_session_tokens_enabled", True)
+    client = make_client()
+
+    first = client.post("/api/v1/ai/guide/stream", json={"message": "推荐一个键盘"})
+    events = _sse_events(first.text)
+    meta = next(event for event in events if event["event"] == "meta")["data"]
+    session_id = meta["session_id"]
+    session_token = meta["session_token"]
+
+    forbidden = client.get(f"/api/v1/ai/guide/sessions/{session_id}")
+    allowed = client.get(f"/api/v1/ai/guide/sessions/{session_id}", params={"session_token": session_token})
+
+    assert forbidden.status_code == 403
+    assert allowed.status_code == 200
+    assert [message["role"] for message in allowed.json()["messages"][:2]] == ["user", "assistant"]
+
+
+def test_user_guide_session_list_and_detail_still_work_when_tokens_enabled(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "chat_session_tokens_enabled", True)
+    client = make_client()
+    headers = _user_headers(client)
+
+    first = client.post("/api/v1/ai/guide/stream", json={"message": "推荐一个键盘"}, headers=headers)
+    session_id = next(event for event in _sse_events(first.text) if event["event"] == "meta")["data"]["session_id"]
+    listed = client.get("/api/v1/ai/guide/sessions", headers=headers)
+    detail = client.get(f"/api/v1/ai/guide/sessions/{session_id}", headers=headers)
+
+    assert first.status_code == 200
+    assert listed.status_code == 200
+    assert [item["session_id"] for item in listed.json()["items"]] == [session_id]
+    assert detail.status_code == 200
+    assert [message["role"] for message in detail.json()["messages"][:2]] == ["user", "assistant"]
+
+
+def _user_headers(client: TestClient) -> dict[str, str]:
+    client.post("/api/v1/auth/otp/request", json={"phone": "13812345678"})
+    login = client.post("/api/v1/auth/otp/verify", json={"phone": "13812345678", "code": "123456"})
+    return {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+
+def _sse_events(text: str) -> list[dict]:
+    events = []
+    event = None
+    data_lines = []
+    for line in text.splitlines():
+        if line.startswith("event: "):
+            event = line.removeprefix("event: ")
+        elif line.startswith("data: "):
+            data_lines.append(line.removeprefix("data: "))
+        elif not line and event is not None:
+            import json
+
+            events.append({"event": event, "data": json.loads("\n".join(data_lines))})
+            event = None
+            data_lines = []
+    return events

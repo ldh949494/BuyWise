@@ -42,6 +42,10 @@ class AccountViewModel(
 
     fun requestOtp() {
         val repo = repository ?: return
+        if (state.phoneInput.isBlank()) {
+            state = state.copy(errorMessage = "请输入手机号", statusMessage = null)
+            return
+        }
         state = state.copy(isLoading = true, errorMessage = null, statusMessage = null)
         scope.launch {
             runCatching { withContext(Dispatchers.IO) { repo.requestOtp(state.phoneInput) } }
@@ -58,6 +62,14 @@ class AccountViewModel(
 
     fun verifyOtp(onLoggedIn: () -> Unit) {
         val repo = repository ?: return
+        if (state.phoneInput.isBlank()) {
+            state = state.copy(errorMessage = "请输入手机号", statusMessage = null)
+            return
+        }
+        if (state.codeInput.isBlank()) {
+            state = state.copy(errorMessage = "请输入验证码", statusMessage = null)
+            return
+        }
         state = state.copy(isLoading = true, errorMessage = null, statusMessage = null)
         scope.launch {
             runCatching { withContext(Dispatchers.IO) { repo.verifyOtp(state.phoneInput, state.codeInput) } }

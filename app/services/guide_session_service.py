@@ -6,6 +6,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.providers import Principal
 from app.repositories.chat_repo import ChatRepository
 from app.schemas.guide_session import (
@@ -34,6 +35,8 @@ class GuideSessionService:
         return GuideSessionCreateResponse(session_id=context.session_id, session_token=context.session_token)
 
     def list_for_principal(self, principal: Principal | None, limit: int) -> GuideSessionListResponse:
+        if principal is None and settings.chat_session_tokens_enabled:
+            return GuideSessionListResponse(items=[])
         sessions = self.chat_repo.list_sessions(
             owner_subject=principal.subject if principal is not None else None,
             owner_auth_type=principal.auth_type if principal is not None else "anonymous",

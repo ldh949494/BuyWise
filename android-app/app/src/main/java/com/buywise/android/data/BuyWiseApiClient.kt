@@ -45,6 +45,9 @@ internal class BuyWiseApiClient(
     inline fun <reified T> get(path: String, requireAuth: Boolean = false): T =
         json.decodeFromString(executeText(authorized(Request.Builder().url("$baseUrl$path").get(), requireAuth).build()))
 
+    inline fun <reified T> getWithOptionalUserAuth(path: String): T =
+        json.decodeFromString(executeText(optionalUserAuthorized(Request.Builder().url("$baseUrl$path").get()).build()))
+
     inline fun <reified RequestDto, reified ResponseDto> post(
         path: String,
         body: RequestDto,
@@ -52,6 +55,15 @@ internal class BuyWiseApiClient(
     ): ResponseDto {
         val requestBody = json.encodeToString(body).toRequestBody(jsonMediaType)
         val request = authorized(Request.Builder().url("$baseUrl$path").post(requestBody), requireAuth).build()
+        return json.decodeFromString(executeText(request))
+    }
+
+    inline fun <reified RequestDto, reified ResponseDto> postWithOptionalUserAuth(
+        path: String,
+        body: RequestDto,
+    ): ResponseDto {
+        val requestBody = json.encodeToString(body).toRequestBody(jsonMediaType)
+        val request = optionalUserAuthorized(Request.Builder().url("$baseUrl$path").post(requestBody)).build()
         return json.decodeFromString(executeText(request))
     }
 
@@ -102,6 +114,12 @@ internal class BuyWiseApiClient(
     @Throws(IOException::class)
     fun getJson(path: String, requireAuth: Boolean = false): JSONObject {
         val request = authorized(Request.Builder().url("$baseUrl$path").get(), requireAuth).build()
+        return executeJson(request)
+    }
+
+    @Throws(IOException::class)
+    fun getJsonWithOptionalUserAuth(path: String): JSONObject {
+        val request = optionalUserAuthorized(Request.Builder().url("$baseUrl$path").get()).build()
         return executeJson(request)
     }
 
@@ -171,6 +189,9 @@ internal class BuyWiseApiClient(
         val token = accessToken ?: betaToken ?: throw IOException(BetaCapability.TOKEN_REQUIRED_MESSAGE)
         return builder.header("Authorization", "Bearer $token")
     }
+
+    private fun optionalUserAuthorized(builder: Request.Builder): Request.Builder =
+        builder.apply { accessToken?.let { header("Authorization", "Bearer $it") } }
 
     fun setSessionTokens(accessToken: String?, refreshToken: String?) {
         this.accessToken = accessToken?.takeIf { it.isNotBlank() }

@@ -2440,7 +2440,6 @@
         "properties": {
           "phone": {
             "maxLength": 32,
-            "minLength": 1,
             "title": "Phone",
             "type": "string"
           }
@@ -2479,7 +2478,6 @@
         "properties": {
           "code": {
             "maxLength": 12,
-            "minLength": 4,
             "title": "Code",
             "type": "string"
           },
@@ -2509,7 +2507,6 @@
           },
           "phone": {
             "maxLength": 32,
-            "minLength": 1,
             "title": "Phone",
             "type": "string"
           }
