@@ -50,11 +50,14 @@ def test_otp_request_rejects_invalid_phone_and_rate_limits() -> None:
     client, _ = make_client()
 
     invalid = client.post("/api/v1/auth/otp/request", json={"phone": "123"})
+    blank = client.post("/api/v1/auth/otp/request", json={"phone": ""})
     first = client.post("/api/v1/auth/otp/request", json={"phone": "13812345678"})
     second = client.post("/api/v1/auth/otp/request", json={"phone": "13812345678"})
 
     assert invalid.status_code == 400
     assert invalid.json()["code"] == "invalid_phone_number"
+    assert blank.status_code == 400
+    assert blank.json()["code"] == "invalid_phone_number"
     assert first.status_code == 200
     assert second.status_code == 429
     assert second.json()["code"] == "otp_rate_limited"
@@ -91,6 +94,7 @@ def test_verify_otp_rejects_wrong_and_expired_codes() -> None:
     client, session_factory = make_client()
     client.post("/api/v1/auth/otp/request", json={"phone": "13812345678"})
 
+    blank_code = client.post("/api/v1/auth/otp/verify", json={"phone": "13812345678", "code": ""})
     wrong = client.post("/api/v1/auth/otp/verify", json={"phone": "13812345678", "code": "000000"})
     with session_factory() as db:
         challenge = db.query(OtpChallenge).one()
@@ -98,6 +102,8 @@ def test_verify_otp_rejects_wrong_and_expired_codes() -> None:
         db.commit()
     expired = client.post("/api/v1/auth/otp/verify", json={"phone": "13812345678", "code": "123456"})
 
+    assert blank_code.status_code == 401
+    assert blank_code.json()["code"] == "invalid_otp"
     assert wrong.status_code == 401
     assert wrong.json()["code"] == "invalid_otp"
     assert expired.status_code == 401

@@ -10,7 +10,7 @@ from app.schemas.common import BaseSchema
 
 
 class OtpRequest(BaseSchema):
-    phone: str = Field(min_length=1, max_length=32)
+    phone: str = Field(max_length=32)
 
 
 class OtpRequestResponse(BaseSchema):
@@ -19,8 +19,8 @@ class OtpRequestResponse(BaseSchema):
 
 
 class OtpVerifyRequest(BaseSchema):
-    phone: str = Field(min_length=1, max_length=32)
-    code: str = Field(min_length=4, max_length=12)
+    phone: str = Field(max_length=32)
+    code: str = Field(max_length=12)
     device_id: str | None = Field(default=None, max_length=128)
     device_name: str | None = Field(default=None, max_length=128)
 

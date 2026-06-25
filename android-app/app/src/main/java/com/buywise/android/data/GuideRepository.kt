@@ -102,12 +102,12 @@ class GuideRepository internal constructor(
     )
 
     fun createSession(): GuideSessionIdentity {
-        val response: GuideSessionCreateResponseDto = apiClient.post("/api/v1/ai/guide/sessions", EmptyRequestDto())
+        val response: GuideSessionCreateResponseDto = apiClient.postWithOptionalUserAuth("/api/v1/ai/guide/sessions", EmptyRequestDto())
         return GuideSessionIdentity(response.sessionId, response.sessionToken)
     }
 
     fun fetchSessions(localSessions: List<GuideSessionSummary> = emptyList()): List<GuideSessionSummary> {
-        val response: GuideSessionListResponseDto = apiClient.get("/api/v1/ai/guide/sessions")
+        val response: GuideSessionListResponseDto = apiClient.getWithOptionalUserAuth("/api/v1/ai/guide/sessions")
         val remote = response.items.map { item ->
             GuideSessionSummary(
                 sessionId = item.sessionId,
@@ -116,13 +116,12 @@ class GuideRepository internal constructor(
                 lastMessage = item.lastMessage,
             )
         }
-        val remoteIds = remote.map { it.sessionId }.toSet()
-        return remote + localSessions.filterNot { it.sessionId in remoteIds }
+        return mergeGuideSessionSummaries(remote, localSessions)
     }
 
     fun fetchSessionDetail(sessionId: String, sessionToken: String? = null): GuideSessionDetail {
         val suffix = sessionToken?.let { "?session_token=${URLEncoder.encode(it, "UTF-8")}" }.orEmpty()
-        val json = apiClient.getJson("/api/v1/ai/guide/sessions/$sessionId$suffix")
+        val json = apiClient.getJsonWithOptionalUserAuth("/api/v1/ai/guide/sessions/$sessionId$suffix")
         val messagesJson = json.optJSONArray("messages") ?: JSONArray()
         val messages = (0 until messagesJson.length()).mapNotNull { index ->
             messagesJson.optJSONObject(index)?.let { parseHistoryMessage(index, it) }
@@ -266,6 +265,23 @@ class GuideRepository internal constructor(
             else -> null
         }
 
+}
+
+internal fun mergeGuideSessionSummaries(
+    remoteSessions: List<GuideSessionSummary>,
+    localSessions: List<GuideSessionSummary>,
+): List<GuideSessionSummary> {
+    val localById = localSessions.associateBy { it.sessionId }
+    val mergedRemote = remoteSessions.map { remote ->
+        val local = localById[remote.sessionId]
+        remote.copy(
+            sessionToken = remote.sessionToken ?: local?.sessionToken,
+            title = remote.title ?: local?.title,
+            lastMessage = remote.lastMessage ?: local?.lastMessage,
+        )
+    }
+    val remoteIds = remoteSessions.map { it.sessionId }.toSet()
+    return mergedRemote + localSessions.filterNot { it.sessionId in remoteIds }
 }
 
 private fun JSONObject.optStringOrNull(name: String): String? =
