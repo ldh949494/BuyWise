@@ -28,6 +28,15 @@ Required stage 1 settings:
 - `READINESS_TOKEN=<strong-random-token>`
 - `ALLOW_MOCK_PROVIDERS_IN_PROD=false`
 
+Temporary recovery mode for demos before real SMS, vision, or ASR providers are stable:
+
+- `ALLOW_MOCK_PROVIDERS_IN_PROD=true`
+- `AUTH_OTP_MOCK_ENABLED=true`
+- `VISION_PROVIDER=mock`
+- `SPEECH_PROVIDER=mock`
+
+In this mode, user OTP is the fixed mock code `123456`; do not use this mode for formal production traffic.
+
 Use one `AUTH_API_KEYS` subject per tester or channel. Do not share a single beta token across all testers.
 
 Recommended scopes:
