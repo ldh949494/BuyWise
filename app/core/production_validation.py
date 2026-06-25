@@ -27,7 +27,7 @@ def _production_base_errors(settings: Any) -> list[str]:
     if settings.cors_allow_credentials and "*" in settings.cors_origins:
         errors.append("CORS_ALLOWED_ORIGINS cannot be '*' when credentials are enabled.")
     _append_secret_errors(settings, errors)
-    if settings.auth_otp_mock_enabled:
+    if settings.auth_otp_mock_enabled and not settings.allow_mock_providers_in_prod:
         errors.append("AUTH_OTP_MOCK_ENABLED must be false in prod.")
     if settings.external_purchase_feedback_mode not in {"delayed", "immediate"}:
         errors.append("EXTERNAL_PURCHASE_FEEDBACK_MODE must be 'delayed' or 'immediate'.")
